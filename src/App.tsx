@@ -4,7 +4,8 @@ import { cartLines, cartSubtotal, telegramSupportUrl } from './checkout'
 import { CartDrawer } from './components/CartDrawer'
 import { CheckoutModal } from './components/CheckoutModal'
 import { CommentSection } from './components/CommentSection'
-import { comparisonRows, faqs, products, type Product } from './data'
+import { comparisonRows, defaultProducts, faqs, type Product } from './data'
+import { fetchProducts } from './productsApi'
 
 const CART_KEY = 'stackd-cart'
 
@@ -20,10 +21,15 @@ function loadCart(): Record<string, number> {
 }
 
 function App() {
+  const [products, setProducts] = useState<Product[]>(defaultProducts)
   const [cart, setCart] = useState<Record<string, number>>(loadCart)
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    void fetchProducts().then(setProducts)
+  }, [])
 
   useEffect(() => {
     try {
@@ -33,7 +39,7 @@ function App() {
     }
   }, [cart])
 
-  const lines = useMemo(() => cartLines(cart, products), [cart])
+  const lines = useMemo(() => cartLines(cart, products), [cart, products])
   const subtotal = useMemo(() => cartSubtotal(lines), [lines])
   const cartCount = lines.reduce((sum, line) => sum + line.qty, 0)
   const supportUrl = telegramSupportUrl()

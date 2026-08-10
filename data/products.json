@@ -1,0 +1,57 @@
+[
+  {
+    "id": "bm-api",
+    "name": "BM Verificado + API WhatsApp",
+    "badge": "Más vendido",
+    "price": 189,
+    "oldPrice": 240,
+    "features": [
+      "Verificación oficial Meta",
+      "API de WhatsApp lista",
+      "Entrega 5–30 min",
+      "Soporte post-venta"
+    ],
+    "stock": 12
+  },
+  {
+    "id": "bm-balloon",
+    "name": "BM Balloon Verificado",
+    "badge": "Escalado",
+    "price": 149,
+    "oldPrice": 190,
+    "features": [
+      "Límites ampliados",
+      "Ideal para agencias",
+      "Múltiples ad accounts",
+      "Entrega express"
+    ],
+    "stock": 8
+  },
+  {
+    "id": "ad-account",
+    "name": "Cuenta Publicitaria Lista",
+    "badge": "Starter",
+    "price": 45,
+    "features": [
+      "Lista para campañas",
+      "Límite inicial activo",
+      "Compatible con BM",
+      "Entrega inmediata"
+    ],
+    "stock": 24
+  },
+  {
+    "id": "pack-agencia",
+    "name": "Pack Agencia ×3 BM",
+    "badge": "Volumen",
+    "price": 499,
+    "oldPrice": 567,
+    "features": [
+      "3 BM verificados",
+      "API WhatsApp en todos",
+      "Descuento por cantidad",
+      "Prioridad en soporte"
+    ],
+    "stock": 5
+  }
+]

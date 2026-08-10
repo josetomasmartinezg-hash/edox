@@ -47,4 +47,13 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://TU_DOMINIO/api/
 
 ## Pagos
 
-Editá wallets / PayPal en `src/config.ts`.
+Editá wallets / PayPal en `src/config.ts` o variables `VITE_USDT_*` / `VITE_PAYPAL_*`.
+
+## Panel admin
+
+1. Arrancá `npm run dev` o `npm start`
+2. Abrí `/admin`
+3. Entrá con `ADMIN_PASSWORD` (default: `stackd-admin`)
+4. Editá precio, precio anterior y stock → Guardar
+
+Los cambios se guardan en `data/products.json` y se ven al toque en la tienda.

@@ -8,7 +8,8 @@ export type Product = {
   stock: number
 }
 
-export const products: Product[] = [
+/** Catálogo por defecto (fallback si el API no responde). */
+export const defaultProducts: Product[] = [
   {
     id: 'bm-api',
     name: 'BM Verificado + API WhatsApp',
