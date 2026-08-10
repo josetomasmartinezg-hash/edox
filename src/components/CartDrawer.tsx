@@ -1,4 +1,5 @@
 import type { CartLine } from '../checkout'
+import { useBodyLock } from '../hooks/useBodyLock'
 
 type Props = {
   open: boolean
@@ -19,6 +20,7 @@ export function CartDrawer({
   onChangeQty,
   onRemove,
 }: Props) {
+  useBodyLock(open)
   if (!open) return null
 
   return (

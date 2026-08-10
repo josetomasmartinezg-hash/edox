@@ -68,6 +68,17 @@
   transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.btn:focus-visible,
+.cart-btn:focus-visible,
+.icon-btn:focus-visible,
+.pay-option:focus-within,
+.form input:focus-visible,
+.form textarea:focus-visible,
+.nav a:focus-visible {
+  outline: 2px solid var(--mint-deep);
+  outline-offset: 2px;
+}
+
 .btn:hover {
   transform: translateY(-1px);
 }
@@ -366,6 +377,15 @@
   padding: 1.6rem 1.5rem 1.4rem;
   border-top: 1px solid var(--line);
   align-content: start;
+  transition: background 0.2s ease;
+}
+
+.product:hover {
+  background: rgba(167, 139, 250, 0.04);
+}
+
+.product .btn--solid:hover {
+  background: var(--ink-soft);
 }
 
 .product:first-child {
@@ -481,6 +501,12 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--paper);
+  background:
+    linear-gradient(90deg, var(--paper) 30%, rgba(252, 251, 254, 0)) left center / 28px 100% local,
+    linear-gradient(90deg, rgba(252, 251, 254, 0), var(--paper) 70%) right center / 28px 100% local,
+    var(--paper);
+  background-repeat: no-repeat;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {

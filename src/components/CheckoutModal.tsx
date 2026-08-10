@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { isPlaceholderWallet, storeConfig } from '../config'
 import {
   createOrderId,
@@ -13,8 +13,19 @@ import {
   type Order,
   type PaymentMethod,
 } from '../checkout'
+import { useBodyLock } from '../hooks/useBodyLock'
 import { notifyOrderToBot } from '../telegramApi'
 import { openSupport } from '../telegramLinks'
+
+const PAY_OPTIONS: Array<{
+  value: PaymentMethod
+  title: string
+  hint: string
+}> = [
+  { value: 'usdt-trc20', title: 'USDT TRC20', hint: 'Red Tron · fee bajo' },
+  { value: 'usdt-bep20', title: 'USDT BEP20', hint: 'Binance Smart Chain' },
+  { value: 'paypal', title: 'PayPal', hint: 'Tarjeta o saldo PayPal' },
+]
 
 type Step = 'datos' | 'pago' | 'instrucciones' | 'listo'
 
@@ -37,9 +48,29 @@ const emptyCustomer: CustomerData = {
 export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, showToast }: Props) {
   const [step, setStep] = useState<Step>('datos')
   const [customer, setCustomer] = useState<CustomerData>(emptyCustomer)
-  const [method, setMethod] = useState<PaymentMethod>('usdt-trc20')
+  const [method, setMethod] = useState<PaymentMethod>('paypal')
   const [order, setOrder] = useState<Order | null>(null)
   const [sendingBot, setSendingBot] = useState(false)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  useBodyLock(open)
+
+  const availableMethods = useMemo(() => {
+    return PAY_OPTIONS.filter((option) => {
+      if (option.value === 'paypal') return true
+      const address = usdtAddress(option.value)
+      return Boolean(address) && !isPlaceholderWallet(address)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const preferred =
+      availableMethods.find((m) => m.value === 'usdt-trc20')?.value ||
+      availableMethods.find((m) => m.value === 'usdt-bep20')?.value ||
+      'paypal'
+    setMethod(preferred)
+  }, [open, availableMethods])
 
   if (!open) return null
 
@@ -76,10 +107,14 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
     setStep('instrucciones')
   }
 
-  async function copyText(value: string, label: string) {
+  async function copyText(value: string, label: string, key?: string) {
     try {
       await navigator.clipboard.writeText(value)
       showToast(`${label} copiado`)
+      if (key) {
+        setCopiedKey(key)
+        window.setTimeout(() => setCopiedKey(null), 1600)
+      }
     } catch {
       showToast('No se pudo copiar. Seleccioná el texto manualmente.')
     }
@@ -113,7 +148,6 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
 
   function finish() {
     setCustomer(emptyCustomer)
-    setMethod('usdt-trc20')
     setOrder(null)
     setStep('datos')
     onCompleted()
@@ -121,7 +155,6 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
 
   function closeAll() {
     setCustomer(emptyCustomer)
-    setMethod('usdt-trc20')
     setOrder(null)
     setStep('datos')
     onClose()
@@ -224,13 +257,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
           <form className="form checkout-body" onSubmit={handlePago}>
             <fieldset className="pay-methods">
               <legend>Elegí cómo pagar</legend>
-              {(
-                [
-                  ['usdt-trc20', 'USDT TRC20', 'Red Tron · fee bajo'],
-                  ['usdt-bep20', 'USDT BEP20', 'Binance Smart Chain'],
-                  ['paypal', 'PayPal', 'Tarjeta o saldo PayPal'],
-                ] as const
-              ).map(([value, title, hint]) => (
+              {availableMethods.map(({ value, title, hint }) => (
                 <label className={`pay-option ${method === value ? 'is-selected' : ''}`} key={value}>
                   <input
                     type="radio"
@@ -246,6 +273,11 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
                 </label>
               ))}
             </fieldset>
+            {availableMethods.length === 1 && availableMethods[0].value === 'paypal' && (
+              <p className="checkout-hint checkout-hint--warn">
+                USDT todavía no está configurado. Podés pagar con PayPal o coordinar por @{storeConfig.telegramSupport}.
+              </p>
+            )}
             <p className="checkout-hint">
               {method.startsWith('usdt')
                 ? `Vas a pagar un monto exacto cercano a $${subtotal.toFixed(2)} (con centavos únicos) para identificar tu depósito.`
@@ -269,8 +301,12 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
                 Orden <strong>{order.id}</strong>
                 <span> · {paymentLabel(order.paymentMethod)}</span>
               </p>
-              <button className="btn btn--line" type="button" onClick={() => copyText(order.id, 'Orden')}>
-                Copiar ID
+              <button
+                className="btn btn--line"
+                type="button"
+                onClick={() => copyText(order.id, 'Orden', 'order')}
+              >
+                {copiedKey === 'order' ? 'ID copiado' : 'Copiar ID'}
               </button>
             </div>
             <div className="amount-box">
@@ -280,30 +316,25 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
                 <button
                   className="btn btn--line"
                   type="button"
-                  onClick={() => copyText(order.amountDue.toFixed(2), 'Monto')}
+                  onClick={() => copyText(order.amountDue.toFixed(2), 'Monto', 'amount')}
                 >
-                  Copiar monto
+                  {copiedKey === 'amount' ? 'Monto copiado' : 'Copiar monto'}
                 </button>
               )}
             </div>
 
-            {order.paymentMethod.startsWith('usdt') && (
+            {order.paymentMethod.startsWith('usdt') && address && !isPlaceholderWallet(address) && (
               <div className="address-box">
                 <span>Wallet {order.paymentMethod === 'usdt-trc20' ? 'TRC20' : 'BEP20'}</span>
-                {address && !isPlaceholderWallet(address) ? (
-                  <>
-                    <code>{address}</code>
-                    <button className="btn btn--solid" type="button" onClick={() => copyText(address, 'Wallet')}>
-                      Copiar wallet
-                    </button>
-                    <p className="checkout-hint">Enviá el monto exacto. Si mandás otra red o otro monto, el pago no se detecta.</p>
-                  </>
-                ) : (
-                  <p className="checkout-hint checkout-hint--warn">
-                    Falta configurar la wallet USDT real. Escribí a @{storeConfig.telegramSupport} para pagar
-                    esta orden, o pedile al admin que cargue VITE_USDT_TRC20 / VITE_USDT_BEP20.
-                  </p>
-                )}
+                <code>{address}</code>
+                <button
+                  className="btn btn--solid"
+                  type="button"
+                  onClick={() => copyText(address, 'Wallet', 'wallet')}
+                >
+                  {copiedKey === 'wallet' ? 'Wallet copiada' : 'Copiar wallet'}
+                </button>
+                <p className="checkout-hint">Enviá el monto exacto. Si mandás otra red o otro monto, el pago no se detecta.</p>
               </div>
             )}
 

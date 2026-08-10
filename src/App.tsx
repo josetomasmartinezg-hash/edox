@@ -44,19 +44,27 @@ function App() {
   }
 
   function addToCart(product: Product) {
+    const current = cart[product.id] ?? 0
+    if (current >= product.stock) {
+      showToast(`Stock máximo: ${product.stock}`)
+      setCartOpen(true)
+      return
+    }
     setCart((prev) => ({
       ...prev,
-      [product.id]: (prev[product.id] ?? 0) + 1,
+      [product.id]: current + 1,
     }))
     showToast(`${product.name} agregado al carrito`)
     setCartOpen(true)
   }
 
   function setQty(productId: string, qty: number) {
+    const product = products.find((item) => item.id === productId)
+    const max = product?.stock ?? qty
     setCart((prev) => {
       const next = { ...prev }
       if (qty <= 0) delete next[productId]
-      else next[productId] = qty
+      else next[productId] = Math.min(qty, max)
       return next
     })
   }
