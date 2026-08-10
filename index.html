@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>edox — Plano 3D</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <header class="hud">
+        <div class="brand">
+          <span class="brand-mark">edox</span>
+          <span class="brand-sub">del plano al volumen</span>
+        </div>
+        <p class="lede">
+          Extrusión 3D del modelo Cesar — rejilla 1.5&nbsp;m, dos alas a 45°.
+        </p>
+        <div class="controls">
+          <label class="toggle">
+            <input type="checkbox" id="toggle-plan" checked />
+            Plano en suelo
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-glass" checked />
+            Cristalería
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-roof" />
+            Cubierta
+          </label>
+          <button type="button" id="btn-reset" class="btn">Reset cámara</button>
+        </div>
+      </header>
+      <canvas id="c"></canvas>
+      <footer class="hint">Arrastra para orbitar · Scroll para zoom · Clic derecho para pan</footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
