@@ -69,7 +69,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
     }
     setOrder(nextOrder)
     try {
-      localStorage.setItem(`advault-order-${nextOrder.id}`, JSON.stringify(nextOrder))
+      localStorage.setItem(`stackd-order-${nextOrder.id}`, JSON.stringify(nextOrder))
     } catch {
       /* ignore */
     }

@@ -46,7 +46,7 @@ export function uniqueUsdtAmount(subtotal: number): number {
 export function createOrderId(): string {
   const stamp = Date.now().toString(36).toUpperCase()
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase()
-  return `ADV-${stamp}-${rand}`
+  return `STK-${stamp}-${rand}`
 }
 
 export function paymentLabel(method: PaymentMethod): string {
@@ -70,7 +70,7 @@ export function paypalCheckoutUrl(amount: number, orderId: string): string {
   const params = new URLSearchParams({
     currencyCode: 'USD',
     amount: amount.toFixed(2),
-    item_name: `ADVAULT ${orderId}`,
+    item_name: `Stackd ${orderId}`,
   })
   return `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=${encodeURIComponent(storeConfig.paypal.email)}&${params.toString()}`
 }

@@ -124,7 +124,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
         await telegramApi('sendMessage', {
           chat_id: chatId,
           text: [
-            `Hola 👋 Soy el bot de ADVAULT.`,
+            `Hola 👋 Soy el bot de Stackd.`,
             `Recibimos tu pedido ${orderId}.`,
             'Cuando el pago esté confirmado te avisamos por aquí y coordinamos la entrega (5–30 min).',
             'Si ya pagaste, respondé con el comprobante o el hash/TXID.',
@@ -141,7 +141,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
       } else {
         await telegramApi('sendMessage', {
           chat_id: chatId,
-          text: 'Bienvenido a ADVAULT. Escribí tu consulta o el ID de tu orden y te ayudamos.',
+          text: 'Bienvenido a Stackd. Escribí tu consulta o el ID de tu orden y te ayudamos.',
         })
       }
     } else if (text && configured()) {
@@ -170,7 +170,7 @@ app.get(/.*/, (req, res, next) => {
 })
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`ADVAULT API on http://0.0.0.0:${PORT}`)
+  console.log(`Stackd API on http://0.0.0.0:${PORT}`)
   console.log(`Telegram configured: ${configured()}`)
   console.log(`Bot username: @${BOT_USERNAME}`)
 })

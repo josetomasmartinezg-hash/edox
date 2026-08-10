@@ -46,7 +46,7 @@ export function CommentSection({ showToast }: Props) {
           <p className="section__eyebrow">Telegram bot</p>
           <h2 className="section__title">Comentarios y soporte</h2>
           <p className="section__lead">
-            Dejá tu consulta o comentario acá. Se envía al bot de ADVAULT y te abrimos el chat para seguir la conversación.
+            Dejá tu consulta o comentario acá. Se envía al bot de Stackd y te abrimos el chat para seguir la conversación.
           </p>
           <a className="btn btn--solid" href={botDeepLink()} target="_blank" rel="noreferrer">
             Abrir @{storeConfig.telegramBot}
@@ -68,7 +68,7 @@ export function CommentSection({ showToast }: Props) {
           </label>
           <label>
             ID de orden (opcional)
-            <input value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="ADV-..." />
+            <input value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="STK-..." />
           </label>
           <label>
             Comentario

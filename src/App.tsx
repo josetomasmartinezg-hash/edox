@@ -77,9 +77,9 @@ function App() {
     <>
       <header className="site-header">
         <div className="container site-header__inner">
-          <a className="brand" href="#top" aria-label="ADVAULT inicio">
-            <span className="brand__mark">A</span>
-            <span className="brand__text">ADVAULT</span>
+          <a className="brand" href="#top" aria-label="Stackd inicio">
+            <span className="brand__mark">S</span>
+            <span className="brand__text">Stackd</span>
           </a>
 
           <nav className="nav" aria-label="Principal">
@@ -114,7 +114,7 @@ function App() {
           <div className="hero__orb" aria-hidden="true" />
           <div className="hero__scan" aria-hidden="true" />
           <div className="hero__content">
-            <h1 className="hero__brand reveal">ADVAULT</h1>
+            <h1 className="hero__brand reveal">Stackd</h1>
             <p className="hero__headline reveal reveal-delay-1">
               Business Managers verificados con API de WhatsApp
             </p>
@@ -157,10 +157,10 @@ function App() {
 
         <section className="section" id="por-que">
           <div className="container">
-            <p className="section__eyebrow">Por qué ADVAULT</p>
+            <p className="section__eyebrow">Por qué Stackd</p>
             <h2 className="section__title">Cuentas listas para escalar Meta Ads</h2>
             <p className="section__lead">
-              ADVAULT es tu fuente de Business Managers verificados de Facebook con API de WhatsApp habilitada desde el primer día. Pensado para equipos que necesitan confianza alta y mínimo fricción al lanzar campañas.
+              Stackd es tu fuente de Business Managers verificados de Facebook con API de WhatsApp habilitada desde el primer día. Pensado para equipos que necesitan confianza alta y mínimo fricción al lanzar campañas.
             </p>
             <div className="benefits">
               <div className="benefit">
@@ -349,7 +349,7 @@ function App() {
       <footer className="site-footer">
         <div className="container site-footer__inner">
           <div>
-            <strong>ADVAULT</strong>
+            <strong>Stackd</strong>
             <p>Business Manager Facebook Verificado · API WhatsApp</p>
           </div>
           <div className="footer-links">

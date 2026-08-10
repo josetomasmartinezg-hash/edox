@@ -1,4 +1,4 @@
-# ADVAULT
+# Stackd
 
 Landing + checkout para Business Managers verificados, conectada a un bot de Telegram.
 

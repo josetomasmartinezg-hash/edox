@@ -1,17 +1,17 @@
 /** Editá estos datos con tus wallets, PayPal y Telegram reales. */
 export const storeConfig = {
-  brand: 'ADVAULT',
+  brand: 'Stackd',
   /**
-   * Username del bot (sin @), ej: AdvaultBot
+   * Username del bot (sin @), ej: ADVAULTCL_BOT
    * La gente abre este bot al terminar una compra o dejar un comentario.
    */
   telegramBot: import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'ADVAULTCL_BOT',
   /** Usuario humano de soporte (fallback si el bot no está listo) */
-  telegramSupport: 'advault_support',
+  telegramSupport: 'stackd_support',
   paypal: {
     /** Usuario de PayPal.me o email de cobro */
-    me: 'advault',
-    email: 'pagos@advault.space',
+    me: 'stackd',
+    email: 'pagos@stackd.space',
   },
   usdt: {
     trc20: 'TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
