@@ -8,6 +8,7 @@ import {
   roofElevation,
   wallHeightsAt,
 } from "./levels.js";
+import { createNavigator } from "./navigate.js";
 
 const WALL_COLOR = 0xf2ebe0;
 const WALL_EDGE = 0x2a3328;
@@ -50,6 +51,19 @@ controls.maxPolarAngle = Math.PI * 0.48;
 controls.minDistance = 6;
 controls.maxDistance = 70;
 controls.target.set(-2, 2.2, 2);
+controls.enablePan = true;
+
+const hintEl = document.getElementById("hint");
+const dragCue = document.getElementById("drag-cue");
+const nav = createNavigator({ camera, controls, canvas, hintEl });
+
+// Ocultar cue al primer gesto
+const hideCue = () => {
+  dragCue?.classList.add("is-hidden");
+  window.removeEventListener("pointerdown", hideCue);
+};
+window.addEventListener("pointerdown", hideCue);
+setTimeout(() => dragCue?.classList.add("is-hidden"), 4500);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -457,9 +471,31 @@ document.getElementById("toggle-roof").addEventListener("change", (e) => {
 document.getElementById("toggle-levels")?.addEventListener("change", (e) => {
   levelsGroup.visible = e.target.checked;
 });
-document.getElementById("btn-reset").addEventListener("click", () => {
+
+const modeOrbitBtn = document.getElementById("mode-orbit");
+const modeWalkBtn = document.getElementById("mode-walk");
+function setModeUi(mode) {
+  modeOrbitBtn?.classList.toggle("is-active", mode === "orbit");
+  modeWalkBtn?.classList.toggle("is-active", mode === "walk");
+  dragCue?.classList.add("is-hidden");
+}
+modeOrbitBtn?.addEventListener("click", () => {
+  nav.enterOrbit();
+  setModeUi("orbit");
   camera.position.set(-6, 10, 18);
   controls.target.set(-3, 2.7, 2);
+});
+modeWalkBtn?.addEventListener("click", () => {
+  nav.enterWalk();
+  setModeUi("walk");
+});
+
+document.getElementById("btn-reset").addEventListener("click", () => {
+  nav.enterOrbit();
+  setModeUi("orbit");
+  camera.position.set(-6, 10, 18);
+  controls.target.set(-3, 2.7, 2);
+  nav.setAutoOrbit(false);
 });
 
 window.addEventListener("resize", () => {
@@ -469,7 +505,7 @@ window.addEventListener("resize", () => {
 });
 
 function frame(t) {
-  controls.update();
+  nav.update();
   pulseLight(t);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);

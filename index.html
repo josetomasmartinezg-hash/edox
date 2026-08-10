@@ -19,9 +19,17 @@
           <span class="brand-sub">del plano al volumen</span>
         </div>
         <p class="lede">
-          Izquierda más baja, subida hacia el centro elevado — coronación a
+          Modelo vivo: gíralo o recórrelo a pie. Izquierda baja → centro a
           4&nbsp;m.
         </p>
+        <div class="mode-switch" role="group" aria-label="Modo de cámara">
+          <button type="button" class="mode-btn is-active" id="mode-orbit" data-mode="orbit">
+            Orbitar
+          </button>
+          <button type="button" class="mode-btn" id="mode-walk" data-mode="walk">
+            Recorrer
+          </button>
+        </div>
         <div class="controls">
           <label class="toggle">
             <input type="checkbox" id="toggle-plan" checked />
@@ -43,7 +51,11 @@
         </div>
       </header>
       <canvas id="c"></canvas>
-      <footer class="hint">Arrastra para orbitar · Scroll para zoom · Clic derecho para pan</footer>
+      <div id="drag-cue" class="drag-cue" aria-hidden="true">
+        <span class="drag-cue-hand">⟷</span>
+        <span>Arrastra para mover</span>
+      </div>
+      <footer class="hint" id="hint">Cargando modelo interactivo…</footer>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
