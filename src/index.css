@@ -36,11 +36,13 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: clip;
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(212, 0, 42, 0.05), transparent 55%),
     linear-gradient(180deg, #f6f7f9 0%, var(--paper) 40%, #e9edf2 100%);
