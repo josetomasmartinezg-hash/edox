@@ -12,13 +12,13 @@ export type Product = {
 export const defaultProducts: Product[] = [
   {
     id: 'bm-api',
-    name: 'BM Verificado + API WhatsApp',
+    name: 'BM Verificado Premium',
     badge: 'Más vendido',
     price: 189,
     oldPrice: 240,
     features: [
       'Verificación oficial Meta',
-      'API de WhatsApp lista',
+      'Límites de gasto ampliados',
       'Entrega 24–48 hrs',
       'Soporte post-venta',
     ],
@@ -59,7 +59,7 @@ export const defaultProducts: Product[] = [
     oldPrice: 567,
     features: [
       '3 BM verificados',
-      'API WhatsApp en todos',
+      'Listos para Meta Ads',
       'Descuento por cantidad',
       'Prioridad en soporte',
     ],
@@ -70,11 +70,11 @@ export const defaultProducts: Product[] = [
 export const faqs = [
   {
     q: '¿Qué es un Business Manager Verificado?',
-    a: 'Es una cuenta empresarial de Meta que completó el proceso oficial de verificación. Tiene acceso a mayores límites de gasto, más cuentas publicitarias y la API de WhatsApp habilitada.',
+    a: 'Es una cuenta empresarial de Meta que completó el proceso oficial de verificación. Tiene acceso a mayores límites de gasto, más cuentas publicitarias y menor riesgo de restricciones preventivas.',
   },
   {
-    q: '¿Qué es la API de WhatsApp?',
-    a: 'La API de WhatsApp Business permite enviar mensajes masivos, automatizar comunicaciones y conectar WhatsApp con CRM o herramientas de marketing. Requiere un BM verificado.',
+    q: '¿Qué diferencia hay con un BM Balloon?',
+    a: 'Un BM Balloon verificado suele venir con límites más altos y está pensado para escalar presupuesto rápido. Ideal para agencias y equipos de performance que manejan varias ad accounts.',
   },
   {
     q: '¿Cómo es la entrega?',

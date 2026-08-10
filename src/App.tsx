@@ -142,7 +142,7 @@ function App() {
           <div className="hero__content">
             <h1 className="hero__brand reveal">Stackd</h1>
             <p className="hero__headline reveal reveal-delay-1">
-              Business Managers verificados con API de WhatsApp
+              Business Managers verificados listos para Meta Ads
             </p>
             <p className="hero__support reveal reveal-delay-2">
               Infraestructura lista para afiliados, agencias y media buyers que necesitan cuentas estables y entrega en 24–48 hrs.
@@ -186,7 +186,7 @@ function App() {
             <p className="section__eyebrow">Por qué Stackd</p>
             <h2 className="section__title">Cuentas listas para escalar Meta Ads</h2>
             <p className="section__lead">
-              Stackd es tu fuente de Business Managers verificados de Facebook con API de WhatsApp habilitada desde el primer día. Pensado para equipos que necesitan confianza alta y mínimo fricción al lanzar campañas.
+              Stackd es tu fuente de Business Managers verificados de Facebook, listos para presupuestos altos y campañas estables. Pensado para equipos que necesitan confianza alta y mínimo fricción al lanzar Meta Ads.
             </p>
             <div className="benefits">
               <div className="benefit">
@@ -199,8 +199,8 @@ function App() {
               <div className="benefit">
                 <span className="benefit__check" aria-hidden="true">✓</span>
                 <div>
-                  <strong>API de WhatsApp desde día uno</strong>
-                  <p>Integrá CRM, automatizaciones y mensajería sin esperar semanas.</p>
+                  <strong>Límites ampliados desde el día uno</strong>
+                  <p>Más ad accounts, más margen de gasto y menos fricción para escalar.</p>
                 </div>
               </div>
               <div className="benefit">
@@ -299,7 +299,7 @@ function App() {
                   <li>Agencias de marketing digital</li>
                   <li>E-commerce y performance teams</li>
                   <li>Especialistas en arbitraje de tráfico</li>
-                  <li>Operaciones con WhatsApp API</li>
+                  <li>Operaciones de media buying a escala</li>
                 </ul>
               </div>
             </div>
@@ -376,7 +376,7 @@ function App() {
         <div className="container site-footer__inner">
           <div>
             <strong>Stackd</strong>
-            <p>Business Manager Facebook Verificado · API WhatsApp</p>
+            <p>Business Manager Facebook Verificado · Meta Ads</p>
           </div>
           <div className="footer-links">
             <a href="#faq">FAQ</a>
