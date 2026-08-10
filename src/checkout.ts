@@ -61,8 +61,8 @@ export function paymentLabel(method: PaymentMethod): string {
 }
 
 export function usdtAddress(method: PaymentMethod): string | null {
-  if (method === 'usdt-trc20') return storeConfig.usdt.trc20
-  if (method === 'usdt-bep20') return storeConfig.usdt.bep20
+  if (method === 'usdt-trc20') return storeConfig.usdt.trc20 || null
+  if (method === 'usdt-bep20') return storeConfig.usdt.bep20 || null
   return null
 }
 

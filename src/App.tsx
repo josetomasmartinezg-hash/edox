@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { cartLines, cartSubtotal, telegramSupportUrl } from './checkout'
 import { CartDrawer } from './components/CartDrawer'
@@ -6,14 +6,32 @@ import { CheckoutModal } from './components/CheckoutModal'
 import { CommentSection } from './components/CommentSection'
 import { comparisonRows, faqs, products, type Product } from './data'
 
-type AuthMode = 'login' | 'register' | null
+const CART_KEY = 'stackd-cart'
+
+function loadCart(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(CART_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, number>
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
 
 function App() {
-  const [cart, setCart] = useState<Record<string, number>>({})
+  const [cart, setCart] = useState<Record<string, number>>(loadCart)
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
-  const [authMode, setAuthMode] = useState<AuthMode>(null)
   const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(cart))
+    } catch {
+      /* ignore */
+    }
+  }, [cart])
 
   const lines = useMemo(() => cartLines(cart, products), [cart])
   const subtotal = useMemo(() => cartSubtotal(lines), [lines])
@@ -66,13 +84,6 @@ function App() {
     showToast('Pedido registrado. Te contactamos por Telegram.')
   }
 
-  function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const mode = authMode === 'login' ? 'Sesión iniciada' : 'Cuenta creada'
-    setAuthMode(null)
-    showToast(`${mode}. Ya podés comprar.`)
-  }
-
   return (
     <>
       <header className="site-header">
@@ -85,17 +96,18 @@ function App() {
           <nav className="nav" aria-label="Principal">
             <a href="#catalogo">Catálogo</a>
             <a href="#guia">Guía</a>
+            <a href="#comparativa">Comparativa</a>
             <a href="#faq">FAQ</a>
             <a href="#comentarios">Consultas</a>
           </nav>
 
           <div className="header-actions">
-            <button className="btn btn--ghost" type="button" onClick={() => setAuthMode('login')}>
-              Iniciar sesión
-            </button>
-            <button className="btn btn--solid" type="button" onClick={() => setAuthMode('register')}>
-              Registrarse
-            </button>
+            <a className="btn btn--ghost" href={supportUrl} target="_blank" rel="noreferrer">
+              @Stackd2026
+            </a>
+            <a className="btn btn--solid" href="#catalogo">
+              Comprar
+            </a>
             <button className="cart-btn" type="button" aria-label="Carrito" onClick={() => setCartOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M3 5h2l2.2 10.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.5L21 8H7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -380,50 +392,6 @@ function App() {
         onCompleted={handleOrderCompleted}
         showToast={showToast}
       />
-
-      {authMode && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setAuthMode(null)}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="auth-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 id="auth-title">{authMode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}</h2>
-            <p>
-              {authMode === 'login'
-                ? 'Entrá para ver tus órdenes y comprar más rápido.'
-                : 'Solo email y contraseña. Empezás a comprar en minutos.'}
-            </p>
-            <form className="form" onSubmit={handleAuthSubmit}>
-              <label>
-                Email
-                <input type="email" name="email" required placeholder="tu@email.com" autoComplete="email" />
-              </label>
-              <label>
-                Contraseña
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  minLength={6}
-                  placeholder="Mínimo 6 caracteres"
-                  autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
-                />
-              </label>
-              <div className="modal__actions">
-                <button className="btn btn--ghost" type="button" onClick={() => setAuthMode(null)}>
-                  Cancelar
-                </button>
-                <button className="btn btn--mint" type="submit">
-                  {authMode === 'login' ? 'Entrar' : 'Registrarme'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {toast && (
         <div className="toast" role="status">

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { storeConfig } from '../config'
+import { isPlaceholderWallet, storeConfig } from '../config'
 import {
   createOrderId,
   paymentLabel,
@@ -264,9 +264,15 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
 
         {step === 'instrucciones' && order && (
           <div className="pay-panel checkout-body">
-            <p className="order-id">
-              Orden <strong>{order.id}</strong> · {paymentLabel(order.paymentMethod)}
-            </p>
+            <div className="order-id-row">
+              <p className="order-id">
+                Orden <strong>{order.id}</strong>
+                <span> · {paymentLabel(order.paymentMethod)}</span>
+              </p>
+              <button className="btn btn--line" type="button" onClick={() => copyText(order.id, 'Orden')}>
+                Copiar ID
+              </button>
+            </div>
             <div className="amount-box">
               <span>Total a enviar</span>
               <strong>${order.amountDue.toFixed(2)} USD</strong>
@@ -281,14 +287,23 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
               )}
             </div>
 
-            {address && (
+            {order.paymentMethod.startsWith('usdt') && (
               <div className="address-box">
                 <span>Wallet {order.paymentMethod === 'usdt-trc20' ? 'TRC20' : 'BEP20'}</span>
-                <code>{address}</code>
-                <button className="btn btn--solid" type="button" onClick={() => copyText(address, 'Wallet')}>
-                  Copiar wallet
-                </button>
-                <p className="checkout-hint">Enviá el monto exacto. Si mandás otra red o otro monto, el pago no se detecta.</p>
+                {address && !isPlaceholderWallet(address) ? (
+                  <>
+                    <code>{address}</code>
+                    <button className="btn btn--solid" type="button" onClick={() => copyText(address, 'Wallet')}>
+                      Copiar wallet
+                    </button>
+                    <p className="checkout-hint">Enviá el monto exacto. Si mandás otra red o otro monto, el pago no se detecta.</p>
+                  </>
+                ) : (
+                  <p className="checkout-hint checkout-hint--warn">
+                    Falta configurar la wallet USDT real. Escribí a @{storeConfig.telegramSupport} para pagar
+                    esta orden, o pedile al admin que cargue VITE_USDT_TRC20 / VITE_USDT_BEP20.
+                  </p>
+                )}
               </div>
             )}
 
