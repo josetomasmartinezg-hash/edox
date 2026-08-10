@@ -12,13 +12,66 @@ const ORDERS_PATH = path.join(root, 'data', 'orders.json')
 
 const app = express()
 const PORT = Number(process.env.PORT || 8787)
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ''
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID || ''
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'stackd-admin'
-const BOT_USERNAME = (process.env.TELEGRAM_BOT_USERNAME || process.env.VITE_TELEGRAM_BOT_USERNAME || 'ADVAULTCL_BOT').replace(
-  /^@/,
-  '',
-)
+const ENV_PATH = path.join(root, '.env')
+
+/**
+ * Node --env-file a veces pierde valores negativos (chat ids de grupos).
+ * Leemos .env a mano como fallback.
+ */
+function readEnvFileValue(key) {
+  try {
+    if (!fs.existsSync(ENV_PATH)) return ''
+    const raw = fs.readFileSync(ENV_PATH, 'utf8')
+    for (const line of raw.split(/\n/)) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const idx = trimmed.indexOf('=')
+      if (idx < 0) continue
+      if (trimmed.slice(0, idx) !== key) continue
+      let value = trimmed.slice(idx + 1).trim()
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1)
+      }
+      return value
+    }
+  } catch {
+    /* ignore */
+  }
+  return ''
+}
+
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || readEnvFileValue('TELEGRAM_BOT_TOKEN') || ''
+/** Puede mutar si Telegram migra el grupo a supergrupo. */
+let CHAT_ID = String(process.env.TELEGRAM_CHAT_ID || readEnvFileValue('TELEGRAM_CHAT_ID') || '').trim()
+const ADMIN_PASSWORD =
+  process.env.ADMIN_PASSWORD || readEnvFileValue('ADMIN_PASSWORD') || 'stackd-admin'
+const BOT_USERNAME = (
+  process.env.TELEGRAM_BOT_USERNAME ||
+  process.env.VITE_TELEGRAM_BOT_USERNAME ||
+  readEnvFileValue('TELEGRAM_BOT_USERNAME') ||
+  'ADVAULTCL_BOT'
+).replace(/^@/, '')
+
+function persistChatId(nextId) {
+  const value = String(nextId || '').trim()
+  if (!value) return
+  CHAT_ID = value
+  try {
+    if (!fs.existsSync(ENV_PATH)) return
+    const raw = fs.readFileSync(ENV_PATH, 'utf8')
+    const line = `TELEGRAM_CHAT_ID="${value}"`
+    const next = raw.includes('TELEGRAM_CHAT_ID=')
+      ? raw.replace(/^TELEGRAM_CHAT_ID=.*$/m, line)
+      : `${raw.trimEnd()}\n${line}\n`
+    fs.writeFileSync(ENV_PATH, next, 'utf8')
+    console.log(`Telegram chat_id actualizado a ${value}`)
+  } catch (error) {
+    console.error('No se pudo persistir TELEGRAM_CHAT_ID', error)
+  }
+}
 
 /** @type {Map<string, number>} */
 const adminTokens = new Map()
@@ -191,7 +244,10 @@ async function telegramApi(method, body) {
   })
   const data = await res.json()
   if (!data.ok) {
-    throw new Error(data.description || `Telegram API error (${method})`)
+    const err = new Error(data.description || `Telegram API error (${method})`)
+    err.code = data.error_code
+    err.parameters = data.parameters
+    throw err
   }
   return data
 }
@@ -208,7 +264,18 @@ async function notifyAdmin(text, parseMode = 'HTML') {
     disable_web_page_preview: true,
   }
   if (parseMode) payload.parse_mode = parseMode
-  return telegramApi('sendMessage', payload)
+
+  try {
+    return await telegramApi('sendMessage', payload)
+  } catch (error) {
+    const migrated = error?.parameters?.migrate_to_chat_id
+    if (migrated) {
+      persistChatId(migrated)
+      payload.chat_id = CHAT_ID
+      return telegramApi('sendMessage', payload)
+    }
+    throw error
+  }
 }
 
 app.get('/api/health', (_req, res) => {
@@ -216,6 +283,7 @@ app.get('/api/health', (_req, res) => {
     ok: true,
     telegramConfigured: configured(),
     botUsername: BOT_USERNAME,
+    chatIdSet: Boolean(CHAT_ID),
   })
 })
 

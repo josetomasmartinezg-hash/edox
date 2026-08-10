@@ -51,6 +51,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
   const [method, setMethod] = useState<PaymentMethod>('paypal')
   const [order, setOrder] = useState<Order | null>(null)
   const [sendingBot, setSendingBot] = useState(false)
+  const [botNotified, setBotNotified] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   useBodyLock(open)
@@ -99,12 +100,23 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
       paymentMethod: method,
     }
     setOrder(nextOrder)
+    setBotNotified(false)
     try {
       localStorage.setItem(`stackd-order-${nextOrder.id}`, JSON.stringify(nextOrder))
     } catch {
       /* ignore */
     }
     setStep('instrucciones')
+
+    // Avisar al grupo apenas se genera la orden (no esperar al botón final)
+    void notifyOrderToBot(nextOrder).then((result) => {
+      if (result.ok) {
+        setBotNotified(true)
+        showToast('Orden enviada al bot de Stackd')
+      } else {
+        showToast(result.error || 'No se pudo avisar al bot — reintentá al confirmar')
+      }
+    })
   }
 
   async function copyText(value: string, label: string, key?: string) {
@@ -122,15 +134,20 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
 
   async function openTelegramConfirm() {
     if (!order) return
-    setSendingBot(true)
-    // El bot recibe el aviso de compra; el cliente habla con @Stackd2026
-    const result = await notifyOrderToBot(order)
-    setSendingBot(false)
 
-    if (result.ok) {
-      showToast('Compra avisada al bot · abrimos consultas')
+    // Si el aviso inicial falló, reintentamos al confirmar pago
+    if (!botNotified) {
+      setSendingBot(true)
+      const result = await notifyOrderToBot(order)
+      setSendingBot(false)
+      if (result.ok) {
+        setBotNotified(true)
+        showToast('Compra avisada al bot · abrimos consultas')
+      } else {
+        showToast(result.error || 'Abrimos Telegram de consultas')
+      }
     } else {
-      showToast(result.error || 'Abrimos Telegram de consultas')
+      showToast('Abrimos consultas con @Stackd2026')
     }
 
     openSupport(
@@ -149,6 +166,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
   function finish() {
     setCustomer(emptyCustomer)
     setOrder(null)
+    setBotNotified(false)
     setStep('datos')
     onCompleted()
   }
@@ -156,6 +174,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
   function closeAll() {
     setCustomer(emptyCustomer)
     setOrder(null)
+    setBotNotified(false)
     setStep('datos')
     onClose()
   }
