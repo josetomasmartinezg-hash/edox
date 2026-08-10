@@ -1,5 +1,5 @@
 import { storeConfig } from './config'
-import { botDeepLink, orderStartPayload } from './telegramLinks'
+import { supportDeepLink } from './telegramLinks'
 import type { Product } from './data'
 
 export type PaymentMethod = 'usdt-trc20' | 'usdt-bep20' | 'paypal'
@@ -102,17 +102,11 @@ export function buildTelegramOrderMessage(order: Order): string {
     .join('\n')
 }
 
-/** Abre el bot con el pedido precargado en el start payload. */
+/** Abre el Telegram de consultas (@Stackd2026) con el pedido precargado. */
 export function telegramOrderUrl(order: Order): string {
-  return botDeepLink(orderStartPayload(order.id))
-}
-
-/** Fallback: mensaje prearmado a soporte humano. */
-export function telegramSupportOrderUrl(order: Order): string {
-  const text = buildTelegramOrderMessage(order)
-  return `https://t.me/${storeConfig.telegramSupport}?text=${encodeURIComponent(text)}`
+  return supportDeepLink(buildTelegramOrderMessage(order))
 }
 
 export function telegramSupportUrl(): string {
-  return botDeepLink()
+  return supportDeepLink()
 }

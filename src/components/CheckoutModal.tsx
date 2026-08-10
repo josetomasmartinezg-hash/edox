@@ -14,7 +14,7 @@ import {
   type PaymentMethod,
 } from '../checkout'
 import { notifyOrderToBot } from '../telegramApi'
-import { openBot, orderStartPayload } from '../telegramLinks'
+import { openSupport } from '../telegramLinks'
 
 type Step = 'datos' | 'pago' | 'instrucciones' | 'listo'
 
@@ -88,16 +88,24 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
   async function openTelegramConfirm() {
     if (!order) return
     setSendingBot(true)
+    // El bot recibe el aviso de compra; el cliente habla con @Stackd2026
     const result = await notifyOrderToBot(order)
     setSendingBot(false)
 
     if (result.ok) {
-      showToast('Pedido enviado al bot de Telegram')
+      showToast('Compra avisada al bot · abrimos consultas')
     } else {
-      showToast(result.error || 'Abrimos el bot para confirmar tu pedido')
+      showToast(result.error || 'Abrimos Telegram de consultas')
     }
 
-    openBot(orderStartPayload(order.id))
+    openSupport(
+      [
+        `Hola Stackd, ya pagué / voy a pagar la orden ${order.id}.`,
+        `Total: $${order.amountDue.toFixed(2)} USD`,
+        `Método: ${paymentLabel(order.paymentMethod)}`,
+        `Mi Telegram: @${order.customer.telegram}`,
+      ].join('\n'),
+    )
     setStep('listo')
   }
 
@@ -316,7 +324,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
                 onClick={openTelegramConfirm}
                 disabled={sendingBot}
               >
-                {sendingBot ? 'Conectando con el bot…' : 'Ya pagué · abrir bot de Telegram'}
+                {sendingBot ? 'Avisando compra…' : 'Ya pagué · continuar en Telegram'}
               </button>
               <button className="btn btn--ghost btn--block" type="button" onClick={() => setStep('pago')}>
                 Cambiar método
@@ -328,15 +336,15 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
         {step === 'listo' && order && (
           <div className="pay-panel checkout-body">
             <p>
-              Conectamos tu pedido <strong>{order.id}</strong> con el bot @{storeConfig.telegramBot}. Seguís la
-              entrega y el soporte desde ese chat.
+              Tu pedido <strong>{order.id}</strong> ya se avisó internamente. Para consultas y entrega, hablá con{' '}
+              <strong>@{storeConfig.telegramSupport}</strong>.
             </p>
             <p className="checkout-hint">
-              Si no se abrió Telegram, tocá el botón de abajo o buscá @{storeConfig.telegramBot} y enviá /start.
+              Si no se abrió Telegram, tocá el botón de abajo o buscá @{storeConfig.telegramSupport}.
             </p>
             <div className="modal__actions modal__actions--stack">
               <a className="btn btn--mint btn--block" href={telegramOrderUrl(order)} target="_blank" rel="noreferrer">
-                Reabrir bot @{storeConfig.telegramBot}
+                Escribir a @{storeConfig.telegramSupport}
               </a>
               <button className="btn btn--solid btn--block" type="button" onClick={finish}>
                 Listo

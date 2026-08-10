@@ -2,12 +2,11 @@
 export const storeConfig = {
   brand: 'Stackd',
   /**
-   * Username del bot (sin @), ej: ADVAULTCL_BOT
-   * La gente abre este bot al terminar una compra o dejar un comentario.
+   * Bot que recibe avisos automáticos de compra (no es el chat de consultas).
    */
   telegramBot: import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'ADVAULTCL_BOT',
-  /** Usuario humano de soporte (fallback si el bot no está listo) */
-  telegramSupport: 'stackd_support',
+  /** Telegram humano para consultas y seguimiento con clientes */
+  telegramSupport: 'Stackd2026',
   paypal: {
     /** Usuario de PayPal.me o email de cobro */
     me: 'stackd',

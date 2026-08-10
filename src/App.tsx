@@ -86,7 +86,7 @@ function App() {
             <a href="#catalogo">Catálogo</a>
             <a href="#guia">Guía</a>
             <a href="#faq">FAQ</a>
-            <a href="#comentarios">Bot</a>
+            <a href="#comentarios">Consultas</a>
           </nav>
 
           <div className="header-actions">
@@ -126,7 +126,7 @@ function App() {
                 Ver catálogo
               </a>
               <a className="btn btn--line" href={supportUrl} target="_blank" rel="noreferrer">
-                Hablar por Telegram
+                Consultas @Stackd2026
               </a>
             </div>
           </div>
@@ -339,7 +339,7 @@ function App() {
                 Ir al catálogo
               </a>
               <a className="btn btn--line" href={supportUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--sand)', borderColor: 'rgba(241,234,252,0.35)' }}>
-                Soporte Telegram
+                Consultas @Stackd2026
               </a>
             </div>
           </section>
@@ -356,7 +356,7 @@ function App() {
             <a href="#faq">FAQ</a>
             <a href="#comentarios">Comentarios</a>
             <a href={supportUrl} target="_blank" rel="noreferrer">
-              Bot Telegram
+              @Stackd2026
             </a>
           </div>
         </div>

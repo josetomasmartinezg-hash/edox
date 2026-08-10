@@ -1,17 +1,6 @@
 import type { Order } from './checkout'
 import { buildTelegramOrderMessage, paymentLabel } from './checkout'
-import {
-  commentStartPayload,
-  orderStartPayload,
-} from './telegramLinks'
-
-export type CommentPayload = {
-  name: string
-  email?: string
-  telegram?: string
-  message: string
-  orderId?: string
-}
+import { orderStartPayload } from './telegramLinks'
 
 function apiBase(): string {
   return import.meta.env.VITE_API_URL?.replace(/\/$/, '') || ''
@@ -34,12 +23,14 @@ async function postJson(path: string, body: unknown): Promise<{ ok: boolean; err
   }
 }
 
+/** Avisa la compra al bot interno (admin). El cliente habla con @Stackd2026. */
 export async function notifyOrderToBot(order: Order) {
   const text = [
-    '🛒 Nueva compra desde la web',
+    '🛒 Nueva compra Stackd',
     buildTelegramOrderMessage(order),
     '',
-    `Abrí chat con el cliente: https://t.me/${order.customer.telegram}`,
+    `Cliente Telegram: https://t.me/${order.customer.telegram}`,
+    `Consultas públicas: https://t.me/Stackd2026`,
   ].join('\n')
 
   return postJson('/api/telegram/order', {
@@ -49,25 +40,5 @@ export async function notifyOrderToBot(order: Order) {
     amountDue: order.amountDue,
     paymentMethod: paymentLabel(order.paymentMethod),
     startPayload: orderStartPayload(order.id),
-  })
-}
-
-export async function notifyCommentToBot(payload: CommentPayload) {
-  const text = [
-    '💬 Nuevo comentario desde la web',
-    `Nombre: ${payload.name}`,
-    payload.email ? `Email: ${payload.email}` : null,
-    payload.telegram ? `Telegram: @${payload.telegram.replace(/^@/, '')}` : null,
-    payload.orderId ? `Orden: ${payload.orderId}` : null,
-    '',
-    payload.message,
-  ]
-    .filter(Boolean)
-    .join('\n')
-
-  return postJson('/api/telegram/comment', {
-    ...payload,
-    text,
-    startPayload: commentStartPayload(),
   })
 }

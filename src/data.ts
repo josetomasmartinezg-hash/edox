@@ -97,7 +97,7 @@ export const faqs = [
   },
   {
     q: '¿Cómo contacto al soporte?',
-    a: 'Al finalizar una compra o desde Comentarios, la web te conecta con el bot de Telegram de Stackd. También podés abrir el bot desde el menú Bot.',
+    a: 'Para consultas escribí a @Stackd2026 (sección Consultas o botones de Telegram). Cuando comprás, el bot interno avisa automáticamente la orden y después seguís la entrega con @Stackd2026.',
   },
 ]
 
