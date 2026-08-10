@@ -46,6 +46,13 @@ function readEnvFileValue(key) {
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || readEnvFileValue('TELEGRAM_BOT_TOKEN') || ''
 /** Puede mutar si Telegram migra el grupo a supergrupo. */
 let CHAT_ID = String(process.env.TELEGRAM_CHAT_ID || readEnvFileValue('TELEGRAM_CHAT_ID') || '').trim()
+/** Chats extra (privados/admins) que también reciben cada compra, separados por coma. */
+const EXTRA_CHAT_IDS = String(
+  process.env.TELEGRAM_NOTIFY_EXTRA || readEnvFileValue('TELEGRAM_NOTIFY_EXTRA') || '',
+)
+  .split(/[,\s]+/)
+  .map((value) => value.trim())
+  .filter(Boolean)
 const ADMIN_PASSWORD =
   process.env.ADMIN_PASSWORD || readEnvFileValue('ADMIN_PASSWORD') || 'stackd-admin'
 const BOT_USERNAME = (
@@ -252,14 +259,9 @@ async function telegramApi(method, body) {
   return data
 }
 
-async function notifyAdmin(text, parseMode = 'HTML') {
-  if (!configured()) {
-    const err = new Error('Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID')
-    err.code = 'NOT_CONFIGURED'
-    throw err
-  }
+async function sendToChat(chatId, text, parseMode = 'HTML') {
   const payload = {
-    chat_id: CHAT_ID,
+    chat_id: chatId,
     text,
     disable_web_page_preview: true,
   }
@@ -269,13 +271,38 @@ async function notifyAdmin(text, parseMode = 'HTML') {
     return await telegramApi('sendMessage', payload)
   } catch (error) {
     const migrated = error?.parameters?.migrate_to_chat_id
-    if (migrated) {
+    if (migrated && String(chatId) === String(CHAT_ID)) {
       persistChatId(migrated)
       payload.chat_id = CHAT_ID
       return telegramApi('sendMessage', payload)
     }
+    // Si HTML falla, reintentar en texto plano
+    if (parseMode && /parse|entities|can't parse/i.test(String(error.message || ''))) {
+      const plain = { chat_id: payload.chat_id, text, disable_web_page_preview: true }
+      return telegramApi('sendMessage', plain)
+    }
     throw error
   }
+}
+
+async function notifyAdmin(text, parseMode = 'HTML') {
+  if (!configured()) {
+    const err = new Error('Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID')
+    err.code = 'NOT_CONFIGURED'
+    throw err
+  }
+
+  const primary = await sendToChat(CHAT_ID, text, parseMode)
+  const extras = []
+  for (const extraId of EXTRA_CHAT_IDS) {
+    if (String(extraId) === String(CHAT_ID)) continue
+    try {
+      extras.push(await sendToChat(extraId, text, parseMode))
+    } catch (error) {
+      console.error(`notify extra chat ${extraId} failed`, error?.message || error)
+    }
+  }
+  return { primary, extras }
 }
 
 app.get('/api/health', (_req, res) => {
