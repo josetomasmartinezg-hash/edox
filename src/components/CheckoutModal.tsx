@@ -326,18 +326,20 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
             {order.paymentMethod.startsWith('usdt') && address && !isPlaceholderWallet(address) && (
               <div className="address-box">
                 <span>Wallet {order.paymentMethod === 'usdt-trc20' ? 'TRC20' : 'BEP20'}</span>
-                {order.paymentMethod === 'usdt-trc20' && (
-                  <div className="qr-wrap">
-                    <img
-                      className="qr-image"
-                      src={storeConfig.usdt.trc20Qr}
-                      alt={`QR USDT TRC20 ${address}`}
-                      width={220}
-                      height={220}
-                    />
-                    <p className="qr-caption">Escaneá el QR o copiá la wallet</p>
-                  </div>
-                )}
+                <div className="qr-wrap">
+                  <img
+                    className="qr-image"
+                    src={
+                      order.paymentMethod === 'usdt-trc20'
+                        ? storeConfig.usdt.trc20Qr
+                        : storeConfig.usdt.bep20Qr
+                    }
+                    alt={`QR USDT ${order.paymentMethod === 'usdt-trc20' ? 'TRC20' : 'BEP20'} ${address}`}
+                    width={220}
+                    height={220}
+                  />
+                  <p className="qr-caption">Escaneá el QR o copiá la wallet</p>
+                </div>
                 <code>{address}</code>
                 <button
                   className="btn btn--solid"
@@ -346,7 +348,11 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
                 >
                   {copiedKey === 'wallet' ? 'Wallet copiada' : 'Copiar wallet'}
                 </button>
-                <p className="checkout-hint">Solo red TRC20 (Tron). Enviá el monto exacto; si usás otra red o otro monto, el pago no se detecta.</p>
+                <p className="checkout-hint">
+                  {order.paymentMethod === 'usdt-trc20'
+                    ? 'Solo red TRC20 (Tron). Enviá el monto exacto; si usás otra red o otro monto, el pago no se detecta.'
+                    : 'Solo red BEP20 (BSC). Enviá el monto exacto; si usás otra red o otro monto, el pago no se detecta.'}
+                </p>
               </div>
             )}
 

@@ -18,9 +18,9 @@ export const storeConfig = {
   },
   usdt: {
     trc20: env('VITE_USDT_TRC20', 'TSbh8JPcucyd7yQS6Z1KzhutWh1xS7cbBc'),
-    bep20: env('VITE_USDT_BEP20', ''),
-    /** QR estático en /public (generado para la wallet TRC20) */
+    bep20: env('VITE_USDT_BEP20', '0xc71aAd54208553E3d1F6e7865Ba9181C72797941'),
     trc20Qr: '/qr-usdt-trc20.png',
+    bep20Qr: '/qr-usdt-bep20.png',
   },
 }
 
