@@ -2,10 +2,18 @@ import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import {
+  LEVELS,
+  floorElevation,
+  roofElevation,
+  wallHeightsAt,
+} from "./levels.js";
 
 const WALL_COLOR = 0xf2ebe0;
 const WALL_EDGE = 0x2a3328;
 const SLAB_COLOR = 0xc4b8a5;
+const RAMP_COLOR = 0xb9a890;
+const CENTER_SLAB = 0xd2c4b0;
 const COLUMN_COLOR = 0x1f261d;
 const GLASS_COLOR = 0x8eb0b8;
 const GROUND_COLOR = 0xb7c2ad;
@@ -25,7 +33,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xd5dccf, 40, 90);
+scene.fog = new THREE.Fog(0xd5dccf, 45, 95);
 
 const camera = new THREE.PerspectiveCamera(
   42,
@@ -33,15 +41,15 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   200,
 );
-camera.position.set(18, 16, 22);
+camera.position.set(16, 14, 24);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.maxPolarAngle = Math.PI * 0.48;
 controls.minDistance = 6;
-controls.maxDistance = 60;
-controls.target.set(0, 1.2, 0);
+controls.maxDistance = 70;
+controls.target.set(-2, 2.2, 2);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -54,15 +62,15 @@ sun.position.set(12, 22, 8);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 60;
-sun.shadow.camera.left = -25;
-sun.shadow.camera.right = 25;
-sun.shadow.camera.top = 25;
-sun.shadow.camera.bottom = -25;
+sun.shadow.camera.far = 70;
+sun.shadow.camera.left = -30;
+sun.shadow.camera.right = 30;
+sun.shadow.camera.top = 30;
+sun.shadow.camera.bottom = -30;
 scene.add(sun);
 
 const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(48, 64),
+  new THREE.CircleGeometry(52, 64),
   new THREE.MeshStandardMaterial({
     color: GROUND_COLOR,
     roughness: 1,
@@ -84,31 +92,172 @@ building.add(glassGroup);
 const roofGroup = new THREE.Group();
 roofGroup.visible = false;
 building.add(roofGroup);
+const levelsGroup = new THREE.Group();
+building.add(levelsGroup);
 
-function wallMesh(a, b, thickness, height, material) {
+/** Muro trapezoidal: bases y coronas distintas en cada extremo (sigue la subida). */
+function wallMeshSloped(a, b, thickness, y0a, y1a, y0b, y1b, material) {
   const dx = b[0] - a[0];
   const dz = b[1] - a[1];
   const length = Math.hypot(dx, dz);
   if (length < 0.05) return null;
 
-  const geom = new THREE.BoxGeometry(length, height, thickness);
+  const ux = dx / length;
+  const uz = dz / length;
+  const px = -uz;
+  const pz = ux;
+  const ht = thickness / 2;
+
+  const corners = [
+    [a[0] + px * ht, y0a, a[1] + pz * ht],
+    [a[0] - px * ht, y0a, a[1] - pz * ht],
+    [b[0] - px * ht, y0b, b[1] - pz * ht],
+    [b[0] + px * ht, y0b, b[1] + pz * ht],
+    [a[0] + px * ht, y1a, a[1] + pz * ht],
+    [a[0] - px * ht, y1a, a[1] - pz * ht],
+    [b[0] - px * ht, y1b, b[1] - pz * ht],
+    [b[0] + px * ht, y1b, b[1] + pz * ht],
+  ];
+
+  const positions = new Float32Array(corners.flat());
+  const indices = [
+    0, 1, 2, 0, 2, 3, // bottom
+    4, 6, 5, 4, 7, 6, // top
+    0, 3, 7, 0, 7, 4, // side +
+    1, 5, 6, 1, 6, 2, // side -
+    0, 4, 5, 0, 5, 1, // end a
+    3, 2, 6, 3, 6, 7, // end b
+  ];
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+
   const mesh = new THREE.Mesh(geom, material);
-  mesh.position.set((a[0] + b[0]) / 2, height / 2, (a[1] + b[1]) / 2);
-  mesh.rotation.y = -Math.atan2(dz, dx);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
 }
 
-function addEdges(mesh, color = WALL_EDGE) {
-  const edges = new THREE.EdgesGeometry(mesh.geometry, 20);
+function addEdgesFromGeometry(mesh, color = WALL_EDGE) {
+  const edges = new THREE.EdgesGeometry(mesh.geometry, 30);
   const line = new THREE.LineSegments(
     edges,
-    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.35 }),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.32 }),
   );
-  line.position.copy(mesh.position);
-  line.rotation.copy(mesh.rotation);
   return line;
+}
+
+/** Rampa / losa izquierda en subida hacia el centro. */
+function buildRampDeck(material) {
+  const { leftX, rampEndX, wingZMin, wingZMax } = LEVELS;
+  const segsX = 24;
+  const segsZ = 8;
+  const geom = new THREE.PlaneGeometry(
+    rampEndX - leftX,
+    wingZMax - wingZMin,
+    segsX,
+    segsZ,
+  );
+  geom.rotateX(-Math.PI / 2);
+  const pos = geom.attributes.position;
+  const ox = (leftX + rampEndX) / 2;
+  const oz = (wingZMin + wingZMax) / 2;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i) + ox;
+    const z = pos.getZ(i) + oz;
+    pos.setXYZ(i, x, floorElevation(x, z) + 0.02, z);
+  }
+  pos.needsUpdate = true;
+  geom.computeVertexNormals();
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+/** Plataforma elevada del centro. */
+function buildCenterPlinth(material) {
+  const { rampEndX, centerEndX, floorCenter, wingZMin, wingZMax } = LEVELS;
+  const w = centerEndX - rampEndX + 1.2;
+  const d = wingZMax - wingZMin;
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w, floorCenter, d * 0.72),
+    material,
+  );
+  mesh.position.set(
+    (rampEndX + centerEndX) / 2,
+    floorCenter / 2,
+    (wingZMin + wingZMax) / 2 - 1.2,
+  );
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+/** Cubierta que sigue la subida (izquierda baja → centro 4 m). */
+function buildSlopedRoof(material) {
+  const { leftX, centerEndX, wingZMin, wingZMax } = LEVELS;
+  const segsX = 32;
+  const segsZ = 10;
+  const geom = new THREE.PlaneGeometry(
+    centerEndX - leftX + 2,
+    wingZMax - wingZMin,
+    segsX,
+    segsZ,
+  );
+  geom.rotateX(-Math.PI / 2);
+  const pos = geom.attributes.position;
+  const ox = (leftX + centerEndX) / 2;
+  const oz = (wingZMin + wingZMax) / 2;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i) + ox;
+    const z = pos.getZ(i) + oz;
+    pos.setXYZ(i, x, roofElevation(x, z) + 0.06, z);
+  }
+  pos.needsUpdate = true;
+  geom.computeVertexNormals();
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+/** Marcadores de cota para leer la subida. */
+function buildHeightMarkers() {
+  const group = new THREE.Group();
+  const mat = new THREE.LineBasicMaterial({
+    color: 0xa65d3f,
+    transparent: true,
+    opacity: 0.85,
+  });
+  const samples = [
+    { x: -14.5, label: "0 → 2.2 m" },
+    { x: -8, label: "subida" },
+    { x: -1, label: "centro 4 m" },
+  ];
+  for (const s of samples) {
+    const z = 8.4;
+    const y0 = floorElevation(s.x, z);
+    const y1 = roofElevation(s.x, z);
+    const pts = [
+      new THREE.Vector3(s.x, y0, z),
+      new THREE.Vector3(s.x, y1, z),
+    ];
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      mat,
+    );
+    group.add(line);
+    const cap = new THREE.Mesh(
+      new THREE.SphereGeometry(0.08, 10, 10),
+      new THREE.MeshBasicMaterial({ color: 0xa65d3f }),
+    );
+    cap.position.set(s.x, y1, z);
+    group.add(cap);
+  }
+  return group;
 }
 
 async function loadModel() {
@@ -118,7 +267,6 @@ async function loadModel() {
   ]);
   const geometry = await geoRes.json();
   const texMeta = await texMetaRes.json();
-  const height = geometry.meta.wall_height_m ?? 2.7;
   const slabT = geometry.meta.slab_thickness_m ?? 0.2;
 
   const wallMat = new THREE.MeshStandardMaterial({
@@ -129,6 +277,16 @@ async function loadModel() {
   const slabMat = new THREE.MeshStandardMaterial({
     color: SLAB_COLOR,
     roughness: 0.9,
+    metalness: 0,
+  });
+  const rampMat = new THREE.MeshStandardMaterial({
+    color: RAMP_COLOR,
+    roughness: 0.92,
+    metalness: 0,
+  });
+  const centerMat = new THREE.MeshStandardMaterial({
+    color: CENTER_SLAB,
+    roughness: 0.85,
     metalness: 0,
   });
   const colMat = new THREE.MeshStandardMaterial({
@@ -153,6 +311,8 @@ async function loadModel() {
   });
 
   const bounds = geometry.meta.bounds_m;
+
+  // Losa base general (cota baja)
   const slabW = bounds.max_x - bounds.min_x + 1.2;
   const slabD = bounds.max_y - bounds.min_y + 1.2;
   const slab = new THREE.Mesh(
@@ -168,80 +328,106 @@ async function loadModel() {
   slab.castShadow = true;
   building.add(slab);
 
+  // Rampa izquierda + plinto central elevado
+  levelsGroup.add(buildRampDeck(rampMat));
+  levelsGroup.add(buildCenterPlinth(centerMat));
+  levelsGroup.add(buildHeightMarkers());
+
   const loader = new THREE.TextureLoader();
   const planTex = await loader.loadAsync("/plan_floor.png");
   planTex.colorSpace = THREE.SRGBColorSpace;
   planTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
+  // Plano de referencia: sigue la subida del piso
+  const planGeom = new THREE.PlaneGeometry(
+    texMeta.world_width,
+    texMeta.world_depth,
+    48,
+    32,
+  );
+  planGeom.rotateX(-Math.PI / 2);
+  const planPos = planGeom.attributes.position;
+  for (let i = 0; i < planPos.count; i++) {
+    const x = planPos.getX(i);
+    const z = planPos.getZ(i);
+    planPos.setY(i, floorElevation(x, z) + 0.03);
+  }
+  planPos.needsUpdate = true;
+  planGeom.computeVertexNormals();
   const plan = new THREE.Mesh(
-    new THREE.PlaneGeometry(texMeta.world_width, texMeta.world_depth),
+    planGeom,
     new THREE.MeshBasicMaterial({
       map: planTex,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.88,
       depthWrite: false,
     }),
   );
-  plan.rotation.x = -Math.PI / 2;
-  plan.position.y = 0.01;
   planGroup.add(plan);
 
   for (const wall of geometry.walls) {
-    const mesh = wallMesh(wall.a, wall.b, wall.thickness, height, wallMat);
+    const { y0a, y0b, y1a, y1b } = wallHeightsAt(wall.a, wall.b);
+    const mesh = wallMeshSloped(
+      wall.a,
+      wall.b,
+      wall.thickness,
+      y0a,
+      y1a,
+      y0b,
+      y1b,
+      wallMat,
+    );
     if (!mesh) continue;
     building.add(mesh);
-    building.add(addEdges(mesh));
+    building.add(addEdgesFromGeometry(mesh));
   }
 
   for (const g of geometry.glass ?? []) {
-    const mesh = wallMesh(g.a, g.b, 0.06, height * 0.92, glassMat);
+    const { y0a, y0b, y1a, y1b } = wallHeightsAt(g.a, g.b);
+    // Cristal un poco más bajo que el muro
+    const inset = 0.12;
+    const mesh = wallMeshSloped(
+      g.a,
+      g.b,
+      0.06,
+      y0a + inset,
+      y1a - inset,
+      y0b + inset,
+      y1b - inset,
+      glassMat,
+    );
     if (!mesh) continue;
-    mesh.position.y = height * 0.46;
     glassGroup.add(mesh);
   }
 
-  const colH = height;
   for (const [x, z, size] of geometry.columns ?? []) {
     const s = Math.max(size, 0.18);
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(s, colH, s),
-      colMat,
-    );
-    mesh.position.set(x, colH / 2, z);
+    const y0 = floorElevation(x, z);
+    const y1 = roofElevation(x, z);
+    const h = Math.max(0.2, y1 - y0);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(s, h, s), colMat);
+    mesh.position.set(x, y0 + h / 2, z);
     mesh.castShadow = true;
     building.add(mesh);
   }
 
-  // Simple flat roof footprint from bounds (toggle)
-  const roof = new THREE.Mesh(
-    new THREE.PlaneGeometry(slabW + 0.4, slabD + 0.4),
-    roofMat,
-  );
-  roof.rotation.x = -Math.PI / 2;
-  roof.position.set(
-    (bounds.min_x + bounds.max_x) / 2,
-    height + 0.05,
-    (bounds.min_y + bounds.max_y) / 2,
-  );
-  roof.receiveShadow = true;
-  roofGroup.add(roof);
+  roofGroup.add(buildSlopedRoof(roofMat));
 
-  // Soft intro motion: ease camera in
+  // Cámara: mira la subida izquierda → centro
   const start = performance.now();
-  const from = new THREE.Vector3(28, 24, 30);
-  const to = camera.position.clone();
+  const from = new THREE.Vector3(8, 18, 28);
+  const to = new THREE.Vector3(-6, 10, 18);
   camera.position.copy(from);
 
   function intro(now) {
-    const t = Math.min(1, (now - start) / 1800);
+    const t = Math.min(1, (now - start) / 2000);
     const e = 1 - (1 - t) ** 3;
     camera.position.lerpVectors(from, to, e);
-    controls.target.set(0, 1.2 * e, 0);
+    controls.target.set(-3 * e, 1.5 + 1.2 * e, 2);
     if (t < 1) requestAnimationFrame(intro);
   }
   requestAnimationFrame(intro);
 
-  // Gentle ambient sway of light
   const sunBase = sun.position.clone();
   function pulseLight(t) {
     sun.position.x = sunBase.x + Math.sin(t * 0.00025) * 2.5;
@@ -268,9 +454,12 @@ document.getElementById("toggle-glass").addEventListener("change", (e) => {
 document.getElementById("toggle-roof").addEventListener("change", (e) => {
   roofGroup.visible = e.target.checked;
 });
+document.getElementById("toggle-levels")?.addEventListener("change", (e) => {
+  levelsGroup.visible = e.target.checked;
+});
 document.getElementById("btn-reset").addEventListener("click", () => {
-  camera.position.set(18, 16, 22);
-  controls.target.set(0, 1.2, 0);
+  camera.position.set(-6, 10, 18);
+  controls.target.set(-3, 2.7, 2);
 });
 
 window.addEventListener("resize", () => {
