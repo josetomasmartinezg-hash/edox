@@ -13,6 +13,8 @@ import {
   type Order,
   type PaymentMethod,
 } from '../checkout'
+import { notifyOrderToBot } from '../telegramApi'
+import { openBot, orderStartPayload } from '../telegramLinks'
 
 type Step = 'datos' | 'pago' | 'instrucciones' | 'listo'
 
@@ -37,6 +39,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
   const [customer, setCustomer] = useState<CustomerData>(emptyCustomer)
   const [method, setMethod] = useState<PaymentMethod>('usdt-trc20')
   const [order, setOrder] = useState<Order | null>(null)
+  const [sendingBot, setSendingBot] = useState(false)
 
   if (!open) return null
 
@@ -82,9 +85,19 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
     }
   }
 
-  function openTelegramConfirm() {
+  async function openTelegramConfirm() {
     if (!order) return
-    window.open(telegramOrderUrl(order), '_blank', 'noopener,noreferrer')
+    setSendingBot(true)
+    const result = await notifyOrderToBot(order)
+    setSendingBot(false)
+
+    if (result.ok) {
+      showToast('Pedido enviado al bot de Telegram')
+    } else {
+      showToast(result.error || 'Abrimos el bot para confirmar tu pedido')
+    }
+
+    openBot(orderStartPayload(order.id))
     setStep('listo')
   }
 
@@ -297,8 +310,13 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
             )}
 
             <div className="modal__actions modal__actions--stack">
-              <button className="btn btn--mint btn--block" type="button" onClick={openTelegramConfirm}>
-                Ya pagué · confirmar por Telegram
+              <button
+                className="btn btn--mint btn--block"
+                type="button"
+                onClick={openTelegramConfirm}
+                disabled={sendingBot}
+              >
+                {sendingBot ? 'Conectando con el bot…' : 'Ya pagué · abrir bot de Telegram'}
               </button>
               <button className="btn btn--ghost btn--block" type="button" onClick={() => setStep('pago')}>
                 Cambiar método
@@ -310,15 +328,15 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
         {step === 'listo' && order && (
           <div className="pay-panel checkout-body">
             <p>
-              Abrimos Telegram con tu pedido <strong>{order.id}</strong>. Cuando el equipo confirme el pago,
-              te entregamos en 5–30 min.
+              Conectamos tu pedido <strong>{order.id}</strong> con el bot @{storeConfig.telegramBot}. Seguís la
+              entrega y el soporte desde ese chat.
             </p>
             <p className="checkout-hint">
-              Si no se abrió, escribinos a @{storeConfig.telegramSupport} con el ID de orden.
+              Si no se abrió Telegram, tocá el botón de abajo o buscá @{storeConfig.telegramBot} y enviá /start.
             </p>
             <div className="modal__actions modal__actions--stack">
               <a className="btn btn--mint btn--block" href={telegramOrderUrl(order)} target="_blank" rel="noreferrer">
-                Reabrir Telegram
+                Reabrir bot @{storeConfig.telegramBot}
               </a>
               <button className="btn btn--solid btn--block" type="button" onClick={finish}>
                 Listo

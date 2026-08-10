@@ -654,16 +654,39 @@ tr:last-child td {
   font-size: 0.9rem;
 }
 
-.form input {
+.form input,
+.form textarea {
   border: 1.5px solid var(--line);
   border-radius: 12px;
   padding: 0.8rem 0.9rem;
   background: white;
+  resize: vertical;
+  font: inherit;
 }
 
-.form input:focus {
+.form input:focus,
+.form textarea:focus {
   outline: 2px solid rgba(167, 139, 250, 0.45);
   border-color: var(--mint-deep);
+}
+
+.comment-layout {
+  display: grid;
+  gap: 2rem;
+}
+
+.comment-form {
+  padding: 1.35rem;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--paper);
+}
+
+@media (min-width: 860px) {
+  .comment-layout {
+    grid-template-columns: 1fr 1.1fr;
+    align-items: start;
+  }
 }
 
 .modal__actions {

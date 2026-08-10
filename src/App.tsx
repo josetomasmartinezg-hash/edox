@@ -3,6 +3,7 @@ import './App.css'
 import { cartLines, cartSubtotal, telegramSupportUrl } from './checkout'
 import { CartDrawer } from './components/CartDrawer'
 import { CheckoutModal } from './components/CheckoutModal'
+import { CommentSection } from './components/CommentSection'
 import { comparisonRows, faqs, products, type Product } from './data'
 
 type AuthMode = 'login' | 'register' | null
@@ -84,8 +85,8 @@ function App() {
           <nav className="nav" aria-label="Principal">
             <a href="#catalogo">Catálogo</a>
             <a href="#guia">Guía</a>
-            <a href="#comparativa">Comparativa</a>
             <a href="#faq">FAQ</a>
+            <a href="#comentarios">Bot</a>
           </nav>
 
           <div className="header-actions">
@@ -327,6 +328,8 @@ function App() {
           </div>
         </section>
 
+        <CommentSection showToast={showToast} />
+
         <div className="container">
           <section className="cta-band" aria-label="Llamado a la acción">
             <h2>Activá tu estructura hoy</h2>
@@ -351,9 +354,9 @@ function App() {
           </div>
           <div className="footer-links">
             <a href="#faq">FAQ</a>
-            <a href="#catalogo">Catálogo</a>
+            <a href="#comentarios">Comentarios</a>
             <a href={supportUrl} target="_blank" rel="noreferrer">
-              Telegram
+              Bot Telegram
             </a>
           </div>
         </div>

@@ -97,7 +97,7 @@ export const faqs = [
   },
   {
     q: '¿Cómo contacto al soporte?',
-    a: 'Escribinos por Telegram a @advault_support. Al finalizar una compra, el sitio abre Telegram con tu orden precargada.',
+    a: 'Al finalizar una compra o desde Comentarios, la web te conecta con el bot de Telegram de ADVAULT. También podés abrir el bot desde el menú Bot.',
   },
 ]
 
