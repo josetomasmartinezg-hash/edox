@@ -79,24 +79,71 @@ export function paypalMeUrl(amount: number): string {
   return `https://www.paypal.me/${storeConfig.paypal.me}/${amount.toFixed(2)}USD`
 }
 
-export function buildTelegramOrderMessage(order: Order): string {
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+}
+
+/** Mensaje limpio para el grupo Stackd_bot (HTML). */
+export function buildGroupOrderMessage(order: Order): string {
+  const tg = order.customer.telegram.replace(/^@/, '')
   const items = order.lines
-    .map((line) => `• ${line.qty}x ${line.product.name} ($${line.product.price})`)
+    .map(
+      (line) =>
+        `  • ${line.qty}× ${escapeHtml(line.product.name)} — $${(line.product.price * line.qty).toFixed(2)}`,
+    )
+    .join('\n')
+
+  const notes = order.customer.notes?.trim()
+    ? `\n📝 <b>Notas</b>\n${escapeHtml(order.customer.notes.trim())}\n`
+    : ''
+
+  return [
+    `<b>STACKD · NUEVA ORDEN</b>`,
+    `<code>${escapeHtml(order.id)}</code>`,
+    ``,
+    `<b>Cliente</b>`,
+    `Nombre: ${escapeHtml(order.customer.name)}`,
+    `Email: ${escapeHtml(order.customer.email)}`,
+    `Telegram: @${escapeHtml(tg)}`,
+    ``,
+    `<b>Pago</b>`,
+    `Método: ${escapeHtml(paymentLabel(order.paymentMethod))}`,
+    `Total: <b>$${order.amountDue.toFixed(2)} USD</b>`,
+    ``,
+    `<b>Productos</b>`,
+    items,
+    notes,
+    `<b>Links</b>`,
+    `Cliente: https://t.me/${escapeHtml(tg)}`,
+    `Consultas: https://t.me/${storeConfig.telegramSupport}`,
+  ]
+    .filter((line) => line !== undefined)
+    .join('\n')
+}
+
+/** Texto plano para abrir chat con @Stackd2026 (sin HTML). */
+export function buildTelegramOrderMessage(order: Order): string {
+  const tg = order.customer.telegram.replace(/^@/, '')
+  const items = order.lines
+    .map((line) => `• ${line.qty}x ${line.product.name} — $${(line.product.price * line.qty).toFixed(2)}`)
     .join('\n')
 
   return [
-    `Nuevo pedido ${order.id}`,
-    `Cliente: ${order.customer.name}`,
+    `Hola Stackd, confirmo mi compra.`,
+    ``,
+    `Orden: ${order.id}`,
+    `Nombre: ${order.customer.name}`,
     `Email: ${order.customer.email}`,
-    `Telegram: @${order.customer.telegram.replace(/^@/, '')}`,
+    `Telegram: @${tg}`,
     `Método: ${paymentLabel(order.paymentMethod)}`,
-    `Total a pagar: $${order.amountDue.toFixed(2)} USD`,
-    '',
-    'Productos:',
+    `Total: $${order.amountDue.toFixed(2)} USD`,
+    ``,
+    `Productos:`,
     items,
     order.customer.notes ? `\nNotas: ${order.customer.notes}` : '',
-    '',
-    'Ya realicé / voy a realizar el pago. Por favor confirmen la orden.',
   ]
     .filter(Boolean)
     .join('\n')

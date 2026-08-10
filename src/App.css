@@ -154,7 +154,8 @@
   inset: 0;
   z-index: -2;
   background:
-    linear-gradient(180deg, rgba(23, 18, 43, 0.18) 0%, rgba(23, 18, 43, 0.72) 70%, rgba(23, 18, 43, 0.92) 100%),
+    linear-gradient(105deg, rgba(23, 18, 43, 0.88) 0%, rgba(23, 18, 43, 0.55) 48%, rgba(23, 18, 43, 0.35) 100%),
+    linear-gradient(180deg, rgba(23, 18, 43, 0.2) 0%, rgba(23, 18, 43, 0.75) 100%),
     url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=2000&q=80')
       center/cover no-repeat;
 }
@@ -361,9 +362,10 @@
 
 .product {
   display: grid;
-  gap: 1rem;
-  padding: 1.35rem 1.35rem 1.25rem;
+  gap: 1.15rem;
+  padding: 1.6rem 1.5rem 1.4rem;
   border-top: 1px solid var(--line);
+  align-content: start;
 }
 
 .product:first-child {
@@ -416,8 +418,10 @@
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 0.4rem;
+  gap: 0.55rem;
   color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
 }
 
 .product__features li::before {
@@ -644,24 +648,31 @@ tr:last-child td {
 
 .form {
   display: grid;
-  gap: 0.85rem;
+  gap: 1.05rem;
 }
 
 .form label {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.45rem;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+}
+
+.form label small {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 .form input,
 .form textarea {
   border: 1.5px solid var(--line);
   border-radius: 12px;
-  padding: 0.8rem 0.9rem;
+  padding: 0.9rem 1rem;
   background: white;
   resize: vertical;
   font: inherit;
+  line-height: 1.4;
 }
 
 .form input:focus,
@@ -676,7 +687,7 @@ tr:last-child td {
 }
 
 .comment-form {
-  padding: 1.35rem;
+  padding: 1.6rem 1.5rem;
   border: 1px solid var(--line);
   border-radius: calc(var(--radius) + 4px);
   background: var(--paper);
@@ -890,19 +901,20 @@ tr:last-child td {
 }
 
 .checkout-steps li {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--muted);
-  padding: 0.35rem 0.65rem;
+  padding: 0.45rem 0.8rem;
   border-radius: 999px;
   background: rgba(23, 18, 43, 0.05);
 }
 
 .checkout-steps li.is-active {
   color: var(--ink);
-  background: rgba(167, 139, 250, 0.28);
+  background: rgba(167, 139, 250, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(124, 92, 252, 0.35);
 }
 
 .checkout-summary {
@@ -971,27 +983,47 @@ tr:last-child td {
 .amount-box,
 .address-box {
   display: grid;
-  gap: 0.65rem;
-  padding: 1rem;
+  gap: 0.8rem;
+  padding: 1.2rem 1.15rem;
   border-radius: 14px;
   border: 1px solid var(--line);
   background: rgba(23, 18, 43, 0.03);
 }
 
+.amount-box > span,
+.address-box > span {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--moss);
+}
+
 .amount-box strong {
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 2.15rem;
   line-height: 1;
 }
 
 .address-box code {
   display: block;
   word-break: break-all;
-  font-size: 0.92rem;
-  padding: 0.75rem;
+  font-size: 0.9rem;
+  padding: 0.9rem 1rem;
   border-radius: 10px;
   background: white;
   border: 1px solid var(--line);
+  line-height: 1.45;
+}
+
+.pay-panel .checkout-hint {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink);
+  background: rgba(167, 139, 250, 0.12);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
 }
 
 .pay-actions {
@@ -1002,6 +1034,30 @@ tr:last-child td {
 .modal__actions--stack {
   flex-direction: column;
   align-items: stretch;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+.trust__list {
+  gap: 1rem 1.25rem;
+}
+
+.trust__list li {
+  gap: 0.75rem;
+  line-height: 1.3;
+}
+
+.section {
+  padding: 4.5rem 0;
+}
+
+.benefits {
+  margin-top: 2.25rem;
+  gap: 1.35rem 1.5rem;
+}
+
+.benefit {
+  gap: 0.95rem;
 }
 
 .checkout-head .section__eyebrow {

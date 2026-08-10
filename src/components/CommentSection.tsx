@@ -53,15 +53,15 @@ export function CommentSection({ showToast }: Props) {
             <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" />
           </label>
           <label>
-            Email (opcional)
+            Email <small>opcional</small>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
           </label>
           <label>
-            Telegram (opcional)
+            Telegram <small>opcional</small>
             <input value={telegram} onChange={(e) => setTelegram(e.target.value)} placeholder="@tuusuario" />
           </label>
           <label>
-            ID de orden (opcional)
+            ID de orden <small>opcional</small>
             <input value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="STK-..." />
           </label>
           <label>

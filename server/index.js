@@ -38,17 +38,19 @@ async function telegramApi(method, body) {
   return data
 }
 
-async function notifyAdmin(text) {
+async function notifyAdmin(text, parseMode = 'HTML') {
   if (!configured()) {
     const err = new Error('Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID')
     err.code = 'NOT_CONFIGURED'
     throw err
   }
-  return telegramApi('sendMessage', {
+  const payload = {
     chat_id: CHAT_ID,
     text,
     disable_web_page_preview: true,
-  })
+  }
+  if (parseMode) payload.parse_mode = parseMode
+  return telegramApi('sendMessage', payload)
 }
 
 app.get('/api/health', (_req, res) => {
@@ -61,13 +63,13 @@ app.get('/api/health', (_req, res) => {
 
 app.post('/api/telegram/order', async (req, res) => {
   try {
-    const { text, orderId, startPayload } = req.body || {}
+    const { text, orderId, startPayload, parseMode } = req.body || {}
     if (!text || !orderId) {
       res.status(400).json({ ok: false, error: 'Faltan text u orderId' })
       return
     }
 
-    await notifyAdmin(String(text))
+    await notifyAdmin(String(text), parseMode || 'HTML')
 
     res.json({
       ok: true,

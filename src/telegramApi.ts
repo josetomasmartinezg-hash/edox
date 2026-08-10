@@ -1,5 +1,5 @@
 import type { Order } from './checkout'
-import { buildTelegramOrderMessage, paymentLabel } from './checkout'
+import { buildGroupOrderMessage, paymentLabel } from './checkout'
 import { orderStartPayload } from './telegramLinks'
 
 function apiBase(): string {
@@ -23,19 +23,12 @@ async function postJson(path: string, body: unknown): Promise<{ ok: boolean; err
   }
 }
 
-/** Avisa la compra al bot interno (admin). El cliente habla con @Stackd2026. */
+/** Avisa la compra al grupo Stackd_bot con formato ordenado. */
 export async function notifyOrderToBot(order: Order) {
-  const text = [
-    '🛒 Nueva compra Stackd',
-    buildTelegramOrderMessage(order),
-    '',
-    `Cliente Telegram: https://t.me/${order.customer.telegram}`,
-    `Consultas públicas: https://t.me/Stackd2026`,
-  ].join('\n')
-
   return postJson('/api/telegram/order', {
     orderId: order.id,
-    text,
+    text: buildGroupOrderMessage(order),
+    parseMode: 'HTML',
     customer: order.customer,
     amountDue: order.amountDue,
     paymentMethod: paymentLabel(order.paymentMethod),

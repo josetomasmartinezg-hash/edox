@@ -100,7 +100,9 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
 
     openSupport(
       [
-        `Hola Stackd, ya pagué / voy a pagar la orden ${order.id}.`,
+        `Hola Stackd, confirmo mi pago.`,
+        ``,
+        `Orden: ${order.id}`,
         `Total: $${order.amountDue.toFixed(2)} USD`,
         `Método: ${paymentLabel(order.paymentMethod)}`,
         `Mi Telegram: @${order.customer.telegram}`,
