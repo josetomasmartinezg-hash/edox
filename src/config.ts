@@ -17,8 +17,10 @@ export const storeConfig = {
     email: env('VITE_PAYPAL_EMAIL', 'pagos@stackd.space'),
   },
   usdt: {
-    trc20: env('VITE_USDT_TRC20', ''),
+    trc20: env('VITE_USDT_TRC20', 'TSbh8JPcucyd7yQS6Z1KzhutWh1xS7cbBc'),
     bep20: env('VITE_USDT_BEP20', ''),
+    /** QR estático en /public (generado para la wallet TRC20) */
+    trc20Qr: '/qr-usdt-trc20.png',
   },
 }
 

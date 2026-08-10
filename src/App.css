@@ -1101,6 +1101,29 @@ tr:last-child td {
   line-height: 1.45;
 }
 
+.qr-wrap {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  padding: 0.85rem 0 0.25rem;
+}
+
+.qr-image {
+  width: min(220px, 70vw);
+  height: auto;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: white;
+  padding: 0.65rem;
+}
+
+.qr-caption {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .pay-panel .checkout-hint {
   margin: 0;
   font-size: 0.95rem;
