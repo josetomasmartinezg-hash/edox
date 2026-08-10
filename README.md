@@ -27,10 +27,10 @@ Sirve el `dist/` y las rutas `/api/telegram/*` en el mismo puerto (`PORT`, defau
 ## Bot de Telegram
 
 1. Creá el bot con [@BotFather](https://t.me/BotFather) y copiá el token.
-2. Obtené tu `CHAT_ID` (escribile al bot y mirá `getUpdates`, o usá un grupo).
+2. Agregá el bot al grupo de confirmaciones (ej. `Stackd_bot`) y dale admin si hace falta.
 3. Poné en `.env`:
    - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID`
+   - `TELEGRAM_CHAT_ID` (id del grupo, suele ser negativo)
    - `TELEGRAM_BOT_USERNAME` / `VITE_TELEGRAM_BOT_USERNAME`
 4. (Opcional, en un dominio HTTPS) configurá el webhook:
 
