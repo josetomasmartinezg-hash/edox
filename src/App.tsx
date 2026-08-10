@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ContactForm from './components/ContactForm'
 import './App.css'
 
 const navLinks = [
@@ -761,37 +762,40 @@ export default function App() {
             <div className="contact__intro" data-reveal>
               <p className="eyebrow">Contacto</p>
               <h2>Hablemos.</h2>
-              <p className="contact__tag">Ubicación & contacto</p>
+              <p className="contact__tag">Escríbenos y te respondemos</p>
             </div>
 
-            <div className="contact__grid" data-reveal>
-              <div>
-                <span>Dirección</span>
-                <strong>
-                  Vista Hermosa N° 9790
-                  <br />
-                  Cerrillos, Santiago
-                  <br />
-                  Chile
-                </strong>
-              </div>
-              <div>
-                <span>Teléfono</span>
-                <strong>
-                  <a href="tel:+56227073900">+56 2 2707 3900</a>
-                </strong>
-              </div>
-              <div>
-                <span>Correo electrónico</span>
-                <strong>
-                  <a href="mailto:e.latorre@soinver.cl">e.latorre@soinver.cl</a>
-                </strong>
-              </div>
-            </div>
+            <div className="contact__layout">
+              <ContactForm />
 
-            <p className="contact__closing" data-reveal>
-              Construyendo el norte de Chile desde 1992.
-            </p>
+              <aside className="contact__details" data-reveal>
+                <div>
+                  <span>Dirección</span>
+                  <strong>
+                    Vista Hermosa N° 9790
+                    <br />
+                    Cerrillos, Santiago
+                    <br />
+                    Chile
+                  </strong>
+                </div>
+                <div>
+                  <span>Teléfono</span>
+                  <strong>
+                    <a href="tel:+56227073900">+56 2 2707 3900</a>
+                  </strong>
+                </div>
+                <div>
+                  <span>Correo electrónico</span>
+                  <strong>
+                    <a href="mailto:e.latorre@soinver.cl">e.latorre@soinver.cl</a>
+                  </strong>
+                </div>
+                <p className="contact__closing">
+                  Construyendo el norte de Chile desde 1992.
+                </p>
+              </aside>
+            </div>
           </div>
         </section>
       </main>
