@@ -335,7 +335,7 @@ function App() {
               <a className="btn btn--mint" href="#catalogo">
                 Ir al catálogo
               </a>
-              <a className="btn btn--line" href={supportUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--sand)', borderColor: 'rgba(242,232,213,0.35)' }}>
+              <a className="btn btn--line" href={supportUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--sand)', borderColor: 'rgba(241,234,252,0.35)' }}>
                 Soporte Telegram
               </a>
             </div>
