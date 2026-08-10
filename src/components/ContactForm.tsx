@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
+/** Destino fijo de todos los contactos del sitio */
+const CONTACT_EMAIL = 'e.latorre@soinver.cl'
+
 type Status = 'idle' | 'sending' | 'success' | 'error'
 
 export default function ContactForm() {
@@ -12,11 +15,16 @@ export default function ContactForm() {
     const form = event.currentTarget
     const data = new FormData(form)
 
+    // Destino y respuesta siempre a / desde el correo corporativo
+    data.set('_to', CONTACT_EMAIL)
+    data.set('_replyto', String(data.get('email') || ''))
+    data.set('_subject', 'Nuevo contacto desde web Soinver')
+
     setStatus('sending')
     setErrorMsg('')
 
     try {
-      const response = await fetch('https://formsubmit.co/ajax/e.latorre@soinver.cl', {
+      const response = await fetch(`https://formsubmit.co/ajax/${CONTACT_EMAIL}`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -24,14 +32,17 @@ export default function ContactForm() {
         body: data,
       })
 
+      const result = (await response.json().catch(() => null)) as
+        | { success?: string | boolean; message?: string }
+        | null
+
       if (!response.ok) {
-        throw new Error('No se pudo enviar el mensaje')
+        throw new Error(result?.message || 'No se pudo enviar el mensaje')
       }
 
       form.reset()
       setStatus('success')
     } catch {
-      // Fallback: abrir cliente de correo del usuario
       const nombre = String(data.get('nombre') || '')
       const email = String(data.get('email') || '')
       const telefono = String(data.get('telefono') || '')
@@ -52,7 +63,8 @@ export default function ContactForm() {
           .join('\n'),
       )
 
-      window.location.href = `mailto:e.latorre@soinver.cl?subject=${subject}&body=${body}`
+      // Fallback: abre el correo dirigido únicamente a e.latorre@soinver.cl
+      window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`
       setStatus('success')
       setErrorMsg('')
     }
@@ -63,6 +75,7 @@ export default function ContactForm() {
       <input type="hidden" name="_subject" value="Nuevo contacto desde web Soinver" />
       <input type="hidden" name="_template" value="table" />
       <input type="hidden" name="_captcha" value="false" />
+      <input type="hidden" name="_to" value={CONTACT_EMAIL} />
       <input type="text" name="_honey" className="contact-form__honey" tabIndex={-1} autoComplete="off" />
 
       <div className="contact-form__row">
@@ -108,18 +121,22 @@ export default function ContactForm() {
         />
       </label>
 
+      <p className="contact-form__destinatario">
+        Los mensajes se envían a <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+      </p>
+
       <div className="contact-form__actions">
         <button className="btn" type="submit" disabled={status === 'sending'}>
           {status === 'sending' ? 'Enviando…' : 'Enviar mensaje'}
         </button>
         {status === 'success' && (
           <p className="contact-form__status contact-form__status--ok" role="status">
-            Mensaje listo. Gracias por contactarnos.
+            Mensaje enviado a {CONTACT_EMAIL}. Gracias por contactarnos.
           </p>
         )}
         {status === 'error' && (
           <p className="contact-form__status contact-form__status--err" role="alert">
-            {errorMsg || 'No se pudo enviar. Intenta nuevamente o escribe a e.latorre@soinver.cl.'}
+            {errorMsg || `No se pudo enviar. Escríbenos a ${CONTACT_EMAIL}.`}
           </p>
         )}
       </div>

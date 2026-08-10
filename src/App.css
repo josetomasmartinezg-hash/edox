@@ -1194,6 +1194,22 @@
   min-height: 8.5rem;
 }
 
+.contact-form__destinatario {
+  margin: 0.15rem 0 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.92rem;
+}
+
+.contact-form__destinatario a {
+  color: #ff8aa0;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.contact-form__destinatario a:hover {
+  color: var(--white);
+}
+
 .contact-form__actions {
   display: flex;
   flex-wrap: wrap;
