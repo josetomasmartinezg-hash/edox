@@ -6,137 +6,143 @@ export type Product = {
   oldPrice?: number
   features: string[]
   stock: number
+  description?: string
+  featured?: boolean
+  cta?: string
 }
 
 /** Catálogo por defecto (fallback si el API no responde). */
 export const defaultProducts: Product[] = [
   {
-    id: 'bm-api',
-    name: 'BM Verificado Premium',
-    badge: 'Más vendido',
-    price: 189,
-    oldPrice: 240,
+    id: 'plan-starter',
+    name: 'Starter',
+    badge: 'Starter',
+    price: 99,
+    description: 'Para empezar a escalar con estructura.',
     features: [
-      'Verificación oficial Meta',
-      'Límites de gasto ampliados',
-      'Entrega 24–48 hrs',
-      'Soporte post-venta',
+      '1 perfil Ads Power',
+      '1 Business Manager',
+      '2 cuentas de ads',
+      '1 proxy residencial',
+      'Garantía 15 días',
+      'Soporte Telegram',
     ],
-    stock: 12,
+    stock: 20,
+    cta: 'Elegir Starter',
   },
   {
-    id: 'bm-balloon',
-    name: 'BM Balloon Verificado',
-    badge: 'Escalado',
-    price: 149,
-    oldPrice: 190,
+    id: 'plan-pro',
+    name: 'Pro',
+    badge: 'Más popular',
+    price: 249,
+    description: 'El setup que usa quien escala en serio.',
     features: [
-      'Límites ampliados',
-      'Ideal para agencias',
-      'Múltiples ad accounts',
-      'Entrega 24–48 hrs',
+      '2 perfiles Ads Power',
+      '2 Business Managers',
+      '3 cuentas por BM (6 total)',
+      '2 proxies residenciales',
+      'Garantía 15 días',
+      'Onboarding 1:1',
+      'Soporte prioritario',
+    ],
+    stock: 15,
+    featured: true,
+    cta: 'Contratar Pro →',
+  },
+  {
+    id: 'plan-agency',
+    name: 'Agency',
+    badge: 'Agency',
+    price: 449,
+    description: 'Para agencias y buyers de alto volumen.',
+    features: [
+      '4 perfiles Ads Power',
+      '4 Business Managers',
+      '3 cuentas por BM (12 total)',
+      '4 proxies móviles',
+      'Garantía 20 días',
+      'Onboarding extendido',
+      'Soporte VIP',
     ],
     stock: 8,
+    cta: 'Elegir Agency',
+  },
+]
+
+export const tickerItems = [
+  'Proxies residenciales',
+  'Ads Power',
+  'Setup personalizado',
+  'Soporte 1:1',
+  'Multi-cuentas',
+  'Business Managers',
+]
+
+export const processSteps = [
+  {
+    n: '01',
+    title: 'Elegís tu plan',
+    text: 'Starter, Pro o Agency según el volumen con el que vas a operar.',
   },
   {
-    id: 'ad-account',
-    name: 'Cuenta Publicitaria Lista',
-    badge: 'Starter',
-    price: 45,
-    features: [
-      'Lista para campañas',
-      'Límite inicial activo',
-      'Compatible con BM',
-      'Entrega 24–48 hrs',
-    ],
-    stock: 24,
+    n: '02',
+    title: 'Confirmás el pago',
+    text: 'USDT o PayPal. Te llega la orden al instante por Telegram.',
   },
   {
-    id: 'pack-agencia',
-    name: 'Pack Agencia ×3 BM',
-    badge: 'Volumen',
-    price: 499,
-    oldPrice: 567,
-    features: [
-      '3 BM verificados',
-      'Listos para Meta Ads',
-      'Descuento por cantidad',
-      'Prioridad en soporte',
-    ],
-    stock: 5,
+    n: '03',
+    title: 'Armamos tu setup',
+    text: 'Perfiles, BMs, cuentas y proxies listos en 24–48 hrs.',
+  },
+  {
+    n: '04',
+    title: 'Escalá con soporte',
+    text: 'Canal directo por Telegram para dudas y reposición en garantía.',
+  },
+]
+
+export const valueProps = [
+  {
+    title: 'Setup en 24–48 hrs',
+    text: 'Tu infraestructura queda operativa en menos de dos días hábiles.',
+  },
+  {
+    title: 'Garantía real',
+    text: 'Si una cuenta cae en garantía, la reponemos. Sin vueltas.',
+  },
+  {
+    title: 'Todo integrado',
+    text: 'Perfiles, cuentas, BMs y proxies listos juntos.',
+  },
+  {
+    title: 'Hecho para buyers',
+    text: 'Conocemos el media buying y armamos setups que escalan.',
   },
 ]
 
 export const faqs = [
   {
-    q: '¿Qué es un Business Manager Verificado?',
-    a: 'Es una cuenta empresarial de Meta que completó el proceso oficial de verificación. Tiene acceso a mayores límites de gasto, más cuentas publicitarias y menor riesgo de restricciones preventivas.',
+    q: '¿Cuánto tarda en estar listo mi setup?',
+    a: 'Entre 24 y 48 hrs después de confirmar el pago. Te enviamos los accesos por Telegram.',
   },
   {
-    q: '¿Qué diferencia hay con un BM Balloon?',
-    a: 'Un BM Balloon verificado suele venir con límites más altos y está pensado para escalar presupuesto rápido. Ideal para agencias y equipos de performance que manejan varias ad accounts.',
+    q: '¿Qué pasa si me banean una cuenta?',
+    a: 'Si cae dentro del período de garantía y no hubo mal uso, la reponemos. La garantía no cubre calentamiento agresivo ni acciones que comprometan la cuenta.',
   },
   {
-    q: '¿Cómo es la entrega?',
-    a: 'Entre 24 y 48 hrs tras confirmar el pago. Te enviamos los accesos por Telegram.',
+    q: '¿Qué tipo de proxies usan?',
+    a: 'Residenciales en Starter/Pro y móviles en Agency, asignados al setup para que operes con menor riesgo de flags.',
+  },
+  {
+    q: '¿Necesito saber de técnico?',
+    a: 'No. Te entregamos todo configurado y en Pro/Agency hacemos onboarding 1:1 para que arranques sin fricción.',
   },
   {
     q: '¿Cómo funciona el pago?',
-    a: 'Aceptamos USDT (TRC20 / BEP20) y PayPal. En USDT generamos un monto único con centavos aleatorios para identificar tu depósito: enviá el monto exacto. En PayPal usás PayPal.me o checkout. Después confirmás la orden por Telegram para la entrega.',
-  },
-  {
-    q: '¿Qué cubre la garantía?',
-    a: 'Cubre productos que lleguen bloqueados o inutilizables al momento de la entrega. No cubre mal uso: conectar a CRM de inmediato, lanzar tráfico en las primeras horas, ni acciones que comprometan la cuenta.',
-  },
-  {
-    q: '¿Cómo conecto el BM al CRM de forma segura?',
-    a: 'Esperá al menos 4–6 horas (ideal 12–24) antes de conectar a un CRM. Luego esperá mínimo 24 horas más antes de enviar tráfico desde Meta.',
-  },
-  {
-    q: '¿Necesito una cuenta personal de Facebook?',
-    a: 'No. El BM viene listo para usar de forma independiente, sin asociar tu perfil personal.',
+    a: 'Aceptamos USDT (TRC20 / BEP20) y PayPal. En USDT generamos un monto único con centavos para identificar tu depósito. Después confirmás por Telegram.',
   },
   {
     q: '¿Cómo contacto al soporte?',
-    a: 'Para consultas escribí a @Stackd2026 (sección Consultas o botones de Telegram). Cuando comprás, el bot interno avisa automáticamente la orden y después seguís la entrega con @Stackd2026.',
-  },
-]
-
-export const comparisonRows = [
-  {
-    feature: 'Nivel de confianza Meta',
-    regular: 'Bajo, alto riesgo',
-    verified: 'Alto, riesgo reducido',
-    alt: 'Medio, depende del proveedor',
-  },
-  {
-    feature: 'Límite de cuentas publicitarias',
-    regular: 'Limitado (1–2)',
-    verified: 'Extendido (5+)',
-    alt: 'Variable según contrato',
-  },
-  {
-    feature: 'Métodos de pago',
-    regular: 'Opciones limitadas',
-    verified: 'Soporte completo',
-    alt: 'Frecuentemente restringido',
-  },
-  {
-    feature: 'Proceso de adquisición',
-    regular: 'Gratis, sin documentos',
-    verified: 'Documentos o compra',
-    alt: 'Rápido, con riesgos',
-  },
-  {
-    feature: 'Riesgo de baneo',
-    regular: 'Alto',
-    verified: 'Reducido',
-    alt: 'Medio-alto',
-  },
-  {
-    feature: 'Ideal para',
-    regular: 'Pruebas y pymes',
-    verified: 'Agencias y e-commerce',
-    alt: 'Acceso rápido puntual',
+    a: 'Escribí a @Stackd2026. Cuando comprás, el bot interno avisa la orden al equipo automáticamente.',
   },
 ]

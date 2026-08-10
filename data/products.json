@@ -1,57 +1,56 @@
 [
   {
-    "id": "bm-api",
-    "name": "BM Verificado Premium",
-    "badge": "Más vendido",
-    "price": 189,
-    "oldPrice": 240,
-    "features": [
-      "Verificación oficial Meta",
-      "Límites de gasto ampliados",
-      "Entrega 24–48 hrs",
-      "Soporte post-venta"
-    ],
-    "stock": 12
-  },
-  {
-    "id": "bm-balloon",
-    "name": "BM Balloon Verificado",
-    "badge": "Escalado",
-    "price": 149,
-    "oldPrice": 190,
-    "features": [
-      "Límites ampliados",
-      "Ideal para agencias",
-      "Múltiples ad accounts",
-      "Entrega 24–48 hrs"
-    ],
-    "stock": 8
-  },
-  {
-    "id": "ad-account",
-    "name": "Cuenta Publicitaria Lista",
+    "id": "plan-starter",
+    "name": "Starter",
     "badge": "Starter",
-    "price": 45,
+    "price": 99,
+    "description": "Para empezar a escalar con estructura.",
     "features": [
-      "Lista para campañas",
-      "Límite inicial activo",
-      "Compatible con BM",
-      "Entrega 24–48 hrs"
+      "1 perfil Ads Power",
+      "1 Business Manager",
+      "2 cuentas de ads",
+      "1 proxy residencial",
+      "Garantía 15 días",
+      "Soporte Telegram"
     ],
-    "stock": 24
+    "stock": 20,
+    "cta": "Elegir Starter"
   },
   {
-    "id": "pack-agencia",
-    "name": "Pack Agencia ×3 BM",
-    "badge": "Volumen",
-    "price": 499,
-    "oldPrice": 567,
+    "id": "plan-pro",
+    "name": "Pro",
+    "badge": "Más popular",
+    "price": 249,
+    "description": "El setup que usa quien escala en serio.",
     "features": [
-      "3 BM verificados",
-      "Listos para Meta Ads",
-      "Descuento por cantidad",
-      "Prioridad en soporte"
+      "2 perfiles Ads Power",
+      "2 Business Managers",
+      "3 cuentas por BM (6 total)",
+      "2 proxies residenciales",
+      "Garantía 15 días",
+      "Onboarding 1:1",
+      "Soporte prioritario"
     ],
-    "stock": 5
+    "stock": 15,
+    "featured": true,
+    "cta": "Contratar Pro →"
+  },
+  {
+    "id": "plan-agency",
+    "name": "Agency",
+    "badge": "Agency",
+    "price": 449,
+    "description": "Para agencias y buyers de alto volumen.",
+    "features": [
+      "4 perfiles Ads Power",
+      "4 Business Managers",
+      "3 cuentas por BM (12 total)",
+      "4 proxies móviles",
+      "Garantía 20 días",
+      "Onboarding extendido",
+      "Soporte VIP"
+    ],
+    "stock": 8,
+    "cta": "Elegir Agency"
   }
 ]

@@ -1,4 +1,15 @@
 .admin {
+  --ink: #17122b;
+  --moss: #6d4fd8;
+  --mint-deep: #7c5cfc;
+  --cream: #f6f3fb;
+  --paper: #fcfbfe;
+  --line: rgba(23, 18, 43, 0.12);
+  --muted: rgba(23, 18, 43, 0.68);
+  --shadow: 0 24px 60px rgba(23, 18, 43, 0.14);
+  --radius: 18px;
+  --font-display: 'Syne', sans-serif;
+  color: var(--ink);
   min-height: 100vh;
   padding: 2rem 1rem 3rem;
   background:

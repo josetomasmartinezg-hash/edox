@@ -230,6 +230,9 @@ function sanitizeProducts(input) {
       badge: typeof row.badge === 'string' && row.badge.trim() ? row.badge.trim() : base.badge,
       name: typeof row.name === 'string' && row.name.trim() ? row.name.trim() : base.name,
     }
+    if (typeof row.description === 'string') next.description = row.description.trim()
+    if (typeof row.cta === 'string') next.cta = row.cta.trim()
+    if (typeof row.featured === 'boolean') next.featured = row.featured
     if (oldPrice !== undefined) next.oldPrice = Math.round(oldPrice * 100) / 100
     else delete next.oldPrice
     return next

@@ -1,23 +1,25 @@
 :root {
-  --ink: #17122b;
-  --ink-soft: #2b2148;
-  --moss: #6d4fd8;
-  --mint: #a78bfa;
-  --mint-deep: #7c5cfc;
-  --sand: #f1eafc;
-  --sand-deep: #ddd0f5;
-  --cream: #f6f3fb;
-  --paper: #fcfbfe;
-  --line: rgba(23, 18, 43, 0.12);
-  --muted: rgba(23, 18, 43, 0.68);
-  --danger: #d94f8c;
-  --shadow: 0 24px 60px rgba(23, 18, 43, 0.14);
+  --bg: #050508;
+  --bg-elevated: #0c0c12;
+  --bg-card: #101018;
+  --ink: #f5f3ff;
+  --muted: rgba(245, 243, 255, 0.58);
+  --muted-soft: rgba(245, 243, 255, 0.38);
+  --line: rgba(167, 139, 250, 0.16);
+  --line-strong: rgba(167, 139, 250, 0.45);
+  --purple: #8b5cf6;
+  --purple-deep: #7c3aed;
+  --purple-soft: rgba(139, 92, 246, 0.16);
+  --purple-glow: rgba(139, 92, 246, 0.35);
+  --danger: #f472b6;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
   --radius: 18px;
-  --font-display: 'Fraunces', Georgia, serif;
-  --font-body: 'Manrope', sans-serif;
+  --radius-sm: 12px;
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'Outfit', sans-serif;
   --max: 1120px;
   color: var(--ink);
-  background: var(--cream);
+  background: var(--bg);
   font-family: var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -38,9 +40,10 @@ body {
   margin: 0;
   min-width: 320px;
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(167, 139, 250, 0.22), transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, rgba(221, 208, 245, 0.85), transparent 50%),
-    linear-gradient(180deg, #f3eefc 0%, var(--cream) 40%, #efeaf8 100%);
+    radial-gradient(900px 520px at 50% -10%, rgba(139, 92, 246, 0.22), transparent 60%),
+    radial-gradient(700px 400px at 100% 20%, rgba(124, 58, 237, 0.12), transparent 55%),
+    var(--bg);
+  color: var(--ink);
 }
 
 a {
@@ -49,7 +52,8 @@ a {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -78,7 +82,6 @@ img {
   border: 0;
 }
 
-/* Motion */
 @keyframes rise {
   from {
     opacity: 0;
@@ -90,23 +93,22 @@ img {
   }
 }
 
-@keyframes drift {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
+@keyframes marquee {
+  from {
+    transform: translateX(0);
   }
-  50% {
-    transform: translate3d(12px, -10px, 0) scale(1.03);
+  to {
+    transform: translateX(-50%);
   }
 }
 
-@keyframes pulse-line {
+@keyframes glow-pulse {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 0.45;
   }
   50% {
-    opacity: 0.9;
+    opacity: 0.85;
   }
 }
 
@@ -132,8 +134,7 @@ img {
   }
 
   .reveal,
-  .hero__orb,
-  .hero__scan {
+  .ticker__track {
     animation: none !important;
   }
 }

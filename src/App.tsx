@@ -3,8 +3,14 @@ import './App.css'
 import { cartLines, cartSubtotal, telegramSupportUrl } from './checkout'
 import { CartDrawer } from './components/CartDrawer'
 import { CheckoutModal } from './components/CheckoutModal'
-import { CommentSection } from './components/CommentSection'
-import { comparisonRows, defaultProducts, faqs, type Product } from './data'
+import {
+  defaultProducts,
+  faqs,
+  processSteps,
+  tickerItems,
+  valueProps,
+  type Product,
+} from './data'
 import { fetchProducts } from './productsApi'
 
 const CART_KEY = 'stackd-cart'
@@ -43,6 +49,7 @@ function App() {
   const subtotal = useMemo(() => cartSubtotal(lines), [lines])
   const cartCount = lines.reduce((sum, line) => sum + line.qty, 0)
   const supportUrl = telegramSupportUrl()
+  const tickerLoop = [...tickerItems, ...tickerItems]
 
   function showToast(message: string) {
     setToast(message)
@@ -85,7 +92,7 @@ function App() {
 
   function openCheckout() {
     if (!lines.length) {
-      showToast('Agregá al menos un producto')
+      showToast('Agregá al menos un plan')
       return
     }
     setCartOpen(false)
@@ -102,29 +109,29 @@ function App() {
     <>
       <header className="site-header">
         <div className="container site-header__inner">
-          <a className="brand" href="#top" aria-label="Stackd inicio">
-            <span className="brand__mark">S</span>
-            <span className="brand__text">Stackd</span>
+          <a className="brand" href="#top" aria-label="STACKD inicio">
+            STACKD
           </a>
 
           <nav className="nav" aria-label="Principal">
-            <a href="#catalogo">Catálogo</a>
-            <a href="#guia">Guía</a>
-            <a href="#comparativa">Comparativa</a>
+            <a href="#proceso">Cómo funciona</a>
+            <a href="#planes">Planes</a>
             <a href="#faq">FAQ</a>
-            <a href="#comentarios">Consultas</a>
           </nav>
 
           <div className="header-actions">
-            <a className="btn btn--ghost" href={supportUrl} target="_blank" rel="noreferrer">
-              @Stackd2026
-            </a>
-            <a className="btn btn--solid" href="#catalogo">
-              Comprar
+            <a className="btn btn--purple" href="#planes">
+              Quiero mi setup →
             </a>
             <button className="cart-btn" type="button" aria-label="Carrito" onClick={() => setCartOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M3 5h2l2.2 10.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.5L21 8H7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M3 5h2l2.2 10.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.5L21 8H7"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
                 <circle cx="10" cy="20" r="1.4" fill="currentColor" />
                 <circle cx="17" cy="20" r="1.4" fill="currentColor" />
               </svg>
@@ -136,213 +143,142 @@ function App() {
 
       <main id="top">
         <section className="hero" aria-label="Portada">
-          <div className="hero__media" role="img" aria-label="Escritorio de media buying con campañas activas" />
-          <div className="hero__orb" aria-hidden="true" />
-          <div className="hero__scan" aria-hidden="true" />
+          <div className="hero__glow" aria-hidden="true" />
           <div className="hero__content">
-            <h1 className="hero__brand reveal">Stackd</h1>
-            <p className="hero__headline reveal reveal-delay-1">
-              Business Managers verificados listos para Meta Ads
-            </p>
+            <p className="hero__badge reveal">• Infraestructura para media buyers</p>
+            <h1 className="hero__title reveal reveal-delay-1">
+              Escala tus ads.
+              <span> Sin perder cuentas</span>
+              <em> en el intento.</em>
+            </h1>
             <p className="hero__support reveal reveal-delay-2">
-              Infraestructura lista para afiliados, agencias y media buyers que necesitan cuentas estables y entrega en 24–48 hrs.
+              Setup completo de multi-cuentas, Business Managers, Ads Power y proxies. Listo para usar en
+              48 hrs.
             </p>
             <div className="hero__cta reveal reveal-delay-3">
-              <a className="btn btn--mint" href="#catalogo">
-                Ver catálogo
+              <a className="btn btn--purple" href="#planes">
+                Ver planes y precios
               </a>
-              <a className="btn btn--line" href={supportUrl} target="_blank" rel="noreferrer">
-                Consultas @Stackd2026
+              <a className="btn btn--ghost-purple" href="#proceso">
+                ¿Cómo funciona?
               </a>
             </div>
           </div>
-        </section>
 
-        <section className="trust">
-          <div className="container">
-            <ul className="trust__list">
-              <li>
-                <span className="trust__icon">24h</span>
-                Entrega en 24–48 hrs
-              </li>
-              <li>
-                <span className="trust__icon">$</span>
-                USDT / PayPal
-              </li>
-              <li>
-                <span className="trust__icon">OK</span>
-                Compra segura
-              </li>
-              <li>
-                <span className="trust__icon">%</span>
-                Descuentos por cantidad
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <section className="section" id="por-que">
-          <div className="container">
-            <p className="section__eyebrow">Por qué Stackd</p>
-            <h2 className="section__title">Cuentas listas para escalar Meta Ads</h2>
-            <p className="section__lead">
-              Stackd es tu fuente de Business Managers verificados de Facebook, listos para presupuestos altos y campañas estables. Pensado para equipos que necesitan confianza alta y mínimo fricción al lanzar Meta Ads.
-            </p>
-            <div className="benefits">
-              <div className="benefit">
-                <span className="benefit__check" aria-hidden="true">✓</span>
-                <div>
-                  <strong>Verificación oficial Meta</strong>
-                  <p>BMs que ya pasaron el proceso de verificación, listos para presupuestos altos.</p>
-                </div>
-              </div>
-              <div className="benefit">
-                <span className="benefit__check" aria-hidden="true">✓</span>
-                <div>
-                  <strong>Límites ampliados desde el día uno</strong>
-                  <p>Más ad accounts, más margen de gasto y menos fricción para escalar.</p>
-                </div>
-              </div>
-              <div className="benefit">
-                <span className="benefit__check" aria-hidden="true">✓</span>
-                <div>
-                  <strong>Entrega en 24–48 hrs</strong>
-                  <p>Confirmás USDT o PayPal y recibís accesos en 24 a 48 hrs.</p>
-                </div>
-              </div>
-              <div className="benefit">
-                <span className="benefit__check" aria-hidden="true">✓</span>
-                <div>
-                  <strong>Catálogo completo</strong>
-                  <p>BM Verificados, BM Balloon, cuentas publicitarias y packs para agencias.</p>
-                </div>
-              </div>
+          <div className="hero-stats container reveal reveal-delay-3">
+            <div>
+              <strong>+50</strong>
+              <span>Buyers activos</span>
+            </div>
+            <div>
+              <strong>24–48 hrs</strong>
+              <span>Tiempo de setup</span>
+            </div>
+            <div>
+              <strong>15 días</strong>
+              <span>Garantía</span>
+            </div>
+            <div>
+              <strong>Telegram</strong>
+              <span>Soporte directo</span>
             </div>
           </div>
         </section>
 
-        <section className="section section--tight" id="catalogo">
-          <div className="container">
-            <div className="catalog-head">
-              <div>
-                <p className="section__eyebrow">Catálogo</p>
-                <h2 className="section__title">Elegí tu estructura</h2>
-                <p className="section__lead">Precios en USD. Pagá con USDT (TRC20/BEP20) o PayPal y confirmá por Telegram.</p>
-              </div>
-            </div>
+        <div className="ticker" aria-hidden="true">
+          <div className="ticker__track">
+            {tickerLoop.map((item, index) => (
+              <span key={`${item}-${index}`}>
+                {item}
+                <i />
+              </span>
+            ))}
+          </div>
+        </div>
 
-            <div className="catalog-panel">
-              <div className="catalog-grid">
-                {products.map((product) => (
-                  <article className="product" key={product.id}>
-                    <div className="product__top">
-                      <div>
-                        <span className="product__badge">{product.badge}</span>
-                        <h3 className="product__name">{product.name}</h3>
-                      </div>
-                      <div className="product__price">
-                        <strong>${product.price}</strong>
-                        {product.oldPrice ? <s>${product.oldPrice}</s> : null}
-                      </div>
-                    </div>
-                    <ul className="product__features">
+        <section className="section" id="proceso">
+          <div className="container">
+            <p className="section__eyebrow">// Proceso</p>
+            <h2 className="section__title">De cero a escalar en 4 pasos</h2>
+            <p className="section__lead">Sin vueltas técnicas. Pedís, pagás y operás.</p>
+            <div className="process-grid">
+              {processSteps.map((step, index) => (
+                <article className={`process-card${index === 0 ? ' is-active' : ''}`} key={step.n}>
+                  <span className="process-card__n">{step.n}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.text}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="section" id="planes">
+          <div className="container">
+            <p className="section__eyebrow">// Planes</p>
+            <h2 className="section__title">Elegí tu stack</h2>
+            <p className="section__lead">Todos incluyen configuración completa, proxies y soporte.</p>
+
+            <div className="plans-grid">
+              {products.map((product) => {
+                const featured = Boolean(product.featured) || /popular/i.test(product.badge)
+                return (
+                  <article className={`plan-card${featured ? ' is-featured' : ''}`} key={product.id}>
+                    {featured && <div className="plan-card__ribbon">Más popular</div>}
+                    <p className="plan-card__name">{product.name}</p>
+                    <p className="plan-card__price">
+                      <strong>${product.price}</strong>
+                      <span>USD</span>
+                    </p>
+                    <p className="plan-card__desc">
+                      {product.description || 'Setup listo para operar.'}
+                    </p>
+                    <ul className="plan-card__features">
                       {product.features.map((feature) => (
-                        <li key={feature}>{feature}</li>
+                        <li key={feature}>
+                          <span aria-hidden="true">✓</span>
+                          {feature}
+                        </li>
                       ))}
                     </ul>
-                    <div className="product__footer">
-                      <span className="stock">{product.stock} en stock</span>
-                      <button className="btn btn--solid" type="button" onClick={() => addToCart(product)}>
-                        Agregar
-                      </button>
-                    </div>
+                    <button
+                      className={featured ? 'btn btn--purple' : 'btn btn--ghost-purple'}
+                      type="button"
+                      onClick={() => addToCart(product)}
+                    >
+                      {product.cta || `Elegir ${product.name}`}
+                    </button>
                   </article>
-                ))}
-              </div>
+                )
+              })}
             </div>
           </div>
         </section>
 
-        <section className="section" id="guia">
+        <section className="section" id="estructura">
           <div className="container">
-            <p className="section__eyebrow">Guía rápida</p>
-            <h2 className="section__title">¿Qué es un BM verificado?</h2>
+            <h2 className="section__title section__title--split">
+              No vendemos cuentas. <span>Vendemos estructura.</span>
+            </h2>
             <p className="section__lead">
-              Un Facebook Business Manager verificado es una cuenta corporativa confirmada con documentos de empresa y validada por Meta. Funciona como un pasaporte dentro del ecosistema publicitario: más límites, más confianza y acceso a herramientas avanzadas.
+              Cualquiera vende cuentas. Nosotros te entregamos un sistema que realmente escala.
             </p>
-
-            <div className="explain-grid">
-              <div className="explain-block">
-                <h3>¿Por qué lo necesitás?</h3>
-                <p>
-                  Para conectar métodos de pago con estabilidad, gestionar páginas de clientes y reducir la probabilidad de restricciones automáticas al escalar.
-                </p>
-              </div>
-              <div className="explain-block">
-                <h3>Ventajas clave</h3>
-                <ul>
-                  <li>Crear y escalar múltiples cuentas publicitarias</li>
-                  <li>Conectar distintos métodos de pago</li>
-                  <li>Gestionar páginas y dominios con más margen</li>
-                  <li>Menor probabilidad de bloqueos preventivos</li>
-                </ul>
-              </div>
-              <div className="explain-block">
-                <h3>Uso correcto</h3>
-                <p>
-                  Distribuye presupuesto entre varias ad accounts, configurá dominios y píxeles, y respetá tiempos de warm-up antes de conectar CRM o enviar tráfico.
-                </p>
-              </div>
-              <div className="explain-block">
-                <h3>Para quién es</h3>
-                <ul>
-                  <li>Agencias de marketing digital</li>
-                  <li>E-commerce y performance teams</li>
-                  <li>Especialistas en arbitraje de tráfico</li>
-                  <li>Operaciones de media buying a escala</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="section section--tight" id="comparativa">
-          <div className="container">
-            <p className="section__eyebrow">Comparativa</p>
-            <h2 className="section__title">BM Regular vs Verificado</h2>
-            <p className="section__lead">
-              Una vista clara de qué cambia cuando pasás a una estructura verificada frente a alternativas de alquiler o intermediarios.
-            </p>
-
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Característica</th>
-                    <th>BM Regular</th>
-                    <th>BM Verificado</th>
-                    <th>Alternativas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonRows.map((row) => (
-                    <tr key={row.feature}>
-                      <td>{row.feature}</td>
-                      <td>{row.regular}</td>
-                      <td>{row.verified}</td>
-                      <td>{row.alt}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="value-grid">
+              {valueProps.map((item) => (
+                <article className="value-card" key={item.title}>
+                  <span className="value-card__icon" aria-hidden="true" />
+                  <h3>{item.title}</h3>
+                  <p>{item.text}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>
 
         <section className="section" id="faq">
           <div className="container">
-            <p className="section__eyebrow">FAQ</p>
-            <h2 className="section__title">Preguntas frecuentes</h2>
+            <p className="section__eyebrow">// FAQ</p>
+            <h2 className="section__title">Todo lo que querés saber</h2>
             <div className="faq-list">
               {faqs.map((item) => (
                 <details className="faq-item" key={item.q}>
@@ -354,37 +290,32 @@ function App() {
           </div>
         </section>
 
-        <CommentSection showToast={showToast} />
-
-        <div className="container">
-          <section className="cta-band" aria-label="Llamado a la acción">
-            <h2>Activá tu estructura hoy</h2>
-            <p>Elegí un BM, cargá tus datos y pagá con USDT o PayPal. Confirmamos por Telegram y entregamos en 24–48 hrs.</p>
-            <div className="cta-band__actions">
-              <a className="btn btn--mint" href="#catalogo">
-                Ir al catálogo
-              </a>
-              <a className="btn btn--line" href={supportUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--sand)', borderColor: 'rgba(241,234,252,0.35)' }}>
-                Consultas @Stackd2026
+        <section className="section section--cta">
+          <div className="container">
+            <div className="cta-panel">
+              <div className="cta-panel__glow" aria-hidden="true" />
+              <h2>
+                ¿Listo para escalar
+                <span> sin miedo a perder cuentas?</span>
+              </h2>
+              <p>Sumate a los media buyers que ya operan con infraestructura profesional.</p>
+              <a className="btn btn--purple" href="#planes">
+                Quiero mi setup ahora →
               </a>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
 
       <footer className="site-footer">
         <div className="container site-footer__inner">
-          <div>
-            <strong>Stackd</strong>
-            <p>Business Manager Facebook Verificado · Meta Ads</p>
-          </div>
-          <div className="footer-links">
-            <a href="#faq">FAQ</a>
-            <a href="#comentarios">Comentarios</a>
-            <a href={supportUrl} target="_blank" rel="noreferrer">
-              @Stackd2026
-            </a>
-          </div>
+          <a className="brand brand--footer" href="#top">
+            STACK<span>D</span>
+          </a>
+          <p>© {new Date().getFullYear()} STACKD · Infraestructura para media buyers</p>
+          <a href={supportUrl} target="_blank" rel="noreferrer">
+            Contacto vía Telegram
+          </a>
         </div>
       </footer>
 
