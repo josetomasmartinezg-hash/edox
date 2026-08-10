@@ -8,9 +8,7 @@ type Props = {
 
 export function CommentSection({ showToast }: Props) {
   const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
   const [telegram, setTelegram] = useState('')
-  const [orderId, setOrderId] = useState('')
   const [message, setMessage] = useState('')
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -18,9 +16,7 @@ export function CommentSection({ showToast }: Props) {
     const text = [
       `Consulta Stackd`,
       `Nombre: ${name}`,
-      email ? `Email: ${email}` : null,
       telegram ? `Telegram: @${telegram.replace(/^@/, '')}` : null,
-      orderId ? `Orden: ${orderId}` : null,
       '',
       message,
     ]
@@ -33,39 +29,36 @@ export function CommentSection({ showToast }: Props) {
   }
 
   return (
-    <section className="section" id="comentarios">
+    <section className="section section--consultas" id="comentarios">
       <div className="container comment-layout">
-        <div>
+        <header className="comment-intro">
           <p className="section__eyebrow">Consultas</p>
           <h2 className="section__title">Hablá con Stackd</h2>
           <p className="section__lead">
-            Consultas, dudas y seguimiento van directo a @{storeConfig.telegramSupport}. Las compras se avisan
-            automáticamente por el bot interno.
+            Escribinos a @{storeConfig.telegramSupport}. Respondemos por Telegram.
           </p>
-          <a className="btn btn--solid" href={supportDeepLink()} target="_blank" rel="noreferrer">
+          <a className="btn btn--mint" href={supportDeepLink()} target="_blank" rel="noreferrer">
             Abrir @{storeConfig.telegramSupport}
           </a>
+        </header>
+
+        <div className="comment-divider" role="presentation">
+          <span>o dejá tu mensaje</span>
         </div>
 
         <form className="form comment-form" onSubmit={handleSubmit}>
+          <div className="comment-fields">
+            <label>
+              Nombre
+              <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" />
+            </label>
+            <label>
+              Telegram <small>opcional</small>
+              <input value={telegram} onChange={(e) => setTelegram(e.target.value)} placeholder="@tuusuario" />
+            </label>
+          </div>
           <label>
-            Nombre
-            <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" />
-          </label>
-          <label>
-            Email <small>opcional</small>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
-          </label>
-          <label>
-            Telegram <small>opcional</small>
-            <input value={telegram} onChange={(e) => setTelegram(e.target.value)} placeholder="@tuusuario" />
-          </label>
-          <label>
-            ID de orden <small>opcional</small>
-            <input value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="STK-..." />
-          </label>
-          <label>
-            Comentario
+            Mensaje
             <textarea
               required
               rows={4}
@@ -74,7 +67,7 @@ export function CommentSection({ showToast }: Props) {
               placeholder="Escribí tu consulta..."
             />
           </label>
-          <button className="btn btn--mint" type="submit">
+          <button className="btn btn--solid comment-submit" type="submit">
             Enviar por Telegram
           </button>
         </form>

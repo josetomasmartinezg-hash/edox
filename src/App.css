@@ -88,7 +88,7 @@
 .btn--solid {
   background: var(--ink);
   color: var(--sand);
-  box-shadow: 0 10px 24px rgba(23, 18, 43, 0.18);
+  box-shadow: 0 6px 16px rgba(23, 18, 43, 0.12);
 }
 
 .btn--solid:hover {
@@ -681,22 +681,81 @@ tr:last-child td {
   border-color: var(--mint-deep);
 }
 
+.section--consultas {
+  padding-top: 4rem;
+  padding-bottom: 4.5rem;
+}
+
 .comment-layout {
+  width: min(100%, 640px);
+  margin-inline: auto;
   display: grid;
-  gap: 2rem;
+  gap: 1.75rem;
+  justify-items: stretch;
+}
+
+.comment-intro {
+  text-align: center;
+  display: grid;
+  gap: 0.85rem;
+  justify-items: center;
+}
+
+.comment-intro .section__title {
+  max-width: 14ch;
+}
+
+.comment-intro .section__lead {
+  margin: 0;
+  max-width: 36ch;
+}
+
+.comment-intro .btn {
+  margin-top: 0.35rem;
+}
+
+.comment-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.85rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.comment-divider::before,
+.comment-divider::after {
+  content: '';
+  height: 1px;
+  background: var(--line);
 }
 
 .comment-form {
-  padding: 1.6rem 1.5rem;
-  border: 1px solid var(--line);
-  border-radius: calc(var(--radius) + 4px);
-  background: var(--paper);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 1.1rem;
 }
 
-@media (min-width: 860px) {
-  .comment-layout {
-    grid-template-columns: 1fr 1.1fr;
-    align-items: start;
+.comment-fields {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.comment-submit {
+  width: 100%;
+  justify-self: stretch;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .comment-fields {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
   }
 }
 
