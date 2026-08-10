@@ -223,7 +223,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
           text: [
             `Hola 👋 Soy el bot de Stackd.`,
             `Recibimos tu pedido ${orderId}.`,
-            'Cuando el pago esté confirmado te avisamos por aquí y coordinamos la entrega (5–30 min).',
+            'Cuando el pago esté confirmado te avisamos por aquí y coordinamos la entrega (24–48 hrs).',
             'Si ya pagaste, respondé con el comprobante o el hash/TXID.',
           ].join('\n'),
         })

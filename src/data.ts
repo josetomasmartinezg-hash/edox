@@ -19,7 +19,7 @@ export const defaultProducts: Product[] = [
     features: [
       'Verificación oficial Meta',
       'API de WhatsApp lista',
-      'Entrega 5–30 min',
+      'Entrega 24–48 hrs',
       'Soporte post-venta',
     ],
     stock: 12,
@@ -34,7 +34,7 @@ export const defaultProducts: Product[] = [
       'Límites ampliados',
       'Ideal para agencias',
       'Múltiples ad accounts',
-      'Entrega express',
+      'Entrega 24–48 hrs',
     ],
     stock: 8,
   },
@@ -47,7 +47,7 @@ export const defaultProducts: Product[] = [
       'Lista para campañas',
       'Límite inicial activo',
       'Compatible con BM',
-      'Entrega inmediata',
+      'Entrega 24–48 hrs',
     ],
     stock: 24,
   },
@@ -78,7 +78,7 @@ export const faqs = [
   },
   {
     q: '¿Cómo es la entrega?',
-    a: 'Entre 5 y 30 minutos tras confirmar el pago. Accedés a las credenciales desde Mi Cuenta → Mis Órdenes.',
+    a: 'Entre 24 y 48 hrs tras confirmar el pago. Te enviamos los accesos por Telegram.',
   },
   {
     q: '¿Cómo funciona el pago?',

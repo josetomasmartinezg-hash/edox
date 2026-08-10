@@ -145,7 +145,7 @@ function App() {
               Business Managers verificados con API de WhatsApp
             </p>
             <p className="hero__support reveal reveal-delay-2">
-              Infraestructura lista para afiliados, agencias y media buyers que necesitan cuentas estables y entrega en minutos.
+              Infraestructura lista para afiliados, agencias y media buyers que necesitan cuentas estables y entrega en 24–48 hrs.
             </p>
             <div className="hero__cta reveal reveal-delay-3">
               <a className="btn btn--mint" href="#catalogo">
@@ -162,8 +162,8 @@ function App() {
           <div className="container">
             <ul className="trust__list">
               <li>
-                <span className="trust__icon">5m</span>
-                Entrega en 5–30 min
+                <span className="trust__icon">24h</span>
+                Entrega en 24–48 hrs
               </li>
               <li>
                 <span className="trust__icon">$</span>
@@ -206,8 +206,8 @@ function App() {
               <div className="benefit">
                 <span className="benefit__check" aria-hidden="true">✓</span>
                 <div>
-                  <strong>Entrega express post-pago</strong>
-                  <p>Confirmás USDT o PayPal y recibís accesos en 5 a 30 minutos.</p>
+                  <strong>Entrega en 24–48 hrs</strong>
+                  <p>Confirmás USDT o PayPal y recibís accesos en 24 a 48 hrs.</p>
                 </div>
               </div>
               <div className="benefit">
@@ -359,7 +359,7 @@ function App() {
         <div className="container">
           <section className="cta-band" aria-label="Llamado a la acción">
             <h2>Activá tu estructura hoy</h2>
-            <p>Elegí un BM, cargá tus datos y pagá con USDT o PayPal. Confirmamos por Telegram y entregamos en minutos.</p>
+            <p>Elegí un BM, cargá tus datos y pagá con USDT o PayPal. Confirmamos por Telegram y entregamos en 24–48 hrs.</p>
             <div className="cta-band__actions">
               <a className="btn btn--mint" href="#catalogo">
                 Ir al catálogo
