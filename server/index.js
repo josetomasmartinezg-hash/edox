@@ -59,19 +59,31 @@ function paymentCategory(method) {
   return 'other'
 }
 
+function normalizeStatus(status) {
+  const value = String(status || '').toLowerCase()
+  if (value === 'completed' || value === 'completado' || value === 'done') return 'completed'
+  return 'pending'
+}
+
 function buildStats(orders) {
   const total = orders.length
   const usdt = orders.filter((o) => o.paymentCategory === 'usdt')
   const paypal = orders.filter((o) => o.paymentCategory === 'paypal')
+  const completed = orders.filter((o) => normalizeStatus(o.status) === 'completed')
+  const pending = orders.filter((o) => normalizeStatus(o.status) !== 'completed')
   const sum = (list) => list.reduce((acc, o) => acc + Number(o.amountDue || 0), 0)
   return {
     totalOrders: total,
     usdtOrders: usdt.length,
     paypalOrders: paypal.length,
     otherOrders: orders.filter((o) => o.paymentCategory === 'other').length,
+    completedOrders: completed.length,
+    pendingOrders: pending.length,
     totalRevenue: Number(sum(orders).toFixed(2)),
     usdtRevenue: Number(sum(usdt).toFixed(2)),
     paypalRevenue: Number(sum(paypal).toFixed(2)),
+    completedRevenue: Number(sum(completed).toFixed(2)),
+    pendingRevenue: Number(sum(pending).toFixed(2)),
   }
 }
 
@@ -86,11 +98,12 @@ function saveIncomingOrder(body) {
 
   const orders = readOrders()
   const existing = orders.findIndex((o) => o.id === orderId)
+  const previous = existing >= 0 ? orders[existing] : null
   const record = {
     id: orderId,
-    createdAt: existing >= 0 ? orders[existing].createdAt : new Date().toISOString(),
+    createdAt: previous?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    status: 'confirmed',
+    status: previous ? normalizeStatus(previous.status) : 'pending',
     paymentMethod,
     paymentCategory: paymentCategory(paymentMethod),
     amountDue: Number.isFinite(amountDue) ? Number(amountDue.toFixed(2)) : 0,
@@ -239,14 +252,64 @@ app.put('/api/products', requireAdmin, (req, res) => {
 
 app.get('/api/admin/stats', requireAdmin, (_req, res) => {
   try {
-    const orders = readOrders()
+    const orders = readOrders().map((order) => ({
+      ...order,
+      status: normalizeStatus(order.status),
+    }))
     res.json({
       ok: true,
       stats: buildStats(orders),
-      orders: orders.slice(0, 50),
+      orders: orders.slice(0, 200),
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error leyendo estadísticas'
+    res.status(500).json({ ok: false, error: message })
+  }
+})
+
+app.patch('/api/admin/orders/:id', requireAdmin, (req, res) => {
+  try {
+    const orderId = String(req.params.id || '').trim()
+    const rawStatus = String(req.body?.status || '').toLowerCase().trim()
+    if (!orderId) {
+      res.status(400).json({ ok: false, error: 'Falta id de orden' })
+      return
+    }
+    if (!rawStatus) {
+      res.status(400).json({ ok: false, error: 'Falta status (pending | completed)' })
+      return
+    }
+
+    const allowed = new Set(['pending', 'pendiente', 'completed', 'completado', 'done', 'confirmed'])
+    if (!allowed.has(rawStatus)) {
+      res.status(400).json({ ok: false, error: 'Status inválido. Usá pending o completed' })
+      return
+    }
+
+    const nextStatus = normalizeStatus(rawStatus)
+    const orders = readOrders()
+    const index = orders.findIndex((order) => order.id === orderId)
+    if (index < 0) {
+      res.status(404).json({ ok: false, error: 'Orden no encontrada' })
+      return
+    }
+
+    orders[index] = {
+      ...orders[index],
+      status: nextStatus,
+      updatedAt: new Date().toISOString(),
+      completedAt: nextStatus === 'completed' ? new Date().toISOString() : null,
+    }
+    writeOrders(orders)
+
+    const order = { ...orders[index], status: nextStatus }
+    res.json({
+      ok: true,
+      order,
+      stats: buildStats(orders.map((row) => ({ ...row, status: normalizeStatus(row.status) }))),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error actualizando orden'
     res.status(500).json({ ok: false, error: message })
   }
 })

@@ -8,19 +8,16 @@ import {
   type AdminOrder,
   type AdminStats,
 } from '../productsApi'
+import {
+  AdminNav,
+  TOKEN_KEY,
+  categoryLabel,
+  emptyStats,
+  formatDate,
+  money,
+  statusLabel,
+} from './adminShared'
 import './AdminPanel.css'
-
-const TOKEN_KEY = 'stackd-admin-token'
-
-const emptyStats: AdminStats = {
-  totalOrders: 0,
-  usdtOrders: 0,
-  paypalOrders: 0,
-  otherOrders: 0,
-  totalRevenue: 0,
-  usdtRevenue: 0,
-  paypalRevenue: 0,
-}
 
 type Draft = {
   id: string
@@ -40,27 +37,6 @@ function toDraft(products: Product[]): Draft[] {
     oldPrice: product.oldPrice !== undefined ? String(product.oldPrice) : '',
     stock: String(product.stock),
   }))
-}
-
-function money(value: number) {
-  return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatDate(iso: string) {
-  try {
-    return new Intl.DateTimeFormat('es', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(iso))
-  } catch {
-    return iso
-  }
-}
-
-function categoryLabel(category: AdminOrder['paymentCategory']) {
-  if (category === 'usdt') return 'USDT'
-  if (category === 'paypal') return 'PayPal'
-  return 'Otro'
 }
 
 export function AdminPanel() {
@@ -177,7 +153,7 @@ export function AdminPanel() {
         <div className="admin-card admin-card--login">
           <p className="admin-eyebrow">Stackd Admin</p>
           <h1>Panel de control</h1>
-          <p className="admin-lead">Ingresá para ver compras, precios y stock del catálogo.</p>
+          <p className="admin-lead">Ingresá para ver ventas, precios y stock del catálogo.</p>
           <form className="admin-form" onSubmit={handleLogin}>
             <label>
               Contraseña
@@ -205,6 +181,7 @@ export function AdminPanel() {
 
   const usdtShare = stats.totalOrders ? Math.round((stats.usdtOrders / stats.totalOrders) * 100) : 0
   const paypalShare = stats.totalOrders ? Math.round((stats.paypalOrders / stats.totalOrders) * 100) : 0
+  const recent = orders.slice(0, 5)
 
   return (
     <div className="admin">
@@ -213,7 +190,8 @@ export function AdminPanel() {
           <div>
             <p className="admin-eyebrow">Stackd Admin</p>
             <h1>Panel de operaciones</h1>
-            <p className="admin-lead">Compras por método de pago, catálogo y stock en un solo lugar.</p>
+            <p className="admin-lead">Resumen de compras, catálogo y acceso a la gestión de ventas.</p>
+            <AdminNav page="resumen" />
           </div>
           <div className="admin-head__actions">
             <button className="btn btn--line" type="button" onClick={() => void loadDashboard(token)}>
@@ -254,6 +232,20 @@ export function AdminPanel() {
               </article>
             </section>
 
+            <div className="admin-status-row">
+              <div className="admin-status-chip admin-status-chip--pending">
+                <strong>{stats.pendingOrders}</strong>
+                <span>pendientes · {money(stats.pendingRevenue)}</span>
+              </div>
+              <div className="admin-status-chip admin-status-chip--done">
+                <strong>{stats.completedOrders}</strong>
+                <span>completadas · {money(stats.completedRevenue)}</span>
+              </div>
+              <a className="btn btn--mint" href="/admin/ventas">
+                Gestionar ventas →
+              </a>
+            </div>
+
             <div className="admin-breakdown" aria-label="Distribución por categoría">
               <div className="admin-breakdown__bar" role="presentation">
                 <span className="admin-breakdown__usdt" style={{ width: `${usdtShare}%` }} />
@@ -275,12 +267,17 @@ export function AdminPanel() {
             </div>
 
             <section className="admin-section">
-              <div className="admin-section__head">
-                <h2>Compras recientes</h2>
-                <p>Últimas órdenes registradas al confirmar el checkout.</p>
+              <div className="admin-section__head admin-section__head--row">
+                <div>
+                  <h2>Últimas compras</h2>
+                  <p>Vista rápida. El detalle y el estado se gestionan en Ventas.</p>
+                </div>
+                <a className="admin-link" href="/admin/ventas">
+                  Ver todas
+                </a>
               </div>
-              {orders.length === 0 ? (
-                <p className="admin-empty">Todavía no hay compras. Cuando un cliente complete el pago, aparecen acá.</p>
+              {recent.length === 0 ? (
+                <p className="admin-empty">Todavía no hay compras.</p>
               ) : (
                 <div className="admin-orders-wrap">
                   <table className="admin-table admin-table--orders">
@@ -289,35 +286,36 @@ export function AdminPanel() {
                         <th>Orden</th>
                         <th>Cliente</th>
                         <th>Método</th>
+                        <th>Estado</th>
                         <th>Monto</th>
-                        <th>Fecha</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {orders.map((order) => (
+                      {recent.map((order) => (
                         <tr key={order.id}>
                           <td>
                             <strong>{order.id}</strong>
-                            <span className="admin-order-items">
-                              {order.lines.length
-                                ? order.lines.map((line) => `${line.qty}× ${line.name || line.productId}`).join(' · ')
-                                : '—'}
-                            </span>
+                            <span className="admin-order-items">{formatDate(order.createdAt)}</span>
                           </td>
                           <td>
                             <strong>{order.customer.name || '—'}</strong>
                             <span className="admin-order-items">
-                              {order.customer.telegram ? `@${order.customer.telegram}` : order.customer.email || '—'}
+                              {order.customer.telegram
+                                ? `@${order.customer.telegram}`
+                                : order.customer.email || '—'}
                             </span>
                           </td>
                           <td>
                             <span className={`admin-pill admin-pill--${order.paymentCategory}`}>
                               {categoryLabel(order.paymentCategory)}
                             </span>
-                            <span className="admin-order-items">{order.paymentMethod}</span>
+                          </td>
+                          <td>
+                            <span className={`admin-pill admin-pill--status-${order.status}`}>
+                              {statusLabel(order.status)}
+                            </span>
                           </td>
                           <td>{money(order.amountDue)}</td>
-                          <td>{formatDate(order.createdAt)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -62,14 +62,23 @@ export type AdminStats = {
   usdtOrders: number
   paypalOrders: number
   otherOrders: number
+  completedOrders: number
+  pendingOrders: number
   totalRevenue: number
   usdtRevenue: number
   paypalRevenue: number
+  completedRevenue: number
+  pendingRevenue: number
 }
+
+export type OrderStatus = 'pending' | 'completed'
 
 export type AdminOrder = {
   id: string
   createdAt: string
+  updatedAt?: string
+  completedAt?: string | null
+  status: OrderStatus
   paymentMethod: string
   paymentCategory: 'usdt' | 'paypal' | 'other'
   amountDue: number
@@ -98,6 +107,35 @@ export async function fetchAdminStats(
       return { ok: false, error: data.error || 'No se pudieron cargar las estadísticas' }
     }
     return { ok: true, stats: data.stats, orders: data.orders || [] }
+  } catch {
+    return { ok: false, error: 'No se pudo conectar al servidor' }
+  }
+}
+
+export async function updateOrderStatus(
+  token: string,
+  orderId: string,
+  status: OrderStatus,
+): Promise<{ ok: boolean; order?: AdminOrder; stats?: AdminStats; error?: string }> {
+  try {
+    const res = await fetch(`${apiBase()}/api/admin/orders/${encodeURIComponent(orderId)}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    })
+    const data = (await res.json()) as {
+      ok?: boolean
+      order?: AdminOrder
+      stats?: AdminStats
+      error?: string
+    }
+    if (!res.ok || !data.ok || !data.order) {
+      return { ok: false, error: data.error || 'No se pudo actualizar el estado' }
+    }
+    return { ok: true, order: data.order, stats: data.stats }
   } catch {
     return { ok: false, error: 'No se pudo conectar al servidor' }
   }
