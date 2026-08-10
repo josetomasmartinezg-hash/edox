@@ -31,7 +31,14 @@ export async function notifyOrderToBot(order: Order) {
     parseMode: 'HTML',
     customer: order.customer,
     amountDue: order.amountDue,
+    subtotal: order.subtotal,
     paymentMethod: paymentLabel(order.paymentMethod),
+    lines: order.lines.map((line) => ({
+      productId: line.product.id,
+      name: line.product.name,
+      qty: line.qty,
+      price: line.product.price,
+    })),
     startPayload: orderStartPayload(order.id),
   })
 }

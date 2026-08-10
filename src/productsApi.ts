@@ -56,3 +56,49 @@ export async function saveProducts(
     return { ok: false, error: 'No se pudo conectar al servidor' }
   }
 }
+
+export type AdminStats = {
+  totalOrders: number
+  usdtOrders: number
+  paypalOrders: number
+  otherOrders: number
+  totalRevenue: number
+  usdtRevenue: number
+  paypalRevenue: number
+}
+
+export type AdminOrder = {
+  id: string
+  createdAt: string
+  paymentMethod: string
+  paymentCategory: 'usdt' | 'paypal' | 'other'
+  amountDue: number
+  customer: {
+    name: string
+    email: string
+    telegram: string
+  }
+  lines: Array<{ productId: string; name: string; qty: number; price: number }>
+}
+
+export async function fetchAdminStats(
+  token: string,
+): Promise<{ ok: boolean; stats?: AdminStats; orders?: AdminOrder[]; error?: string }> {
+  try {
+    const res = await fetch(`${apiBase()}/api/admin/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const data = (await res.json()) as {
+      ok?: boolean
+      stats?: AdminStats
+      orders?: AdminOrder[]
+      error?: string
+    }
+    if (!res.ok || !data.ok || !data.stats) {
+      return { ok: false, error: data.error || 'No se pudieron cargar las estadísticas' }
+    }
+    return { ok: true, stats: data.stats, orders: data.orders || [] }
+  } catch {
+    return { ok: false, error: 'No se pudo conectar al servidor' }
+  }
+}

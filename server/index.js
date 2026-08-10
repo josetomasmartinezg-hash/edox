@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
 const PRODUCTS_PATH = path.join(root, 'data', 'products.json')
+const ORDERS_PATH = path.join(root, 'data', 'orders.json')
 
 const app = express()
 const PORT = Number(process.env.PORT || 8787)
@@ -33,6 +34,86 @@ function readProducts() {
 function writeProducts(products) {
   fs.mkdirSync(path.dirname(PRODUCTS_PATH), { recursive: true })
   fs.writeFileSync(PRODUCTS_PATH, `${JSON.stringify(products, null, 2)}\n`, 'utf8')
+}
+
+function readOrders() {
+  try {
+    if (!fs.existsSync(ORDERS_PATH)) return []
+    const raw = fs.readFileSync(ORDERS_PATH, 'utf8')
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function writeOrders(orders) {
+  fs.mkdirSync(path.dirname(ORDERS_PATH), { recursive: true })
+  fs.writeFileSync(ORDERS_PATH, `${JSON.stringify(orders, null, 2)}\n`, 'utf8')
+}
+
+function paymentCategory(method) {
+  const value = String(method || '').toLowerCase()
+  if (value.includes('paypal')) return 'paypal'
+  if (value.includes('usdt') || value.includes('trc') || value.includes('bep')) return 'usdt'
+  return 'other'
+}
+
+function buildStats(orders) {
+  const total = orders.length
+  const usdt = orders.filter((o) => o.paymentCategory === 'usdt')
+  const paypal = orders.filter((o) => o.paymentCategory === 'paypal')
+  const sum = (list) => list.reduce((acc, o) => acc + Number(o.amountDue || 0), 0)
+  return {
+    totalOrders: total,
+    usdtOrders: usdt.length,
+    paypalOrders: paypal.length,
+    otherOrders: orders.filter((o) => o.paymentCategory === 'other').length,
+    totalRevenue: Number(sum(orders).toFixed(2)),
+    usdtRevenue: Number(sum(usdt).toFixed(2)),
+    paypalRevenue: Number(sum(paypal).toFixed(2)),
+  }
+}
+
+function saveIncomingOrder(body) {
+  const orderId = String(body.orderId || '').trim()
+  if (!orderId) throw new Error('Falta orderId')
+
+  const paymentMethod = String(body.paymentMethod || 'Desconocido')
+  const amountDue = Number(body.amountDue)
+  const customer = body.customer && typeof body.customer === 'object' ? body.customer : {}
+  const lines = Array.isArray(body.lines) ? body.lines : []
+
+  const orders = readOrders()
+  const existing = orders.findIndex((o) => o.id === orderId)
+  const record = {
+    id: orderId,
+    createdAt: existing >= 0 ? orders[existing].createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: 'confirmed',
+    paymentMethod,
+    paymentCategory: paymentCategory(paymentMethod),
+    amountDue: Number.isFinite(amountDue) ? Number(amountDue.toFixed(2)) : 0,
+    subtotal: Number.isFinite(Number(body.subtotal)) ? Number(Number(body.subtotal).toFixed(2)) : undefined,
+    customer: {
+      name: String(customer.name || ''),
+      email: String(customer.email || ''),
+      telegram: String(customer.telegram || '').replace(/^@/, ''),
+      notes: String(customer.notes || ''),
+    },
+    lines: lines.map((line) => ({
+      productId: String(line.productId || line.id || ''),
+      name: String(line.name || line.productName || ''),
+      qty: Number(line.qty || 0),
+      price: Number(line.price || 0),
+    })),
+  }
+
+  if (existing >= 0) orders[existing] = record
+  else orders.unshift(record)
+
+  writeOrders(orders.slice(0, 2000))
+  return record
 }
 
 function requireAdmin(req, res, next) {
@@ -156,6 +237,20 @@ app.put('/api/products', requireAdmin, (req, res) => {
   }
 })
 
+app.get('/api/admin/stats', requireAdmin, (_req, res) => {
+  try {
+    const orders = readOrders()
+    res.json({
+      ok: true,
+      stats: buildStats(orders),
+      orders: orders.slice(0, 50),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error leyendo estadísticas'
+    res.status(500).json({ ok: false, error: message })
+  }
+})
+
 app.post('/api/telegram/order', async (req, res) => {
   try {
     const { text, orderId, startPayload, parseMode } = req.body || {}
@@ -164,10 +259,35 @@ app.post('/api/telegram/order', async (req, res) => {
       return
     }
 
-    await notifyAdmin(String(text), parseMode || 'HTML')
+    // Persistir compra para el panel admin (aunque Telegram falle)
+    let saved = null
+    try {
+      saved = saveIncomingOrder(req.body)
+    } catch (persistError) {
+      console.error('order persist error', persistError)
+    }
+
+    try {
+      await notifyAdmin(String(text), parseMode || 'HTML')
+    } catch (error) {
+      // Si ya guardamos la orden, no perdamos el pedido por un fallo de Telegram
+      if (saved) {
+        res.json({
+          ok: true,
+          saved: true,
+          telegram: false,
+          botUrl: `https://t.me/${BOT_USERNAME}?start=${encodeURIComponent(startPayload || `order_${orderId}`)}`,
+          warning: error instanceof Error ? error.message : 'Telegram no disponible',
+        })
+        return
+      }
+      throw error
+    }
 
     res.json({
       ok: true,
+      saved: Boolean(saved),
+      telegram: true,
       botUrl: `https://t.me/${BOT_USERNAME}?start=${encodeURIComponent(startPayload || `order_${orderId}`)}`,
     })
   } catch (error) {
