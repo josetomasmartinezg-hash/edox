@@ -686,6 +686,25 @@ tr:last-child td {
   animation: rise 0.35s ease both;
 }
 
+@media (max-width: 719px) {
+  .header-actions .btn--ghost {
+    display: none;
+  }
+
+  .header-actions .btn--solid {
+    padding: 0.65rem 0.95rem;
+    font-size: 0.9rem;
+  }
+
+  .site-header__inner {
+    min-height: 64px;
+  }
+
+  .hero__content {
+    padding: 6.5rem 0 3.5rem;
+  }
+}
+
 @media (min-width: 720px) {
   .nav {
     display: flex;
