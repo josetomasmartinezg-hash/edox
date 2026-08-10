@@ -80,8 +80,8 @@ export const faqs = [
     a: 'Entre 5 y 30 minutos tras confirmar el pago. Accedés a las credenciales desde Mi Cuenta → Mis Órdenes.',
   },
   {
-    q: '¿Cómo funciona el pago en USDT?',
-    a: 'Aceptamos USDT en TRC20 y BEP20. Al crear la orden se genera un monto único con centavos aleatorios para identificar tu pago automáticamente. Enviá el monto exacto indicado.',
+    q: '¿Cómo funciona el pago?',
+    a: 'Aceptamos USDT (TRC20 / BEP20) y PayPal. En USDT generamos un monto único con centavos aleatorios para identificar tu depósito: enviá el monto exacto. En PayPal usás PayPal.me o checkout. Después confirmás la orden por Telegram para la entrega.',
   },
   {
     q: '¿Qué cubre la garantía?',
@@ -97,7 +97,7 @@ export const faqs = [
   },
   {
     q: '¿Cómo contacto al soporte?',
-    a: 'Usá el chat interno del sitio o escribinos por Telegram a @advault_support.',
+    a: 'Escribinos por Telegram a @advault_support. Al finalizar una compra, el sitio abre Telegram con tu orden precargada.',
   },
 ]
 

@@ -1,15 +1,23 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import './App.css'
+import { cartLines, cartSubtotal, telegramSupportUrl } from './checkout'
+import { CartDrawer } from './components/CartDrawer'
+import { CheckoutModal } from './components/CheckoutModal'
 import { comparisonRows, faqs, products, type Product } from './data'
 
 type AuthMode = 'login' | 'register' | null
 
 function App() {
   const [cart, setCart] = useState<Record<string, number>>({})
+  const [cartOpen, setCartOpen] = useState(false)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>(null)
   const [toast, setToast] = useState<string | null>(null)
 
-  const cartCount = Object.values(cart).reduce((sum, n) => sum + n, 0)
+  const lines = useMemo(() => cartLines(cart, products), [cart])
+  const subtotal = useMemo(() => cartSubtotal(lines), [lines])
+  const cartCount = lines.reduce((sum, line) => sum + line.qty, 0)
+  const supportUrl = telegramSupportUrl()
 
   function showToast(message: string) {
     setToast(message)
@@ -22,6 +30,39 @@ function App() {
       [product.id]: (prev[product.id] ?? 0) + 1,
     }))
     showToast(`${product.name} agregado al carrito`)
+    setCartOpen(true)
+  }
+
+  function setQty(productId: string, qty: number) {
+    setCart((prev) => {
+      const next = { ...prev }
+      if (qty <= 0) delete next[productId]
+      else next[productId] = qty
+      return next
+    })
+  }
+
+  function removeItem(productId: string) {
+    setCart((prev) => {
+      const next = { ...prev }
+      delete next[productId]
+      return next
+    })
+  }
+
+  function openCheckout() {
+    if (!lines.length) {
+      showToast('Agregá al menos un producto')
+      return
+    }
+    setCartOpen(false)
+    setCheckoutOpen(true)
+  }
+
+  function handleOrderCompleted() {
+    setCheckoutOpen(false)
+    setCart({})
+    showToast('Pedido registrado. Te contactamos por Telegram.')
   }
 
   function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
@@ -54,7 +95,7 @@ function App() {
             <button className="btn btn--solid" type="button" onClick={() => setAuthMode('register')}>
               Registrarse
             </button>
-            <button className="cart-btn" type="button" aria-label="Carrito" onClick={() => showToast(cartCount ? `${cartCount} producto(s) en el carrito` : 'Carrito vacío')}>
+            <button className="cart-btn" type="button" aria-label="Carrito" onClick={() => setCartOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M3 5h2l2.2 10.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.5L21 8H7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 <circle cx="10" cy="20" r="1.4" fill="currentColor" />
@@ -83,7 +124,7 @@ function App() {
               <a className="btn btn--mint" href="#catalogo">
                 Ver catálogo
               </a>
-              <a className="btn btn--line" href="https://t.me/" target="_blank" rel="noreferrer">
+              <a className="btn btn--line" href={supportUrl} target="_blank" rel="noreferrer">
                 Hablar por Telegram
               </a>
             </div>
@@ -99,7 +140,7 @@ function App() {
               </li>
               <li>
                 <span className="trust__icon">$</span>
-                USDT TRC20 / BEP20
+                USDT / PayPal
               </li>
               <li>
                 <span className="trust__icon">OK</span>
@@ -139,7 +180,7 @@ function App() {
                 <span className="benefit__check" aria-hidden="true">✓</span>
                 <div>
                   <strong>Entrega express post-pago</strong>
-                  <p>Confirmás USDT y recibís accesos en 5 a 30 minutos.</p>
+                  <p>Confirmás USDT o PayPal y recibís accesos en 5 a 30 minutos.</p>
                 </div>
               </div>
               <div className="benefit">
@@ -159,7 +200,7 @@ function App() {
               <div>
                 <p className="section__eyebrow">Catálogo</p>
                 <h2 className="section__title">Elegí tu estructura</h2>
-                <p className="section__lead">Precios en USD. Pago en USDT. Stock actualizado en tiempo real.</p>
+                <p className="section__lead">Precios en USD. Pagá con USDT (TRC20/BEP20) o PayPal y confirmá por Telegram.</p>
               </div>
             </div>
 
@@ -289,13 +330,13 @@ function App() {
         <div className="container">
           <section className="cta-band" aria-label="Llamado a la acción">
             <h2>Activá tu estructura hoy</h2>
-            <p>Registráte, elegí un BM del catálogo y pagá en USDT. Entrega entre 5 y 30 minutos.</p>
+            <p>Elegí un BM, cargá tus datos y pagá con USDT o PayPal. Confirmamos por Telegram y entregamos en minutos.</p>
             <div className="cta-band__actions">
-              <button className="btn btn--mint" type="button" onClick={() => setAuthMode('register')}>
-                Crear cuenta
-              </button>
-              <a className="btn btn--line" href="#catalogo" style={{ color: 'var(--sand)', borderColor: 'rgba(242,232,213,0.35)' }}>
+              <a className="btn btn--mint" href="#catalogo">
                 Ir al catálogo
+              </a>
+              <a className="btn btn--line" href={supportUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--sand)', borderColor: 'rgba(242,232,213,0.35)' }}>
+                Soporte Telegram
               </a>
             </div>
           </section>
@@ -311,12 +352,31 @@ function App() {
           <div className="footer-links">
             <a href="#faq">FAQ</a>
             <a href="#catalogo">Catálogo</a>
-            <a href="https://t.me/" target="_blank" rel="noreferrer">
+            <a href={supportUrl} target="_blank" rel="noreferrer">
               Telegram
             </a>
           </div>
         </div>
       </footer>
+
+      <CartDrawer
+        open={cartOpen}
+        lines={lines}
+        subtotal={subtotal}
+        onClose={() => setCartOpen(false)}
+        onCheckout={openCheckout}
+        onChangeQty={setQty}
+        onRemove={removeItem}
+      />
+
+      <CheckoutModal
+        open={checkoutOpen}
+        lines={lines}
+        subtotal={subtotal}
+        onClose={() => setCheckoutOpen(false)}
+        onCompleted={handleOrderCompleted}
+        showToast={showToast}
+      />
 
       {authMode && (
         <div className="modal-backdrop" role="presentation" onClick={() => setAuthMode(null)}>
