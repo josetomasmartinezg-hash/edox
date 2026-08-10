@@ -470,7 +470,7 @@ export default function App() {
         <section className="section team" id="equipo">
           <div className="shell">
             <div className="section-head" data-reveal>
-              <p className="eyebrow">09 · Personas</p>
+              <p className="eyebrow">Personas</p>
               <h2>
                 El equipo <em>profesional.</em>
               </h2>
