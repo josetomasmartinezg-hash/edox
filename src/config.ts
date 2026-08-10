@@ -5,7 +5,7 @@ export const storeConfig = {
    * Username del bot (sin @), ej: AdvaultBot
    * La gente abre este bot al terminar una compra o dejar un comentario.
    */
-  telegramBot: import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'AdvaultBot',
+  telegramBot: import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'ADVAULTCL_BOT',
   /** Usuario humano de soporte (fallback si el bot no está listo) */
   telegramSupport: 'advault_support',
   paypal: {

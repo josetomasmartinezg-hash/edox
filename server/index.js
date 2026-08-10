@@ -10,7 +10,7 @@ const app = express()
 const PORT = Number(process.env.PORT || 8787)
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ''
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || ''
-const BOT_USERNAME = (process.env.TELEGRAM_BOT_USERNAME || process.env.VITE_TELEGRAM_BOT_USERNAME || 'AdvaultBot').replace(
+const BOT_USERNAME = (process.env.TELEGRAM_BOT_USERNAME || process.env.VITE_TELEGRAM_BOT_USERNAME || 'ADVAULTCL_BOT').replace(
   /^@/,
   '',
 )
