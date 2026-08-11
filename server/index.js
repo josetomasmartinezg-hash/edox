@@ -200,8 +200,16 @@ function normalizeSigla(value) {
     .replace(/\s+/g, ' ')
 }
 
+function normalizeMachine(machine) {
+  return {
+    ...machine,
+    numeroChasis: machine.numeroChasis || '',
+    numeroMotor: machine.numeroMotor || '',
+  }
+}
+
 app.get('/api/machines', authRequired, requirePermission('view_machines'), async (_req, res) => {
-  const machines = readJson('machines.json', [])
+  const machines = readJson('machines.json', []).map(normalizeMachine)
   const withCodes = await Promise.all(machines.map(withQr))
   res.json(
     withCodes.sort((a, b) => a.sigla.localeCompare(b.sigla, 'es', { sensitivity: 'base' })),
@@ -211,7 +219,7 @@ app.get('/api/machines', authRequired, requirePermission('view_machines'), async
 app.get('/api/machines/:id', authRequired, requirePermission('view_machines'), async (req, res) => {
   const machine = readJson('machines.json', []).find((m) => m.id === req.params.id)
   if (!machine) return res.status(404).json({ error: 'Máquina no encontrada' })
-  res.json(await withQr(machine))
+  res.json(await withQr(normalizeMachine(machine)))
 })
 
 app.get(
@@ -275,7 +283,16 @@ app.get(
 )
 
 app.post('/api/machines', authRequired, requirePermission('manage_machines'), async (req, res) => {
-  const { marca, modelo, anio, sigla, capacidadEstanque, generateQr = true } = req.body || {}
+  const {
+    marca,
+    modelo,
+    anio,
+    sigla,
+    capacidadEstanque,
+    numeroChasis,
+    numeroMotor,
+    generateQr = true,
+  } = req.body || {}
   if (!marca?.trim() || !modelo?.trim() || !sigla?.trim()) {
     return res.status(400).json({ error: 'Marca, modelo y sigla son obligatorios' })
   }
@@ -293,6 +310,8 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
     anio: String(anio || '').trim(),
     sigla: normalizedSigla,
     capacidadEstanque: String(capacidadEstanque || '').trim(),
+    numeroChasis: String(numeroChasis || '').trim(),
+    numeroMotor: String(numeroMotor || '').trim(),
     active: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -340,6 +359,14 @@ app.put('/api/machines/:id', authRequired, requirePermission('manage_machines'),
       req.body.capacidadEstanque != null
         ? String(req.body.capacidadEstanque).trim()
         : current.capacidadEstanque,
+    numeroChasis:
+      req.body.numeroChasis != null
+        ? String(req.body.numeroChasis).trim()
+        : current.numeroChasis || '',
+    numeroMotor:
+      req.body.numeroMotor != null
+        ? String(req.body.numeroMotor).trim()
+        : current.numeroMotor || '',
     active: typeof req.body.active === 'boolean' ? req.body.active : current.active,
     updatedAt: new Date().toISOString(),
   }

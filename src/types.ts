@@ -50,6 +50,8 @@ export type Machine = {
   anio: string
   sigla: string
   capacidadEstanque: string
+  numeroChasis: string
+  numeroMotor: string
   active?: boolean
   qrPayload?: string | null
   qrDataUrl?: string | null

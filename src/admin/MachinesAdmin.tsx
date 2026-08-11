@@ -8,6 +8,8 @@ const emptyForm = {
   anio: '',
   sigla: '',
   capacidadEstanque: '',
+  numeroChasis: '',
+  numeroMotor: '',
   generateQr: true,
 }
 
@@ -167,6 +169,8 @@ export function MachinesAdmin({ canManage }: Props) {
       anio: machine.anio,
       sigla: machine.sigla,
       capacidadEstanque: machine.capacidadEstanque,
+      numeroChasis: machine.numeroChasis || '',
+      numeroMotor: machine.numeroMotor || '',
       generateQr: true,
     })
     setError('')
@@ -239,6 +243,22 @@ export function MachinesAdmin({ canManage }: Props) {
                 onChange={(e) => setForm({ ...form, capacidadEstanque: e.target.value })}
               />
             </label>
+            <label className="field">
+              <span>Número de chasis</span>
+              <input
+                value={form.numeroChasis}
+                onChange={(e) => setForm({ ...form, numeroChasis: e.target.value })}
+                placeholder="Nº de chasis"
+              />
+            </label>
+            <label className="field">
+              <span>Número de motor</span>
+              <input
+                value={form.numeroMotor}
+                onChange={(e) => setForm({ ...form, numeroMotor: e.target.value })}
+                placeholder="Nº de motor"
+              />
+            </label>
           </div>
           <label className="check-inline">
             <input
@@ -303,6 +323,14 @@ export function MachinesAdmin({ canManage }: Props) {
                 <div className="detail-value">
                   {machine.capacidadEstanque ? `${machine.capacidadEstanque} L` : '—'}
                 </div>
+              </div>
+              <div>
+                <div className="detail-label">Número de chasis</div>
+                <div className="detail-value">{machine.numeroChasis || '—'}</div>
+              </div>
+              <div>
+                <div className="detail-label">Número de motor</div>
+                <div className="detail-value">{machine.numeroMotor || '—'}</div>
               </div>
             </div>
 
@@ -459,7 +487,9 @@ export function MachinesAdmin({ canManage }: Props) {
               <th>Marca</th>
               <th>Modelo</th>
               <th>Año</th>
-              <th>Capacidad estanque</th>
+              <th>Capacidad</th>
+              <th>Nº chasis</th>
+              <th>Nº motor</th>
               <th></th>
             </tr>
           </thead>
@@ -477,12 +507,14 @@ export function MachinesAdmin({ canManage }: Props) {
                 <td>{machine.modelo}</td>
                 <td>{machine.anio || '—'}</td>
                 <td>{machine.capacidadEstanque ? `${machine.capacidadEstanque} L` : '—'}</td>
+                <td>{machine.numeroChasis || '—'}</td>
+                <td>{machine.numeroMotor || '—'}</td>
                 <td className="row-cta">Abrir</td>
               </tr>
             ))}
             {!machines.length ? (
               <tr>
-                <td colSpan={6} className="empty-cell">
+                <td colSpan={8} className="empty-cell">
                   No hay maquinaria.{' '}
                   {canManage ? 'Usa “Agregar maquinaria” para crear la primera.' : ''}
                 </td>
