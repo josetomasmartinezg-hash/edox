@@ -130,14 +130,14 @@
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  padding: 0.2rem 0.35rem;
+  padding: 0.25rem 0.4rem;
   background: #ffffff;
   border-radius: 2px;
 }
 
 .soinver-logo-img {
   display: block;
-  width: 72px;
+  width: 150px;
   height: auto;
   filter: none !important;
   mix-blend-mode: normal !important;
@@ -145,7 +145,7 @@
 }
 
 .soinver-logo-img--compact {
-  width: 64px;
+  width: 128px;
 }
 
 .site-nav {
