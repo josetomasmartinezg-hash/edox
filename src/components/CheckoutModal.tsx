@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { isPlaceholderWallet, storeConfig } from '../config'
 import {
+  applyDiscount,
   createOrderId,
   paymentLabel,
   paypalCheckoutUrl,
   paypalMeUrl,
+  resolveDiscount,
   telegramOrderUrl,
   uniqueUsdtAmount,
   usdtAddress,
@@ -53,8 +55,20 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
   const [sendingBot, setSendingBot] = useState(false)
   const [botNotified, setBotNotified] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [discountInput, setDiscountInput] = useState('')
+  const [appliedDiscount, setAppliedDiscount] = useState<{ code: string; percent: number } | null>(
+    null,
+  )
+  const [discountError, setDiscountError] = useState('')
 
   useBodyLock(open)
+
+  const pricing = useMemo(() => {
+    if (!appliedDiscount) {
+      return { discountAmount: 0, total: subtotal }
+    }
+    return applyDiscount(subtotal, appliedDiscount.percent)
+  }, [subtotal, appliedDiscount])
 
   const availableMethods = useMemo(() => {
     return PAY_OPTIONS.filter((option) => {
@@ -79,6 +93,26 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
     setCustomer((prev) => ({ ...prev, [key]: value }))
   }
 
+  function applyCode() {
+    const resolved = resolveDiscount(discountInput)
+    if (!resolved) {
+      setAppliedDiscount(null)
+      setDiscountError('Código inválido')
+      showToast('Código de descuento inválido')
+      return
+    }
+    setAppliedDiscount(resolved)
+    setDiscountInput(resolved.code)
+    setDiscountError('')
+    showToast(`Descuento ${resolved.percent}% aplicado`)
+  }
+
+  function clearDiscount() {
+    setAppliedDiscount(null)
+    setDiscountInput('')
+    setDiscountError('')
+  }
+
   function handleDatos(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setStep('pago')
@@ -86,7 +120,8 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
 
   function handlePago(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const due = method.startsWith('usdt') ? uniqueUsdtAmount(subtotal) : subtotal
+    const payable = pricing.total
+    const due = method.startsWith('usdt') ? uniqueUsdtAmount(payable) : payable
     const nextOrder: Order = {
       id: createOrderId(),
       createdAt: new Date().toISOString(),
@@ -98,6 +133,13 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
       subtotal,
       amountDue: due,
       paymentMethod: method,
+      ...(appliedDiscount
+        ? {
+            discountCode: appliedDiscount.code,
+            discountPercent: appliedDiscount.percent,
+            discountAmount: pricing.discountAmount,
+          }
+        : {}),
     }
     setOrder(nextOrder)
     setBotNotified(false)
@@ -108,7 +150,6 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
     }
     setStep('instrucciones')
 
-    // Avisar al grupo apenas se genera la orden (no esperar al botón final)
     void notifyOrderToBot(nextOrder).then((result) => {
       if (result.ok) {
         setBotNotified(true)
@@ -135,7 +176,6 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
   async function openTelegramConfirm() {
     if (!order) return
 
-    // Si el aviso inicial falló, reintentamos al confirmar pago
     if (!botNotified) {
       setSendingBot(true)
       const result = await notifyOrderToBot(order)
@@ -157,25 +197,32 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
         `Orden: ${order.id}`,
         `Total: $${order.amountDue.toFixed(2)} USD`,
         `Método: ${paymentLabel(order.paymentMethod)}`,
+        order.discountCode
+          ? `Descuento: ${order.discountCode} (−${order.discountPercent}%)`
+          : '',
         `Mi Telegram: @${order.customer.telegram}`,
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
     )
     setStep('listo')
   }
 
-  function finish() {
+  function resetCheckoutState() {
     setCustomer(emptyCustomer)
     setOrder(null)
     setBotNotified(false)
     setStep('datos')
+    clearDiscount()
+  }
+
+  function finish() {
+    resetCheckoutState()
     onCompleted()
   }
 
   function closeAll() {
-    setCustomer(emptyCustomer)
-    setOrder(null)
-    setBotNotified(false)
-    setStep('datos')
+    resetCheckoutState()
     onClose()
   }
 
@@ -216,8 +263,58 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
             {lines.reduce((n, l) => n + l.qty, 0)}{' '}
             {lines.reduce((n, l) => n + l.qty, 0) === 1 ? 'producto' : 'productos'}
           </span>
-          <strong>Subtotal ${subtotal.toFixed(2)} USD</strong>
+          <div className="checkout-summary__totals">
+            {appliedDiscount ? (
+              <>
+                <span className="checkout-summary__strike">${subtotal.toFixed(2)}</span>
+                <strong>Total ${pricing.total.toFixed(2)} USD</strong>
+              </>
+            ) : (
+              <strong>Subtotal ${subtotal.toFixed(2)} USD</strong>
+            )}
+          </div>
         </div>
+
+        {(step === 'datos' || step === 'pago') && (
+          <div className="discount-box">
+            <div className="discount-box__head">
+              <strong>Código de descuento</strong>
+              <span>
+                Usá <code>STACKD20</code> y obtené 20% off
+              </span>
+            </div>
+            <div className="discount-box__row">
+              <input
+                name="discount"
+                value={discountInput}
+                onChange={(e) => {
+                  setDiscountInput(e.target.value)
+                  setDiscountError('')
+                }}
+                placeholder="Ej: STACKD20"
+                autoComplete="off"
+                aria-label="Código de descuento"
+                disabled={Boolean(appliedDiscount)}
+              />
+              {appliedDiscount ? (
+                <button className="btn btn--line" type="button" onClick={clearDiscount}>
+                  Quitar
+                </button>
+              ) : (
+                <button className="btn btn--purple" type="button" onClick={applyCode}>
+                  Aplicar
+                </button>
+              )}
+            </div>
+            {appliedDiscount && (
+              <p className="discount-box__ok">
+                {appliedDiscount.code} aplicado: −{appliedDiscount.percent}% (−$
+                {pricing.discountAmount.toFixed(2)})
+              </p>
+            )}
+            {discountError && <p className="discount-box__err">{discountError}</p>}
+          </div>
+        )}
 
         {step === 'datos' && (
           <form className="form checkout-body" onSubmit={handleDatos}>
@@ -297,13 +394,14 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
             </fieldset>
             {availableMethods.length === 1 && availableMethods[0].value === 'paypal' && (
               <p className="checkout-hint checkout-hint--warn">
-                USDT todavía no está configurado. Podés pagar con PayPal o coordinar por @{storeConfig.telegramSupport}.
+                USDT todavía no está configurado. Podés pagar con PayPal o coordinar por @
+                {storeConfig.telegramSupport}.
               </p>
             )}
             <p className="checkout-hint">
               {method.startsWith('usdt')
-                ? `Vas a pagar un monto exacto cercano a $${subtotal.toFixed(2)} (con centavos únicos) para identificar tu depósito.`
-                : `PayPal se cobra por $${subtotal.toFixed(2)} USD. Luego confirmamos la orden por Telegram.`}
+                ? `Vas a pagar un monto exacto cercano a $${pricing.total.toFixed(2)} (con centavos únicos) para identificar tu depósito.`
+                : `PayPal se cobra por $${pricing.total.toFixed(2)} USD. Luego confirmamos la orden por Telegram.`}
             </p>
             <div className="modal__actions">
               <button className="btn btn--ghost" type="button" onClick={() => setStep('datos')}>
@@ -334,6 +432,12 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
             <div className="amount-box">
               <span>Total a enviar</span>
               <strong>${order.amountDue.toFixed(2)} USD</strong>
+              {order.discountCode && (
+                <p className="discount-box__ok">
+                  Incluye {order.discountCode} (−{order.discountPercent}% / −$
+                  {(order.discountAmount ?? 0).toFixed(2)})
+                </p>
+              )}
               {order.paymentMethod.startsWith('usdt') && (
                 <button
                   className="btn btn--line"

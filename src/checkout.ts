@@ -25,6 +25,37 @@ export type Order = {
   /** Monto exacto a pagar (con centavos únicos para USDT) */
   amountDue: number
   paymentMethod: PaymentMethod
+  discountCode?: string
+  discountPercent?: number
+  discountAmount?: number
+}
+
+/** Códigos activos: código → % de descuento */
+export const DISCOUNT_CODES: Record<string, number> = {
+  STACKD20: 20,
+}
+
+export function normalizeDiscountCode(raw: string): string {
+  return String(raw || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+}
+
+export function resolveDiscount(code: string): { code: string; percent: number } | null {
+  const normalized = normalizeDiscountCode(code)
+  const percent = DISCOUNT_CODES[normalized]
+  if (!percent) return null
+  return { code: normalized, percent }
+}
+
+export function applyDiscount(subtotal: number, percent: number): {
+  discountAmount: number
+  total: number
+} {
+  const discountAmount = Number(((subtotal * percent) / 100).toFixed(2))
+  const total = Math.max(0, Number((subtotal - discountAmount).toFixed(2)))
+  return { discountAmount, total }
 }
 
 export function cartLines(cart: Record<string, number>, products: Product[]): CartLine[] {
@@ -100,6 +131,14 @@ export function buildGroupOrderMessage(order: Order): string {
     ? `\n📝 <b>Notas</b>\n${escapeHtml(order.customer.notes.trim())}\n`
     : ''
 
+  const discountBlock =
+    order.discountCode && order.discountAmount
+      ? [
+          `Subtotal: $${order.subtotal.toFixed(2)}`,
+          `Descuento ${escapeHtml(order.discountCode)} (−${order.discountPercent ?? 0}%): −$${order.discountAmount.toFixed(2)}`,
+        ].join('\n')
+      : `Subtotal: $${order.subtotal.toFixed(2)}`
+
   return [
     `<b>STACKD · NUEVA ORDEN</b>`,
     `<code>${escapeHtml(order.id)}</code>`,
@@ -111,6 +150,7 @@ export function buildGroupOrderMessage(order: Order): string {
     ``,
     `<b>Pago</b>`,
     `Método: ${escapeHtml(paymentLabel(order.paymentMethod))}`,
+    discountBlock,
     `Total: <b>$${order.amountDue.toFixed(2)} USD</b>`,
     ``,
     `<b>Productos</b>`,
@@ -139,6 +179,9 @@ export function buildTelegramOrderMessage(order: Order): string {
     `Email: ${order.customer.email}`,
     `Telegram: @${tg}`,
     `Método: ${paymentLabel(order.paymentMethod)}`,
+    order.discountCode
+      ? `Descuento: ${order.discountCode} (−${order.discountPercent ?? 0}% / −$${(order.discountAmount ?? 0).toFixed(2)})`
+      : '',
     `Total: $${order.amountDue.toFixed(2)} USD`,
     ``,
     `Productos:`,

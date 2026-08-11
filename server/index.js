@@ -192,6 +192,13 @@ function saveIncomingOrder(body) {
     paymentCategory: paymentCategory(paymentMethod),
     amountDue: Number.isFinite(amountDue) ? Number(amountDue.toFixed(2)) : 0,
     subtotal: Number.isFinite(Number(body.subtotal)) ? Number(Number(body.subtotal).toFixed(2)) : undefined,
+    discountCode: body.discountCode ? String(body.discountCode) : undefined,
+    discountPercent: Number.isFinite(Number(body.discountPercent))
+      ? Number(body.discountPercent)
+      : undefined,
+    discountAmount: Number.isFinite(Number(body.discountAmount))
+      ? Number(Number(body.discountAmount).toFixed(2))
+      : undefined,
     customer: {
       name: String(customer.name || ''),
       email: String(customer.email || ''),

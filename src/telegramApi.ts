@@ -32,6 +32,9 @@ export async function notifyOrderToBot(order: Order) {
     customer: order.customer,
     amountDue: order.amountDue,
     subtotal: order.subtotal,
+    discountCode: order.discountCode,
+    discountPercent: order.discountPercent,
+    discountAmount: order.discountAmount,
     paymentMethod: paymentLabel(order.paymentMethod),
     lines: order.lines.map((line) => ({
       productId: line.product.id,
