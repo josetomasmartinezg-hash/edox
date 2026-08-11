@@ -212,8 +212,11 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
         </ol>
 
         <div className="checkout-summary">
-          <strong>{lines.reduce((n, l) => n + l.qty, 0)} producto(s)</strong>
-          <span>Subtotal ${subtotal.toFixed(2)} USD</span>
+          <span>
+            {lines.reduce((n, l) => n + l.qty, 0)}{' '}
+            {lines.reduce((n, l) => n + l.qty, 0) === 1 ? 'plan' : 'planes'}
+          </span>
+          <strong>Subtotal ${subtotal.toFixed(2)} USD</strong>
         </div>
 
         {step === 'datos' && (
@@ -419,20 +422,25 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
         )}
 
         {step === 'listo' && order && (
-          <div className="pay-panel checkout-body">
-            <p>
-              Tu pedido <strong>{order.id}</strong> ya se avisó internamente. Para consultas y entrega, hablá con{' '}
-              <strong>@{storeConfig.telegramSupport}</strong>.
+          <div className="pay-panel checkout-body checkout-success">
+            <p className="checkout-success__lead">Tu pedido ya está registrado.</p>
+            <div className="checkout-success__id">
+              <span>Número de orden</span>
+              <strong>{order.id}</strong>
+            </div>
+            <p className="checkout-success__text">
+              Para consultas y entrega escribile a{' '}
+              <strong>@{storeConfig.telegramSupport}</strong>. Te respondemos por Telegram.
             </p>
             <p className="checkout-hint">
-              Si no se abrió Telegram, tocá el botón de abajo o buscá @{storeConfig.telegramSupport}.
+              Si no se abrió Telegram, usá el botón de abajo o buscá @{storeConfig.telegramSupport}.
             </p>
             <div className="modal__actions modal__actions--stack">
               <a className="btn btn--mint btn--block" href={telegramOrderUrl(order)} target="_blank" rel="noreferrer">
                 Escribir a @{storeConfig.telegramSupport}
               </a>
-              <button className="btn btn--solid btn--block" type="button" onClick={finish}>
-                Listo
+              <button className="btn btn--line btn--block" type="button" onClick={finish}>
+                Cerrar
               </button>
             </div>
           </div>
