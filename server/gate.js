@@ -247,9 +247,15 @@ function wantsHtml(req) {
   return false
 }
 
-function gatePageHtml() {
+function gatePageHtml(ip = 'unknown') {
   const siteKey = env('TURNSTILE_SITE_KEY')
   const hasTurnstile = Boolean(siteKey)
+  const bootstrap =
+    hasTurnstile
+      ? { ok: true, mode: 'turnstile' }
+      : { ok: true, ...createSessionForIp(ip) }
+  const bootstrapJson = JSON.stringify(bootstrap).replace(/</g, '\\u003c')
+  const puzzleOn = bootstrap.mode === 'puzzle'
   return `<!doctype html>
 <html lang="es">
 <head>
@@ -391,18 +397,27 @@ function gatePageHtml() {
               <p class="status" id="status" aria-live="polite"></p>
             </form>`
           : `<div class="widget" id="widget" role="group" aria-label="Verificación anti-bot">
-              <button type="button" class="cb" id="cb" aria-label="No soy un robot" title="No soy un robot">
+              <button type="button" class="cb${puzzleOn ? ' disabled' : ''}" id="cb" aria-label="No soy un robot" title="No soy un robot"${puzzleOn ? ' disabled' : ''}>
                 <span class="spinner" aria-hidden="true"></span>
                 <span class="check" aria-hidden="true"></span>
               </button>
-              <div class="w-label" id="w-label">No soy un robot</div>
+              <div class="w-label" id="w-label">${puzzleOn ? 'Completá el puzzle' : 'No soy un robot'}</div>
               <div class="w-meta"><strong>STACKD</strong>Privacy</div>
             </div>
-            <p class="status" id="status" aria-live="polite"></p>
-            <section class="puzzle" id="puzzle">
+            <p class="status${puzzleOn ? ' err' : ''}" id="status" aria-live="polite">${puzzleOn ? 'Detectamos mucho tráfico desde tu red. Resolvé el puzzle.' : ''}</p>
+            <section class="puzzle${puzzleOn ? ' on' : ''}" id="puzzle">
               <h2>Puzzle anti-bot</h2>
-              <p id="puzzle-q">Seleccioná la respuesta correcta.</p>
-              <div class="tiles" id="tiles"></div>
+              <p id="puzzle-q">${puzzleOn ? String(bootstrap.question || 'Seleccioná la respuesta correcta.') : 'Seleccioná la respuesta correcta.'}</p>
+              <div class="tiles" id="tiles">${
+                puzzleOn
+                  ? (bootstrap.tiles || [])
+                      .map(
+                        (n) =>
+                          `<button type="button" class="tile" data-val="${n}">${n}</button>`,
+                      )
+                      .join('')
+                  : ''
+              }</div>
             </section>`
       }
       <p class="hint">Esta verificación dura 24 horas en este navegador.</p>
@@ -410,9 +425,11 @@ function gatePageHtml() {
   </div>
   <script>
     const hasTurnstile = ${hasTurnstile ? 'true' : 'false'};
+    const bootstrap = ${bootstrapJson};
     const statusEl = document.getElementById('status');
     const next = new URLSearchParams(location.search).get('next') || '/';
-    let session = null;
+    let session = bootstrap && bootstrap.mode !== 'turnstile' ? bootstrap : null;
+    if (session) session._clientAt = Date.now();
     let busy = false;
     let moved = false;
     let keyed = false;
@@ -575,13 +592,22 @@ function gatePageHtml() {
         }
       });
     } else {
-      loadSession()
-        .then((data) => {
-          data._clientAt = Date.now();
-          if (data.mode === 'puzzle') showPuzzle(data);
-          document.getElementById('cb').addEventListener('click', onCheckbox);
-        })
-        .catch((err) => setStatus(err.message || 'Error cargando verificación', 'err'));
+      document.getElementById('cb').addEventListener('click', onCheckbox);
+      document.getElementById('tiles').addEventListener('click', (event) => {
+        const btn = event.target.closest('.tile');
+        if (!btn || busy) return;
+        onPuzzlePick(Number(btn.dataset.val), btn);
+      });
+      if (!session) {
+        loadSession()
+          .then((data) => {
+            data._clientAt = Date.now();
+            if (data.mode === 'puzzle') showPuzzle(data);
+          })
+          .catch((err) => setStatus(err.message || 'Error cargando verificación', 'err'));
+      } else if (session.mode === 'puzzle') {
+        // Tiles already in HTML; keep handlers only
+      }
     }
   </script>
 </body>
@@ -601,8 +627,9 @@ export function createGateMiddleware() {
     if (wantsHtml(req)) {
       const nextPath = req.originalUrl || '/'
       if (req.path === '/gate') {
-        noteGateHit(clientIp(req))
-        res.status(200).type('html').send(gatePageHtml())
+        const ip = clientIp(req)
+        noteGateHit(ip)
+        res.status(200).type('html').send(gatePageHtml(ip))
         return
       }
       const target = `/gate?next=${encodeURIComponent(nextPath)}`
