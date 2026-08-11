@@ -603,6 +603,13 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Stackd API on http://0.0.0.0:${PORT}`)
   console.log(`Telegram configured: ${configured()}`)
   console.log(`Bot username: @${BOT_USERNAME}`)
+  console.log(
+    `Telegram chat: ${
+      CHAT_ID
+        ? `set (len=${CHAT_ID.length}, negative=${CHAT_ID.startsWith('-')})`
+        : 'MISSING'
+    }`,
+  )
   console.log(`Admin panel: http://0.0.0.0:${PORT}/admin`)
   console.log(
     `Anti-bot gate: ${process.env.GATE_DISABLED === '1' ? 'disabled' : 'enabled'}`,

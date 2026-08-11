@@ -11,11 +11,24 @@ async function postJson(path: string, body: unknown): Promise<{ ok: boolean; err
     const res = await fetch(`${apiBase()}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(body),
     })
-    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean
+      error?: string
+      telegram?: boolean
+      warning?: string
+      gate?: string
+    }
     if (!res.ok || !data.ok) {
+      if (data.gate || /anti-bot|verificaci/i.test(String(data.error || ''))) {
+        return { ok: false, error: 'Pasá la verificación anti-bot y reintentá' }
+      }
       return { ok: false, error: data.error || `Error ${res.status}` }
+    }
+    if (data.telegram === false) {
+      return { ok: false, error: data.warning || 'La orden se guardó pero Telegram no respondió' }
     }
     return { ok: true }
   } catch {

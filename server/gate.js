@@ -230,6 +230,8 @@ function isAllowedWithoutGate(req) {
   const p = req.path || ''
   if (p === '/api/health') return true
   if (p === '/api/telegram/webhook') return true
+  // Checkout / comentarios avisan al bot; no deben depender de la cookie del gate
+  if (p === '/api/telegram/order' || p === '/api/telegram/comment') return true
   if (p.startsWith('/api/gate/')) return true
   // El admin tiene su propia auth por contraseña/token
   if (p.startsWith('/api/admin')) return true
