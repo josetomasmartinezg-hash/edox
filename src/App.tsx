@@ -99,10 +99,13 @@ export default function App() {
       <header className={`site-header ${scrolled ? 'is-scrolled' : ''}`}>
         <div className="site-header__inner">
           <a className="brand-mark" href="#inicio" onClick={closeMenu}>
-            <span className="brand-mark__square" aria-hidden="true" />
-            <span>
-              SOINVER <em>/ INGENIERÍA</em>
-            </span>
+            <img
+              className="brand-mark__logo"
+              src="/logo-soinver-h.svg"
+              alt="Soinver Ingeniería"
+              width={168}
+              height={55}
+            />
           </a>
 
           <nav className={`site-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Principal">
@@ -152,26 +155,24 @@ export default function App() {
                 Ver proyectos
               </a>
             </div>
-          </div>
-        </section>
 
-        <section className="facts-bar" aria-label="Datos clave">
-          <div className="shell facts-bar__grid">
-            <div>
-              <span>Fundación</span>
-              <strong>1992 — Santiago</strong>
-            </div>
-            <div>
-              <span>Sector</span>
-              <strong>Minería · Vialidad · Civil</strong>
-            </div>
-            <div>
-              <span>Registro MOP</span>
-              <strong>Obras Mayores III</strong>
-            </div>
-            <div className="facts-bar__years">
-              <strong>34</strong>
-              <span>Años construyendo el norte de Chile</span>
+            <div className="hero__facts" aria-label="Datos clave">
+              <div>
+                <span>Fundación</span>
+                <strong>1992 — Santiago</strong>
+              </div>
+              <div>
+                <span>Sector</span>
+                <strong>Minería · Vialidad · Civil</strong>
+              </div>
+              <div>
+                <span>Registro MOP</span>
+                <strong>Obras Mayores III</strong>
+              </div>
+              <div className="hero__facts-years">
+                <strong>34</strong>
+                <span>Años construyendo el norte de Chile</span>
+              </div>
             </div>
           </div>
         </section>
@@ -477,10 +478,13 @@ export default function App() {
       <footer className="site-footer">
         <div className="shell site-footer__inner">
           <div className="brand-mark">
-            <span className="brand-mark__square" aria-hidden="true" />
-            <span>
-              SOINVER <em>/ INGENIERÍA</em>
-            </span>
+            <img
+              className="brand-mark__logo"
+              src="/logo-soinver-h.svg"
+              alt="Soinver Ingeniería"
+              width={168}
+              height={55}
+            />
           </div>
           <p>© {new Date().getFullYear()} Soinver Ingeniería S.A. · Capacidades 2026</p>
         </div>

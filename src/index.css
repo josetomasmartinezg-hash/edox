@@ -1,16 +1,17 @@
 :root {
-  --navy: #0e1c2f;
-  --navy-deep: #08121f;
-  --ink: #152238;
-  --muted: #5c6675;
-  --line: rgba(21, 34, 56, 0.12);
-  --line-strong: rgba(21, 34, 56, 0.22);
-  --accent: #d4002a;
-  --accent-soft: #f4d6dc;
-  --paper: #f2f4f7;
-  --paper-warm: #eef1f4;
+  --navy: #111111;
+  --navy-deep: #0a0a0a;
+  --ink: #111111;
+  --muted: #5c5c5c;
+  --line: rgba(17, 17, 17, 0.12);
+  --line-strong: rgba(17, 17, 17, 0.22);
+  --accent: #e30613;
+  --accent-soft: #f8d4d7;
+  --paper: #f5f5f5;
+  --paper-warm: #f0f0f0;
   --white: #ffffff;
-  --magenta-overlay: rgba(180, 0, 45, 0.55);
+  --brand-gray: #707070;
+  --magenta-overlay: rgba(227, 6, 19, 0.45);
 
   --font-display: 'Barlow Condensed', sans-serif;
   --font-body: 'Figtree', sans-serif;

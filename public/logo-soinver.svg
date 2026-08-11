@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 360" role="img" aria-label="Soinver Ingeniería">
+  <!-- Marca gráfica: trazo abstracto rojo (sin heredar color del tema) -->
+  <g fill="none" stroke="#E30613" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M96 118 C96 78 128 52 168 52 C214 52 242 82 242 118 C242 154 214 172 168 186 C128 198 96 214 96 252 C96 292 128 318 174 318 C218 318 248 292 248 252"/>
+    <path d="M148 118 C148 98 160 86 178 86 C198 86 210 98 210 118"/>
+  </g>
+  <!-- Tipografía de marca en colores fijos -->
+  <text
+    x="160"
+    y="290"
+    text-anchor="middle"
+    font-family="Arial Black, Helvetica Neue, Arial, sans-serif"
+    font-size="54"
+    font-weight="900"
+    letter-spacing="2"
+    fill="#111111"
+  >SOINVER</text>
+  <line x1="48" y1="308" x2="198" y2="308" stroke="#707070" stroke-width="3"/>
+  <text
+    x="208"
+    y="314"
+    font-family="Helvetica Neue, Arial, sans-serif"
+    font-size="16"
+    font-weight="500"
+    letter-spacing="3"
+    fill="#707070"
+  >INGENIERIA</text>
+</svg>
