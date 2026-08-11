@@ -18,23 +18,19 @@ export const PERMISSIONS = {
   view_all_records: ['administrador', 'supervisor'],
 }
 
-/** Tipos del formulario papel MAQUINARIA / control de mantenimiento */
-export const MAINTENANCE_TYPES = [
-  'Aceite Hidráulico',
-  'Aceite Motor',
-  'Aceite Transmisión',
-  'Diferencial',
-  'Grasa',
-]
-
-export const MAINTENANCE_ACTIONS = [
-  { id: 'nivel_ok', label: 'Nivel OK / verificado' },
-  { id: 'se_adiciona', label: 'Se adiciona' },
-  { id: 'se_aplica', label: 'Se aplica' },
-  { id: 'cambio_completo', label: 'Cambio completo' },
-  { id: 'filtro_cambiado', label: 'Filtro cambiado' },
-  { id: 'inspeccion', label: 'Inspección visual' },
-  { id: 'reparacion', label: 'Reparación' },
+/** Intervalos del programa de mantenimiento (manual de tiempos operativos) */
+export const MAINTENANCE_INTERVALS = [
+  'Según se requiera',
+  'Cada 10 horas o diariamente',
+  'Cada 50 horas de trabajo',
+  'Mantenimiento inicial — 100 horas',
+  'Cada 250 horas de trabajo',
+  'Cada 500 horas de trabajo',
+  'Cada 1000 horas de trabajo',
+  'Cada 2000 horas de trabajo',
+  'Cada 4000 horas de trabajo',
+  'Cada 5000 horas de trabajo',
+  'Cada 6000 horas de trabajo',
 ]
 
 export function roleCan(role, permission) {

@@ -57,7 +57,7 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
       <div className="panel">
         <div className="hero-strip">
           <h2>Administración</h2>
-          <p>Maquinaria con QR, perfiles de usuario y módulo de mantenimiento.</p>
+          <p>Maquinaria, usuarios y programa de mantenimiento por intervalos.</p>
         </div>
         <div className="panel-body">
           <div className="tab-row">

@@ -29,9 +29,9 @@ export function Login({ onLoggedIn }: Props) {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-kicker">Acceso seguro</div>
+          <div className="brand-kicker">Sistema de control</div>
           <h1>Edox</h1>
-          <p>Panel y terreno según el perfil de cada usuario.</p>
+          <p>Acceso según perfil: administración, terreno y mantenimiento.</p>
         </div>
       </header>
 

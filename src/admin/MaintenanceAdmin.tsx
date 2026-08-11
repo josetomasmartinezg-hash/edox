@@ -1,36 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/auth'
 import {
-  MAINTENANCE_ACTIONS,
-  MAINTENANCE_TYPES,
-  type Machine,
-  type MaintenanceActionId,
-  type MaintenanceDetail,
-  type MaintenanceRecord,
-} from '../types'
+  MAINTENANCE_PROGRAM,
+  getInterval,
+  type MaintenanceIntervalId,
+} from '../data/maintenanceProgram'
+import type { Machine, MaintenanceRecord } from '../types'
 
 type Props = {
   canManage: boolean
-}
-
-function emptyDetails(): MaintenanceDetail[] {
-  return MAINTENANCE_TYPES.map((tipo) => ({
-    tipo,
-    nivel: '',
-    seAdiciona: '',
-    seAplica: '',
-    realizado: false,
-  }))
 }
 
 export function MaintenanceAdmin({ canManage }: Props) {
   const [machines, setMachines] = useState<Machine[]>([])
   const [items, setItems] = useState<MaintenanceRecord[]>([])
   const [machineId, setMachineId] = useState('')
-  const [tipoMantenimiento, setTipoMantenimiento] = useState(MAINTENANCE_TYPES[0])
+  const [intervaloId, setIntervaloId] = useState<MaintenanceIntervalId>('10h_diario')
   const [horometro, setHorometro] = useState('')
-  const [acciones, setAcciones] = useState<MaintenanceActionId[]>([])
-  const [detalles, setDetalles] = useState<MaintenanceDetail[]>(emptyDetails())
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([])
   const [observaciones, setObservaciones] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -39,6 +26,8 @@ export function MaintenanceAdmin({ canManage }: Props) {
     () => machines.find((m) => m.id === machineId) || null,
     [machines, machineId],
   )
+
+  const currentInterval = useMemo(() => getInterval(intervaloId), [intervaloId])
 
   async function load() {
     const [mRes, iRes] = await Promise.all([
@@ -53,28 +42,48 @@ export function MaintenanceAdmin({ canManage }: Props) {
     void load()
   }, [])
 
-  function toggleAction(id: MaintenanceActionId) {
-    setAcciones((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]))
+  useEffect(() => {
+    setSelectedTasks([])
+  }, [intervaloId])
+
+  function toggleTask(id: string) {
+    setSelectedTasks((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+    )
   }
 
-  function updateDetail(tipo: string, patch: Partial<MaintenanceDetail>) {
-    setDetalles((prev) => prev.map((d) => (d.tipo === tipo ? { ...d, ...patch } : d)))
+  function selectAll() {
+    if (!currentInterval) return
+    setSelectedTasks(currentInterval.tasks.map((t) => t.id))
+  }
+
+  function clearAll() {
+    setSelectedTasks([])
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canManage) return
+    if (!selectedTasks.length) {
+      setError('Marca al menos una tarea realizada del programa')
+      return
+    }
     setLoading(true)
     setError('')
+
+    const tareas = (currentInterval?.tasks || [])
+      .filter((t) => selectedTasks.includes(t.id))
+      .map((t) => ({ id: t.id, label: t.label, realizado: true }))
+
     const res = await apiFetch('/api/maintenance', {
       method: 'POST',
       body: JSON.stringify({
         machineId,
         sigla: selectedMachine?.sigla,
-        tipoMantenimiento,
+        tipoMantenimiento: currentInterval?.label || intervaloId,
+        intervaloId,
         horometro,
-        acciones,
-        detalles: detalles.filter((d) => d.realizado),
+        tareas,
         observaciones,
       }),
     })
@@ -85,8 +94,7 @@ export function MaintenanceAdmin({ canManage }: Props) {
       return
     }
     setHorometro('')
-    setAcciones([])
-    setDetalles(emptyDetails())
+    setSelectedTasks([])
     setObservaciones('')
     await load()
   }
@@ -102,14 +110,14 @@ export function MaintenanceAdmin({ canManage }: Props) {
       <div className="section">
         <h3 className="section-title">Mantenimiento</h3>
         <p className="section-help">
-          El mecánico elige el equipo (sigla), el tipo del formulario papel, el horómetro y marca lo
-          realizado.
+          Programa de mantenimiento de tiempos operativos. Selecciona el equipo, el intervalo del
+          manual y marca las tareas realizadas.
         </p>
       </div>
 
       {canManage ? (
         <form className="admin-card" onSubmit={(e) => void handleSubmit(e)}>
-          <h4>Nuevo mantenimiento</h4>
+          <h4>Registrar mantenimiento</h4>
           <div className="field-grid two">
             <label className="field">
               <span>Equipo (sigla)</span>
@@ -118,19 +126,6 @@ export function MaintenanceAdmin({ canManage }: Props) {
                 {machines.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.sigla} — {m.marca} {m.modelo}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Tipo de mantenimiento</span>
-              <select
-                value={tipoMantenimiento}
-                onChange={(e) => setTipoMantenimiento(e.target.value)}
-              >
-                {MAINTENANCE_TYPES.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {tipo}
                   </option>
                 ))}
               </select>
@@ -145,74 +140,54 @@ export function MaintenanceAdmin({ canManage }: Props) {
                 placeholder="Ej: 127582"
               />
             </label>
+            <label className="field" style={{ gridColumn: '1 / -1' }}>
+              <span>Intervalo / tipo de mantenimiento</span>
+              <select
+                value={intervaloId}
+                onChange={(e) => setIntervaloId(e.target.value as MaintenanceIntervalId)}
+              >
+                {MAINTENANCE_PROGRAM.map((interval) => (
+                  <option key={interval.id} value={interval.id}>
+                    {interval.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
+          {currentInterval?.subtitle ? (
+            <p className="section-help">{currentInterval.subtitle}</p>
+          ) : null}
+
           <div className="section">
-            <h4 className="mini-title">Qué se realizó</h4>
-            <div className="chip-grid">
-              {MAINTENANCE_ACTIONS.map((action) => (
-                <button
-                  key={action.id}
-                  type="button"
-                  className={`chip ${acciones.includes(action.id) ? 'active' : ''}`}
-                  onClick={() => toggleAction(action.id)}
-                >
-                  {action.label}
+            <div className="meta-row" style={{ justifyContent: 'space-between' }}>
+              <h4 className="mini-title">Tareas del intervalo</h4>
+              <div className="btn-row">
+                <button type="button" className="btn btn-ghost btn-small" onClick={selectAll}>
+                  Marcar todas
                 </button>
-              ))}
+                <button type="button" className="btn btn-ghost btn-small" onClick={clearAll}>
+                  Limpiar
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div className="section">
-            <h4 className="mini-title">Detalle control (como el PDF)</h4>
-            <div className="table-scroll">
-              <table className="maint-table">
-                <thead>
-                  <tr>
-                    <th>Realizado</th>
-                    <th>Tipo</th>
-                    <th>Nivel</th>
-                    <th>Se adiciona</th>
-                    <th>Se aplica</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detalles.map((row) => (
-                    <tr key={row.tipo}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={row.realizado}
-                          onChange={(e) =>
-                            updateDetail(row.tipo, { realizado: e.target.checked })
-                          }
-                        />
-                      </td>
-                      <td>{row.tipo}</td>
-                      <td>
-                        <input
-                          value={row.nivel}
-                          onChange={(e) => updateDetail(row.tipo, { nivel: e.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={row.seAdiciona}
-                          onChange={(e) =>
-                            updateDetail(row.tipo, { seAdiciona: e.target.value })
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={row.seAplica}
-                          onChange={(e) => updateDetail(row.tipo, { seAplica: e.target.value })}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <p className="section-help">
+              {selectedTasks.length} de {currentInterval?.tasks.length || 0} realizadas
+            </p>
+            <div className="task-list">
+              {(currentInterval?.tasks || []).map((task) => {
+                const checked = selectedTasks.includes(task.id)
+                return (
+                  <label key={task.id} className={`task-item ${checked ? 'done' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleTask(task.id)}
+                    />
+                    <span>{task.label}</span>
+                  </label>
+                )
+              })}
             </div>
           </div>
 
@@ -221,7 +196,7 @@ export function MaintenanceAdmin({ canManage }: Props) {
             <textarea
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Detalle del trabajo realizado…"
+              placeholder="Detalle adicional del trabajo, repuestos usados, hallazgos…"
             />
           </label>
 
@@ -232,6 +207,9 @@ export function MaintenanceAdmin({ canManage }: Props) {
         </form>
       ) : null}
 
+      <div className="section">
+        <h3 className="section-title">Historial</h3>
+      </div>
       <div className="history-list">
         {items.map((item) => (
           <div key={item.id} className="history-item static">
@@ -243,17 +221,26 @@ export function MaintenanceAdmin({ canManage }: Props) {
               <span>Horómetro: {item.horometro}</span>
               <span>·</span>
               <span>{item.mecanicoNombre}</span>
+              <span>·</span>
+              <span>{new Date(item.createdAt).toLocaleString('es-CL')}</span>
             </div>
-            {item.acciones?.length ? (
-              <div className="meta-row">
-                {item.acciones
-                  .map((id) => MAINTENANCE_ACTIONS.find((a) => a.id === id)?.label || id)
-                  .join(' · ')}
-              </div>
+            {item.tareas?.length ? (
+              <ul className="task-summary">
+                {item.tareas.map((t) => (
+                  <li key={t.id}>{t.label}</li>
+                ))}
+              </ul>
+            ) : null}
+            {item.observaciones ? (
+              <p className="section-help">{item.observaciones}</p>
             ) : null}
             {canManage ? (
               <div className="btn-row">
-                <button type="button" className="btn btn-danger btn-small" onClick={() => void remove(item)}>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-small"
+                  onClick={() => void remove(item)}
+                >
                   Eliminar
                 </button>
               </div>

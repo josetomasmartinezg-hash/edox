@@ -57,20 +57,9 @@ export type Machine = {
   updatedAt?: string
 }
 
-export type MaintenanceActionId =
-  | 'nivel_ok'
-  | 'se_adiciona'
-  | 'se_aplica'
-  | 'cambio_completo'
-  | 'filtro_cambiado'
-  | 'inspeccion'
-  | 'reparacion'
-
-export type MaintenanceDetail = {
-  tipo: string
-  nivel: string
-  seAdiciona: string
-  seAplica: string
+export type MaintenanceTaskDone = {
+  id: string
+  label: string
   realizado: boolean
 }
 
@@ -79,9 +68,18 @@ export type MaintenanceRecord = {
   machineId?: string | null
   sigla: string
   tipoMantenimiento: string
+  intervaloId?: string
   horometro: string
-  acciones: MaintenanceActionId[]
-  detalles: MaintenanceDetail[]
+  tareas?: MaintenanceTaskDone[]
+  /** @deprecated campos antiguos */
+  acciones?: string[]
+  detalles?: Array<{
+    tipo: string
+    nivel: string
+    seAdiciona: string
+    seAplica: string
+    realizado: boolean
+  }>
   observaciones: string
   mecanicoId: string
   mecanicoNombre: string
@@ -125,24 +123,6 @@ export const ROLE_LABELS: Record<RoleId, string> = {
   mecanico: 'Mecánico',
   operador_surtidor: 'Operador surtidor',
 }
-
-export const MAINTENANCE_TYPES = [
-  'Aceite Hidráulico',
-  'Aceite Motor',
-  'Aceite Transmisión',
-  'Diferencial',
-  'Grasa',
-]
-
-export const MAINTENANCE_ACTIONS: { id: MaintenanceActionId; label: string }[] = [
-  { id: 'nivel_ok', label: 'Nivel OK / verificado' },
-  { id: 'se_adiciona', label: 'Se adiciona' },
-  { id: 'se_aplica', label: 'Se aplica' },
-  { id: 'cambio_completo', label: 'Cambio completo' },
-  { id: 'filtro_cambiado', label: 'Filtro cambiado' },
-  { id: 'inspeccion', label: 'Inspección visual' },
-  { id: 'reparacion', label: 'Reparación' },
-]
 
 export const DEFAULT_CHECKLIST: ChecklistItem[] = [
   { id: 'aceite-motor', label: 'Comprobar el nivel de aceite del motor', status: '' },

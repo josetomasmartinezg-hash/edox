@@ -7,13 +7,7 @@ import { randomUUID } from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import {
-  MAINTENANCE_ACTIONS,
-  MAINTENANCE_TYPES,
-  ROLES,
-  publicUser,
-  roleCan,
-} from './constants.js'
+import { MAINTENANCE_INTERVALS, ROLES, publicUser, roleCan } from './constants.js'
 import { authOptional, authRequired, requirePermission, signToken } from './auth.js'
 import { ensureSeedData } from './seed.js'
 import { dataDir, readJson, uploadsDir, writeJson } from './store.js'
@@ -54,8 +48,7 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/meta', (_req, res) => {
   res.json({
     roles: ROLES,
-    maintenanceTypes: MAINTENANCE_TYPES,
-    maintenanceActions: MAINTENANCE_ACTIONS,
+    maintenanceIntervals: MAINTENANCE_INTERVALS,
   })
 })
 
@@ -245,7 +238,7 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
     machine.qrDataUrl = await QRCode.toDataURL(machine.qrPayload, {
       margin: 1,
       width: 320,
-      color: { dark: '#0b3d2e', light: '#ffffff' },
+      color: { dark: '#1f2937', light: '#ffffff' },
     })
   }
 
@@ -289,7 +282,7 @@ app.put('/api/machines/:id', authRequired, requirePermission('manage_machines'),
     updated.qrDataUrl = await QRCode.toDataURL(updated.qrPayload, {
       margin: 1,
       width: 320,
-      color: { dark: '#0b3d2e', light: '#ffffff' },
+      color: { dark: '#1f2937', light: '#ffffff' },
     })
   }
 
@@ -312,7 +305,7 @@ app.post(
     machine.qrDataUrl = await QRCode.toDataURL(machine.qrPayload, {
       margin: 1,
       width: 320,
-      color: { dark: '#0b3d2e', light: '#ffffff' },
+      color: { dark: '#1f2937', light: '#ffffff' },
     })
     machine.updatedAt = new Date().toISOString()
     machines[idx] = machine
@@ -355,17 +348,17 @@ app.post(
       machineId,
       sigla,
       tipoMantenimiento,
+      intervaloId,
       horometro,
-      acciones = [],
-      detalles = [],
+      tareas = [],
       observaciones,
     } = req.body || {}
 
     if (!sigla?.trim() && !machineId) {
       return res.status(400).json({ error: 'Debes seleccionar un equipo (sigla)' })
     }
-    if (!tipoMantenimiento?.trim()) {
-      return res.status(400).json({ error: 'Tipo de mantenimiento obligatorio' })
+    if (!tipoMantenimiento?.trim() && !intervaloId) {
+      return res.status(400).json({ error: 'Intervalo de mantenimiento obligatorio' })
     }
     if (!horometro && horometro !== 0) {
       return res.status(400).json({ error: 'Horómetro obligatorio' })
@@ -376,30 +369,28 @@ app.post(
       machines.find((m) => m.id === machineId) ||
       machines.find((m) => m.sigla.toUpperCase() === String(sigla).trim().toUpperCase())
 
-    const selectedActions = Array.isArray(acciones)
-      ? acciones.filter((a) => MAINTENANCE_ACTIONS.some((x) => x.id === a))
-      : []
-
-    const detailRows = Array.isArray(detalles)
-      ? detalles
-          .filter((d) => d && d.tipo && d.realizado)
-          .map((d) => ({
-            tipo: d.tipo,
-            nivel: d.nivel || '',
-            seAdiciona: d.seAdiciona || '',
-            seAplica: d.seAplica || '',
+    const taskRows = Array.isArray(tareas)
+      ? tareas
+          .filter((t) => t && t.id && t.label && t.realizado !== false)
+          .map((t) => ({
+            id: String(t.id),
+            label: String(t.label),
             realizado: true,
           }))
       : []
+
+    if (!taskRows.length) {
+      return res.status(400).json({ error: 'Debes marcar al menos una tarea realizada' })
+    }
 
     const item = {
       id: randomUUID(),
       machineId: machine?.id || machineId || null,
       sigla: machine?.sigla || String(sigla).trim().toUpperCase(),
-      tipoMantenimiento: String(tipoMantenimiento).trim(),
+      tipoMantenimiento: String(tipoMantenimiento || intervaloId).trim(),
+      intervaloId: intervaloId || null,
       horometro: String(horometro).trim(),
-      acciones: selectedActions,
-      detalles: detailRows,
+      tareas: taskRows,
       observaciones: String(observaciones || '').trim(),
       mecanicoId: req.user.id,
       mecanicoNombre: req.user.name,
