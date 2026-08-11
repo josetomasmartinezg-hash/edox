@@ -34,7 +34,11 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
     headers.set('Content-Type', 'application/json')
   }
 
-  const res = await fetch(path, { ...init, headers })
+  const res = await fetch(path, {
+    ...init,
+    headers,
+    cache: 'no-store',
+  })
   if (res.status === 401) {
     clearSession()
   }
@@ -42,19 +46,25 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
 }
 
 export async function login(email: string, password: string) {
+  clearSession()
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
+    cache: 'no-store',
   })
-  const data = await res.json()
+  const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || 'No se pudo iniciar sesión')
+  if (!data.token || !data.user) throw new Error('Respuesta de login inválida')
   setSession(data.token, data.user)
   return data as { token: string; user: User }
 }
 
 export async function fetchMe() {
   const res = await apiFetch('/api/auth/me')
-  if (!res.ok) throw new Error('Sesión inválida')
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || 'Tu sesión expiró. Vuelve a iniciar sesión.')
+  }
   return (await res.json()) as { user: User; permissions: Permissions }
 }

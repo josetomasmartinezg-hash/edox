@@ -1,15 +1,21 @@
-import { useState } from 'react'
-import { login } from '../lib/auth'
+import { useEffect, useState } from 'react'
+import { clearSession, login } from '../lib/auth'
 
 type Props = {
   onLoggedIn: () => void
+  notice?: string
 }
 
-export function Login({ onLoggedIn }: Props) {
+export function Login({ onLoggedIn, notice }: Props) {
   const [email, setEmail] = useState('josetomasmartinezg@gmail.com')
   const [password, setPassword] = useState('Edox2026!')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    // Limpia sesión vieja/rota para no reintentar un token inválido
+    clearSession()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,21 +32,14 @@ export function Login({ onLoggedIn }: Props) {
   }
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-kicker">Sistema de control</div>
-          <h1>Edox</h1>
-          <p>Acceso según perfil: administración, terreno y mantenimiento.</p>
-        </div>
-      </header>
-
-      <div className="panel">
+    <div className="app-shell login-shell">
+      <div className="panel login-panel">
         <div className="hero-strip">
           <h2>Iniciar sesión</h2>
-          <p>Tu usuario principal tiene acceso total a maquinaria, usuarios y mantenimiento.</p>
+          <p>Panel de control Edox · acceso por perfil</p>
         </div>
         <form className="panel-body" onSubmit={(e) => void handleSubmit(e)}>
+          {notice ? <div className="demo-hint">{notice}</div> : null}
           <label className="field">
             <span>Correo</span>
             <input
@@ -66,8 +65,9 @@ export function Login({ onLoggedIn }: Props) {
             {loading ? 'Entrando…' : 'Entrar'}
           </button>
           <div className="demo-hint">
-            Usuario principal: <strong>josetomasmartinezg@gmail.com</strong> · clave{' '}
-            <strong>Edox2026!</strong>
+            Usuario: <strong>josetomasmartinezg@gmail.com</strong>
+            <br />
+            Clave: <strong>Edox2026!</strong>
           </div>
         </form>
       </div>

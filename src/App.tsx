@@ -22,6 +22,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('loading')
   const [user, setUser] = useState<User | null>(null)
   const [permissions, setPermissions] = useState<Permissions>(emptyPermissions)
+  const [loginNotice, setLoginNotice] = useState('')
 
   const bootstrap = useCallback(async () => {
     if (!getToken()) {
@@ -32,6 +33,7 @@ export default function App() {
       const me = await fetchMe()
       setUser(me.user)
       setPermissions(me.permissions)
+      setLoginNotice('')
       // Principal / admin entran al panel; terreno para operadores y surtidor
       if (me.user.isPrincipal || me.user.role === 'administrador' || me.user.role === 'mecanico') {
         setScreen(me.permissions.admin_panel ? 'admin' : 'field')
@@ -42,8 +44,15 @@ export default function App() {
       } else {
         setScreen('field')
       }
-    } catch {
+    } catch (err) {
       clearSession()
+      setUser(null)
+      setPermissions(emptyPermissions)
+      setLoginNotice(
+        err instanceof Error
+          ? err.message
+          : 'Tu sesión expiró. Vuelve a iniciar sesión.',
+      )
       setScreen('login')
     }
   }, [])
@@ -72,7 +81,15 @@ export default function App() {
   }
 
   if (screen === 'login' || !user) {
-    return <Login onLoggedIn={() => void bootstrap()} />
+    return (
+      <Login
+        notice={loginNotice}
+        onLoggedIn={() => {
+          setLoginNotice('')
+          void bootstrap()
+        }}
+      />
+    )
   }
 
   if (screen === 'admin') {

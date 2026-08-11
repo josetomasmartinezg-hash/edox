@@ -810,6 +810,17 @@ textarea {
   font-size: 0.9rem;
 }
 
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  width: min(480px, 100%);
+}
+
+.login-panel {
+  width: 100%;
+}
+
 /* ─── Desktop admin layout ─── */
 .desktop-app {
   min-height: 100vh;
