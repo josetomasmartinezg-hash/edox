@@ -1,3 +1,4 @@
+import { apiFetch } from './auth'
 import { dataUrlToBlob, getPendingRecords, saveRecord } from './db'
 import type { MachinaryRecord } from '../types'
 
@@ -21,7 +22,7 @@ export async function syncRecord(record: MachinaryRecord): Promise<MachinaryReco
     form.append('photo', blob, `combustible-${record.id}.jpg`)
   }
 
-  const res = await fetch('/api/records', {
+  const res = await apiFetch('/api/records', {
     method: 'POST',
     body: form,
   })

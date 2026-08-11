@@ -1,21 +1,26 @@
 import express from 'express'
 import cors from 'cors'
 import multer from 'multer'
+import bcrypt from 'bcryptjs'
+import QRCode from 'qrcode'
 import { randomUUID } from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import {
+  MAINTENANCE_ACTIONS,
+  MAINTENANCE_TYPES,
+  ROLES,
+  publicUser,
+  roleCan,
+} from './constants.js'
+import { authOptional, authRequired, requirePermission, signToken } from './auth.js'
+import { ensureSeedData } from './seed.js'
+import { dataDir, readJson, uploadsDir, writeJson } from './store.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(__dirname, '..')
-const dataDir = path.join(root, 'data')
-const uploadsDir = path.join(dataDir, 'uploads')
-const recordsFile = path.join(dataDir, 'records.json')
-
-fs.mkdirSync(uploadsDir, { recursive: true })
-if (!fs.existsSync(recordsFile)) {
-  fs.writeFileSync(recordsFile, '[]', 'utf8')
-}
+const seedInfo = ensureSeedData()
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
@@ -36,37 +41,420 @@ const PORT = process.env.PORT || 3001
 app.use(cors())
 app.use(express.json({ limit: '15mb' }))
 app.use('/uploads', express.static(uploadsDir))
-
-function readRecords() {
-  try {
-    return JSON.parse(fs.readFileSync(recordsFile, 'utf8'))
-  } catch {
-    return []
-  }
-}
-
-function writeRecords(records) {
-  fs.writeFileSync(recordsFile, JSON.stringify(records, null, 2), 'utf8')
-}
+app.use(authOptional)
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, time: new Date().toISOString() })
+  res.json({
+    ok: true,
+    time: new Date().toISOString(),
+    principal: seedInfo.principalEmail,
+  })
 })
 
-app.get('/api/records', (_req, res) => {
-  const records = readRecords().sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+app.get('/api/meta', (_req, res) => {
+  res.json({
+    roles: ROLES,
+    maintenanceTypes: MAINTENANCE_TYPES,
+    maintenanceActions: MAINTENANCE_ACTIONS,
+  })
+})
+
+/* ─── Auth ─── */
+app.post('/api/auth/login', (req, res) => {
+  const email = String(req.body.email || '')
+    .trim()
+    .toLowerCase()
+  const password = String(req.body.password || '')
+  const users = readJson('users.json', [])
+  const user = users.find((u) => u.email.toLowerCase() === email && u.active !== false)
+  if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
+    return res.status(401).json({ error: 'Correo o contraseña incorrectos' })
+  }
+  const token = signToken(user)
+  res.json({ token, user: publicUser(user) })
+})
+
+app.get('/api/auth/me', authRequired, (req, res) => {
+  res.json({
+    user: req.user,
+    permissions: {
+      admin_panel: req.user.isPrincipal || roleCan(req.user.role, 'admin_panel'),
+      manage_users: req.user.isPrincipal || roleCan(req.user.role, 'manage_users'),
+      manage_machines: req.user.isPrincipal || roleCan(req.user.role, 'manage_machines'),
+      view_machines: req.user.isPrincipal || roleCan(req.user.role, 'view_machines'),
+      manage_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'manage_maintenance'),
+      view_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'view_maintenance'),
+      field_form: req.user.isPrincipal || roleCan(req.user.role, 'field_form'),
+      view_all_records: req.user.isPrincipal || roleCan(req.user.role, 'view_all_records'),
+    },
+  })
+})
+
+/* ─── Users ─── */
+app.get('/api/users', authRequired, requirePermission('manage_users'), (_req, res) => {
+  const users = readJson('users.json', []).map(publicUser)
+  res.json(users)
+})
+
+app.post('/api/users', authRequired, requirePermission('manage_users'), (req, res) => {
+  const { name, email, password, role } = req.body || {}
+  if (!name?.trim() || !email?.trim() || !password || !role) {
+    return res.status(400).json({ error: 'Nombre, correo, contraseña y perfil son obligatorios' })
+  }
+  if (!ROLES.some((r) => r.id === role)) {
+    return res.status(400).json({ error: 'Perfil inválido' })
+  }
+
+  const users = readJson('users.json', [])
+  const normalized = String(email).trim().toLowerCase()
+  if (users.some((u) => u.email.toLowerCase() === normalized)) {
+    return res.status(409).json({ error: 'Ya existe un usuario con ese correo' })
+  }
+
+  const user = {
+    id: randomUUID(),
+    name: String(name).trim(),
+    email: normalized,
+    passwordHash: bcrypt.hashSync(String(password), 10),
+    role,
+    isPrincipal: false,
+    active: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  users.push(user)
+  writeJson('users.json', users)
+  res.status(201).json(publicUser(user))
+})
+
+app.put('/api/users/:id', authRequired, requirePermission('manage_users'), (req, res) => {
+  const users = readJson('users.json', [])
+  const idx = users.findIndex((u) => u.id === req.params.id)
+  if (idx < 0) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+  const current = users[idx]
+  if (current.isPrincipal && req.body.role && req.body.role !== 'administrador') {
+    return res.status(400).json({ error: 'El usuario principal debe ser Administrador' })
+  }
+  if (current.isPrincipal && req.body.active === false) {
+    return res.status(400).json({ error: 'No se puede desactivar al usuario principal' })
+  }
+
+  const nextEmail = req.body.email
+    ? String(req.body.email).trim().toLowerCase()
+    : current.email
+  if (
+    users.some((u) => u.id !== current.id && u.email.toLowerCase() === nextEmail)
+  ) {
+    return res.status(409).json({ error: 'Ya existe un usuario con ese correo' })
+  }
+
+  const updated = {
+    ...current,
+    name: req.body.name?.trim() || current.name,
+    email: nextEmail,
+    role: req.body.role || current.role,
+    active: typeof req.body.active === 'boolean' ? req.body.active : current.active,
+    updatedAt: new Date().toISOString(),
+  }
+  if (req.body.password) {
+    updated.passwordHash = bcrypt.hashSync(String(req.body.password), 10)
+  }
+  if (updated.isPrincipal) {
+    updated.role = 'administrador'
+    updated.active = true
+  }
+
+  users[idx] = updated
+  writeJson('users.json', users)
+  res.json(publicUser(updated))
+})
+
+app.delete('/api/users/:id', authRequired, requirePermission('manage_users'), (req, res) => {
+  const users = readJson('users.json', [])
+  const user = users.find((u) => u.id === req.params.id)
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
+  if (user.isPrincipal) {
+    return res.status(400).json({ error: 'No se puede eliminar al usuario principal' })
+  }
+  writeJson(
+    'users.json',
+    users.filter((u) => u.id !== req.params.id),
   )
+  res.json({ ok: true })
+})
+
+/* ─── Machines ─── */
+function machineQrPayload(machine) {
+  return `EDOX|MACHINE|${machine.sigla}|${machine.id}`
+}
+
+async function withQr(machine) {
+  if (!machine) return machine
+  if (machine.qrDataUrl) return machine
+  const qrDataUrl = await QRCode.toDataURL(machineQrPayload(machine), {
+    margin: 1,
+    width: 320,
+    color: { dark: '#0b3d2e', light: '#ffffff' },
+  })
+  return { ...machine, qrPayload: machineQrPayload(machine), qrDataUrl }
+}
+
+app.get('/api/machines', authRequired, requirePermission('view_machines'), async (_req, res) => {
+  const machines = readJson('machines.json', [])
+  const withCodes = await Promise.all(machines.map(withQr))
+  res.json(
+    withCodes.sort((a, b) => a.sigla.localeCompare(b.sigla, 'es', { sensitivity: 'base' })),
+  )
+})
+
+app.get('/api/machines/:id', authRequired, requirePermission('view_machines'), async (req, res) => {
+  const machine = readJson('machines.json', []).find((m) => m.id === req.params.id)
+  if (!machine) return res.status(404).json({ error: 'Máquina no encontrada' })
+  res.json(await withQr(machine))
+})
+
+app.post('/api/machines', authRequired, requirePermission('manage_machines'), async (req, res) => {
+  const { marca, modelo, anio, sigla, capacidadEstanque, generateQr = true } = req.body || {}
+  if (!marca?.trim() || !modelo?.trim() || !sigla?.trim()) {
+    return res.status(400).json({ error: 'Marca, modelo y sigla son obligatorios' })
+  }
+
+  const machines = readJson('machines.json', [])
+  const normalizedSigla = String(sigla).trim().toUpperCase()
+  if (machines.some((m) => m.sigla.toUpperCase() === normalizedSigla)) {
+    return res.status(409).json({ error: 'Ya existe una máquina con esa sigla' })
+  }
+
+  const machine = {
+    id: randomUUID(),
+    marca: String(marca).trim(),
+    modelo: String(modelo).trim(),
+    anio: String(anio || '').trim(),
+    sigla: normalizedSigla,
+    capacidadEstanque: String(capacidadEstanque || '').trim(),
+    active: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    qrPayload: null,
+    qrDataUrl: null,
+  }
+
+  if (generateQr) {
+    machine.qrPayload = machineQrPayload(machine)
+    machine.qrDataUrl = await QRCode.toDataURL(machine.qrPayload, {
+      margin: 1,
+      width: 320,
+      color: { dark: '#0b3d2e', light: '#ffffff' },
+    })
+  }
+
+  machines.push(machine)
+  writeJson('machines.json', machines)
+  res.status(201).json(machine)
+})
+
+app.put('/api/machines/:id', authRequired, requirePermission('manage_machines'), async (req, res) => {
+  const machines = readJson('machines.json', [])
+  const idx = machines.findIndex((m) => m.id === req.params.id)
+  if (idx < 0) return res.status(404).json({ error: 'Máquina no encontrada' })
+
+  const current = machines[idx]
+  const nextSigla = req.body.sigla
+    ? String(req.body.sigla).trim().toUpperCase()
+    : current.sigla
+
+  if (
+    machines.some((m) => m.id !== current.id && m.sigla.toUpperCase() === nextSigla)
+  ) {
+    return res.status(409).json({ error: 'Ya existe una máquina con esa sigla' })
+  }
+
+  const updated = {
+    ...current,
+    marca: req.body.marca?.trim() || current.marca,
+    modelo: req.body.modelo?.trim() || current.modelo,
+    anio: req.body.anio != null ? String(req.body.anio).trim() : current.anio,
+    sigla: nextSigla,
+    capacidadEstanque:
+      req.body.capacidadEstanque != null
+        ? String(req.body.capacidadEstanque).trim()
+        : current.capacidadEstanque,
+    active: typeof req.body.active === 'boolean' ? req.body.active : current.active,
+    updatedAt: new Date().toISOString(),
+  }
+
+  if (req.body.generateQr || nextSigla !== current.sigla || !current.qrDataUrl) {
+    updated.qrPayload = machineQrPayload(updated)
+    updated.qrDataUrl = await QRCode.toDataURL(updated.qrPayload, {
+      margin: 1,
+      width: 320,
+      color: { dark: '#0b3d2e', light: '#ffffff' },
+    })
+  }
+
+  machines[idx] = updated
+  writeJson('machines.json', machines)
+  res.json(updated)
+})
+
+app.post(
+  '/api/machines/:id/qr',
+  authRequired,
+  requirePermission('manage_machines'),
+  async (req, res) => {
+    const machines = readJson('machines.json', [])
+    const idx = machines.findIndex((m) => m.id === req.params.id)
+    if (idx < 0) return res.status(404).json({ error: 'Máquina no encontrada' })
+
+    const machine = machines[idx]
+    machine.qrPayload = machineQrPayload(machine)
+    machine.qrDataUrl = await QRCode.toDataURL(machine.qrPayload, {
+      margin: 1,
+      width: 320,
+      color: { dark: '#0b3d2e', light: '#ffffff' },
+    })
+    machine.updatedAt = new Date().toISOString()
+    machines[idx] = machine
+    writeJson('machines.json', machines)
+    res.json(machine)
+  },
+)
+
+app.delete('/api/machines/:id', authRequired, requirePermission('manage_machines'), (req, res) => {
+  const machines = readJson('machines.json', [])
+  if (!machines.some((m) => m.id === req.params.id)) {
+    return res.status(404).json({ error: 'Máquina no encontrada' })
+  }
+  writeJson(
+    'machines.json',
+    machines.filter((m) => m.id !== req.params.id),
+  )
+  res.json({ ok: true })
+})
+
+/* ─── Maintenance ─── */
+app.get(
+  '/api/maintenance',
+  authRequired,
+  requirePermission('view_maintenance'),
+  (_req, res) => {
+    const items = readJson('maintenance.json', []).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    res.json(items)
+  },
+)
+
+app.post(
+  '/api/maintenance',
+  authRequired,
+  requirePermission('manage_maintenance'),
+  (req, res) => {
+    const {
+      machineId,
+      sigla,
+      tipoMantenimiento,
+      horometro,
+      acciones = [],
+      detalles = [],
+      observaciones,
+    } = req.body || {}
+
+    if (!sigla?.trim() && !machineId) {
+      return res.status(400).json({ error: 'Debes seleccionar un equipo (sigla)' })
+    }
+    if (!tipoMantenimiento?.trim()) {
+      return res.status(400).json({ error: 'Tipo de mantenimiento obligatorio' })
+    }
+    if (!horometro && horometro !== 0) {
+      return res.status(400).json({ error: 'Horómetro obligatorio' })
+    }
+
+    const machines = readJson('machines.json', [])
+    const machine =
+      machines.find((m) => m.id === machineId) ||
+      machines.find((m) => m.sigla.toUpperCase() === String(sigla).trim().toUpperCase())
+
+    const selectedActions = Array.isArray(acciones)
+      ? acciones.filter((a) => MAINTENANCE_ACTIONS.some((x) => x.id === a))
+      : []
+
+    const detailRows = Array.isArray(detalles)
+      ? detalles
+          .filter((d) => d && d.tipo && d.realizado)
+          .map((d) => ({
+            tipo: d.tipo,
+            nivel: d.nivel || '',
+            seAdiciona: d.seAdiciona || '',
+            seAplica: d.seAplica || '',
+            realizado: true,
+          }))
+      : []
+
+    const item = {
+      id: randomUUID(),
+      machineId: machine?.id || machineId || null,
+      sigla: machine?.sigla || String(sigla).trim().toUpperCase(),
+      tipoMantenimiento: String(tipoMantenimiento).trim(),
+      horometro: String(horometro).trim(),
+      acciones: selectedActions,
+      detalles: detailRows,
+      observaciones: String(observaciones || '').trim(),
+      mecanicoId: req.user.id,
+      mecanicoNombre: req.user.name,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+
+    const all = readJson('maintenance.json', [])
+    all.push(item)
+    writeJson('maintenance.json', all)
+    res.status(201).json(item)
+  },
+)
+
+app.delete(
+  '/api/maintenance/:id',
+  authRequired,
+  requirePermission('manage_maintenance'),
+  (req, res) => {
+    const all = readJson('maintenance.json', [])
+    if (!all.some((m) => m.id === req.params.id)) {
+      return res.status(404).json({ error: 'Registro no encontrado' })
+    }
+    writeJson(
+      'maintenance.json',
+      all.filter((m) => m.id !== req.params.id),
+    )
+    res.json({ ok: true })
+  },
+)
+
+/* ─── Field records (combustible / parte diario) ─── */
+app.get('/api/records', authRequired, (req, res) => {
+  let records = readJson('records.json', [])
+  const canAll = req.user.isPrincipal || roleCan(req.user.role, 'view_all_records')
+  if (!canAll) {
+    records = records.filter(
+      (r) => r.userId === req.user.id || r.operador === req.user.name,
+    )
+  }
+  records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   res.json(records)
 })
 
-app.get('/api/records/:id', (req, res) => {
-  const record = readRecords().find((r) => r.id === req.params.id)
+app.get('/api/records/:id', authRequired, (req, res) => {
+  const record = readJson('records.json', []).find((r) => r.id === req.params.id)
   if (!record) return res.status(404).json({ error: 'No encontrado' })
   res.json(record)
 })
 
-app.post('/api/records', upload.single('photo'), (req, res) => {
+app.post('/api/records', authRequired, upload.single('photo'), (req, res) => {
+  if (!(req.user.isPrincipal || roleCan(req.user.role, 'field_form'))) {
+    return res.status(403).json({ error: 'No tienes permiso para registrar partes' })
+  }
+
   let payload
   try {
     payload = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body
@@ -74,13 +462,14 @@ app.post('/api/records', upload.single('photo'), (req, res) => {
     return res.status(400).json({ error: 'JSON inválido' })
   }
 
-  const records = readRecords()
+  const records = readJson('records.json', [])
   const id = payload.id || randomUUID()
   const existing = records.findIndex((r) => r.id === id)
 
   const record = {
     ...payload,
     id,
+    userId: req.user.id,
     photoUrl: req.file ? `/uploads/${req.file.filename}` : payload.photoUrl || null,
     syncedAt: new Date().toISOString(),
     createdAt: payload.createdAt || new Date().toISOString(),
@@ -93,20 +482,26 @@ app.post('/api/records', upload.single('photo'), (req, res) => {
     records.push(record)
   }
 
-  writeRecords(records)
+  writeJson('records.json', records)
   res.status(201).json(record)
 })
 
-app.delete('/api/records/:id', (req, res) => {
-  const records = readRecords()
-  const next = records.filter((r) => r.id !== req.params.id)
-  if (next.length === records.length) {
-    return res.status(404).json({ error: 'No encontrado' })
-  }
-  writeRecords(next)
-  res.json({ ok: true })
-})
+app.delete(
+  '/api/records/:id',
+  authRequired,
+  requirePermission('view_all_records'),
+  (req, res) => {
+    const records = readJson('records.json', [])
+    const next = records.filter((r) => r.id !== req.params.id)
+    if (next.length === records.length) {
+      return res.status(404).json({ error: 'No encontrado' })
+    }
+    writeJson('records.json', next)
+    res.json({ ok: true })
+  },
+)
 
+/* ─── Static frontend ─── */
 const dist = path.join(root, 'dist')
 if (fs.existsSync(dist)) {
   app.use(express.static(dist))
@@ -117,4 +512,6 @@ if (fs.existsSync(dist)) {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Edox API en http://0.0.0.0:${PORT}`)
+  console.log(`Login principal: ${seedInfo.principalEmail} / ${seedInfo.defaultPassword}`)
+  console.log(`Data dir: ${dataDir}`)
 })

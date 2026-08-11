@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ChecklistStatus, MachinaryRecord } from '../types'
+import { parseMachineQr } from '../types'
 import { PhotoCapture } from './PhotoCapture'
 import { QrScanner } from './QrScanner'
 
@@ -50,7 +51,7 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
         <div className="panel-body">
           <QrScanner
             onScan={(value) => {
-              patch({ maquina: value })
+              patch({ maquina: parseMachineQr(value) })
               setShowQr(false)
             }}
             onClose={() => setShowQr(false)}
