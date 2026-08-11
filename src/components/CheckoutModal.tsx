@@ -279,9 +279,6 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
           <div className="discount-box">
             <div className="discount-box__head">
               <strong>Código de descuento</strong>
-              <span>
-                Usá <code>SKALERS</code> y obtené 20% off
-              </span>
             </div>
             <div className="discount-box__row">
               <input
