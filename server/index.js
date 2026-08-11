@@ -188,9 +188,16 @@ async function withQr(machine) {
   const qrDataUrl = await QRCode.toDataURL(machineQrPayload(machine), {
     margin: 1,
     width: 320,
-    color: { dark: '#0b3d2e', light: '#ffffff' },
+    color: { dark: '#1f2937', light: '#ffffff' },
   })
   return { ...machine, qrPayload: machineQrPayload(machine), qrDataUrl }
+}
+
+function normalizeSigla(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
 }
 
 app.get('/api/machines', authRequired, requirePermission('view_machines'), async (_req, res) => {
@@ -206,6 +213,66 @@ app.get('/api/machines/:id', authRequired, requirePermission('view_machines'), a
   if (!machine) return res.status(404).json({ error: 'Máquina no encontrada' })
   res.json(await withQr(machine))
 })
+
+app.get(
+  '/api/machines/:id/historial',
+  authRequired,
+  requirePermission('view_machines'),
+  async (req, res) => {
+    const machine = readJson('machines.json', []).find((m) => m.id === req.params.id)
+    if (!machine) return res.status(404).json({ error: 'Máquina no encontrada' })
+
+    const sigla = normalizeSigla(machine.sigla)
+    const records = readJson('records.json', [])
+      .filter((r) => normalizeSigla(r.maquina) === sigla)
+      .map((r) => ({
+        id: r.id,
+        kind: 'combustible',
+        title: 'Parte / combustible',
+        fecha: r.fecha || r.createdAt,
+        createdAt: r.createdAt,
+        operador: r.operador || r.firmaOperador || '—',
+        litrosEnEstanque: r.litrosEnEstanque || '',
+        litrosCargados: r.litrosCargados || '',
+        guiaNumero: r.guiaNumero || '',
+        horasInicial: r.horasInicial || '',
+        horasFinal: r.horasFinal || '',
+        observaciones: r.observaciones || '',
+        photoUrl: r.photoUrl || null,
+      }))
+
+    const maintenances = readJson('maintenance.json', [])
+      .filter(
+        (m) =>
+          m.machineId === machine.id || normalizeSigla(m.sigla) === sigla,
+      )
+      .map((m) => ({
+        id: m.id,
+        kind: 'mantenimiento',
+        title: m.tipoMantenimiento || 'Mantenimiento',
+        fecha: m.createdAt,
+        createdAt: m.createdAt,
+        horometro: m.horometro || '',
+        mecanicoNombre: m.mecanicoNombre || '—',
+        tareas: m.tareas || [],
+        observaciones: m.observaciones || '',
+      }))
+
+    const timeline = [...records, ...maintenances].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+
+    res.json({
+      machine: await withQr(machine),
+      resumen: {
+        totalRegistros: records.length,
+        totalMantenimientos: maintenances.length,
+        ultimoRegistro: timeline[0]?.createdAt || null,
+      },
+      timeline,
+    })
+  },
+)
 
 app.post('/api/machines', authRequired, requirePermission('manage_machines'), async (req, res) => {
   const { marca, modelo, anio, sigla, capacidadEstanque, generateQr = true } = req.body || {}

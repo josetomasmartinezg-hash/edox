@@ -735,3 +735,77 @@ textarea {
 .task-summary li {
   margin-bottom: 2px;
 }
+
+.machine-row {
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.machine-row:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.machine-row .row-cta {
+  margin-left: auto;
+  font-style: normal;
+  font-weight: 650;
+  color: #1f2937;
+}
+
+.detail-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.detail-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .stat-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  padding: 10px 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.stat-box strong {
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.stat-box span {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.qr-inline {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.link-quiet {
+  color: #1f2937;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
