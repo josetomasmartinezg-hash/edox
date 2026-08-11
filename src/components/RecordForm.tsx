@@ -56,14 +56,17 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
             onClose={() => setShowQr(false)}
           />
           <div className="demo-hint">
-            Tip demo: si no tienes QR, usa el botón “Usar máquina demo” o escribe el código.
+            Tip demo: si no tienes QR o cámara, usa el botón de máquina demo o escribe el código.
           </div>
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => {
-              patch({ maquina: '75 D 35' })
               setShowQr(false)
+              // Deja que el scanner se desmonte limpio antes de actualizar el form
+              window.setTimeout(() => {
+                onChange({ ...record, maquina: '75 D 35' })
+              }, 50)
             }}
           >
             Usar máquina demo (75 D 35)
