@@ -22,7 +22,24 @@ npm run build
 npm start
 ```
 
-Sirve el `dist/` y las rutas `/api/telegram/*` en el mismo puerto (`PORT`, default 8787).
+Sirve el `dist/` y las rutas `/api/*` en el mismo puerto (`PORT`, default 8787).
+
+### Dominio `www.stackdbm.com` (Namecheap + Render)
+
+1. Entrá a [Render](https://render.com) → **New** → **Blueprint** (usa `render.yaml`) o **Web Service** desde este repo.
+2. Build: `npm install && npm run build` · Start: `npm start`
+3. Cargá las env vars (token Telegram, chat id, wallets, PayPal, `ADMIN_PASSWORD`).
+4. Con disco: `DATA_DIR=/var/data` (ya viene en `render.yaml`).
+5. En Render → **Settings → Custom Domains** → agregá `www.stackdbm.com`.
+6. En Namecheap → **Domain List** → `stackdbm.com` → **Advanced DNS**:
+
+| Type | Host | Value |
+|------|------|--------|
+| CNAME Record | `www` | `TU-SERVICIO.onrender.com` (el que te da Render) |
+| URL Redirect Record | `@` | `https://www.stackdbm.com/` (Unmasked) |
+
+7. Esperá la propagación DNS (puede tardar desde minutos hasta unas horas) y activá HTTPS en Render.
+8. Sitio: `https://www.stackdbm.com` · Admin: `https://www.stackdbm.com/admin`
 
 ## Bot de Telegram
 

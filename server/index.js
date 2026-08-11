@@ -7,12 +7,34 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
-const PRODUCTS_PATH = path.join(root, 'data', 'products.json')
-const ORDERS_PATH = path.join(root, 'data', 'orders.json')
+/** En producción (Render/Railway) usá un disco persistente y DATA_DIR=/var/data */
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(root, 'data')
+const SEED_DIR = path.join(root, 'data')
+const PRODUCTS_PATH = path.join(DATA_DIR, 'products.json')
+const ORDERS_PATH = path.join(DATA_DIR, 'orders.json')
+
+function ensureDataFiles() {
+  fs.mkdirSync(DATA_DIR, { recursive: true })
+  if (!fs.existsSync(PRODUCTS_PATH)) {
+    const seed = path.join(SEED_DIR, 'products.json')
+    if (fs.existsSync(seed)) fs.copyFileSync(seed, PRODUCTS_PATH)
+    else fs.writeFileSync(PRODUCTS_PATH, '[]\n', 'utf8')
+  }
+  if (!fs.existsSync(ORDERS_PATH)) {
+    const seed = path.join(SEED_DIR, 'orders.json')
+    if (fs.existsSync(seed)) fs.copyFileSync(seed, ORDERS_PATH)
+    else fs.writeFileSync(ORDERS_PATH, '[]\n', 'utf8')
+  }
+}
+
+ensureDataFiles()
 
 const app = express()
 const PORT = Number(process.env.PORT || 8787)
 const ENV_PATH = path.join(root, '.env')
+app.set('trust proxy', 1)
 
 /**
  * Node --env-file a veces pierde valores negativos (chat ids de grupos).
