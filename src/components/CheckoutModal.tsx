@@ -280,7 +280,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
             <div className="discount-box__head">
               <strong>Código de descuento</strong>
               <span>
-                Usá <code>STACKD20</code> y obtené 20% off
+                Usá <code>SKALERS</code> y obtené 20% off
               </span>
             </div>
             <div className="discount-box__row">
@@ -291,7 +291,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
                   setDiscountInput(e.target.value)
                   setDiscountError('')
                 }}
-                placeholder="Ej: STACKD20"
+                placeholder="Ej: SKALERS"
                 autoComplete="off"
                 aria-label="Código de descuento"
                 disabled={Boolean(appliedDiscount)}

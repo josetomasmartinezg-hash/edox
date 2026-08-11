@@ -32,7 +32,7 @@ export type Order = {
 
 /** Códigos activos: código → % de descuento */
 export const DISCOUNT_CODES: Record<string, number> = {
-  STACKD20: 20,
+  SKALERS: 20,
 }
 
 export function normalizeDiscountCode(raw: string): string {
