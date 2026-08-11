@@ -14,6 +14,21 @@ type Props = {
   onLogout: () => void
 }
 
+const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
+  maquinaria: {
+    title: 'Maquinaria',
+    subtitle: 'Listado de equipos, ficha e historial de ingresos',
+  },
+  usuarios: {
+    title: 'Usuarios',
+    subtitle: 'Perfiles y accesos del sistema',
+  },
+  mantenimiento: {
+    title: 'Mantenimiento',
+    subtitle: 'Programa por intervalos y registro de trabajos',
+  },
+}
+
 export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) {
   const tabs = useMemo(() => {
     const list: { id: Tab; label: string }[] = []
@@ -30,49 +45,60 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
   }, [permissions])
 
   const [tab, setTab] = useState<Tab>(tabs[0]?.id || 'maquinaria')
+  const copy = TAB_COPY[tab]
 
   return (
-    <div className="app-shell admin-shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-kicker">Panel administrativo</div>
-          <h1>Edox</h1>
-          <p>
-            {user.name} · {ROLE_LABELS[user.role]}
-            {user.isPrincipal ? ' · acceso total' : ''}
-          </p>
+    <div className="desktop-app">
+      <aside className="desktop-sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-kicker">Sistema Edox</div>
+          <h1>Panel</h1>
+          <p>Control operacional</p>
         </div>
-        <div className="topbar-actions">
-          {permissions.field_form && onBackField ? (
-            <button type="button" className="btn btn-accent btn-small" onClick={onBackField}>
-              Terreno
+
+        <nav className="sidebar-nav">
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`sidebar-link ${tab === item.id ? 'active' : ''}`}
+              onClick={() => setTab(item.id)}
+            >
+              {item.label}
             </button>
-          ) : null}
-          <button type="button" className="btn btn-ghost btn-small light" onClick={onLogout}>
-            Salir
-          </button>
-        </div>
-      </header>
+          ))}
+        </nav>
 
-      <div className="panel">
-        <div className="hero-strip">
-          <h2>Administración</h2>
-          <p>Maquinaria, usuarios y programa de mantenimiento por intervalos.</p>
-        </div>
-        <div className="panel-body">
-          <div className="tab-row">
-            {tabs.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`tab-btn ${tab === item.id ? 'active' : ''}`}
-                onClick={() => setTab(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <strong>{user.name}</strong>
+            <span>
+              {ROLE_LABELS[user.role]}
+              {user.isPrincipal ? ' · Principal' : ''}
+            </span>
           </div>
+          <div className="sidebar-actions">
+            {permissions.field_form && onBackField ? (
+              <button type="button" className="btn btn-ghost btn-small" onClick={onBackField}>
+                App terreno
+              </button>
+            ) : null}
+            <button type="button" className="btn btn-ghost btn-small" onClick={onLogout}>
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      </aside>
 
+      <div className="desktop-main">
+        <header className="desktop-topbar">
+          <div>
+            <h2>{copy.title}</h2>
+            <p>{copy.subtitle}</p>
+          </div>
+        </header>
+
+        <main className="desktop-content">
           {tab === 'maquinaria' ? (
             <MachinesAdmin canManage={permissions.manage_machines || !!user.isPrincipal} />
           ) : null}
@@ -80,7 +106,7 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
           {tab === 'mantenimiento' ? (
             <MaintenanceAdmin canManage={permissions.manage_maintenance || !!user.isPrincipal} />
           ) : null}
-        </div>
+        </main>
       </div>
     </div>
   )

@@ -107,61 +107,82 @@ export function MaintenanceAdmin({ canManage }: Props) {
 
   return (
     <div className="admin-section">
-      <div className="section">
-        <h3 className="section-title">Mantenimiento</h3>
-        <p className="section-help">
-          Programa de mantenimiento de tiempos operativos. Selecciona el equipo, el intervalo del
-          manual y marca las tareas realizadas.
-        </p>
+      <div className="toolbar">
+        <div>
+          <h3 className="section-title">Mantenimiento</h3>
+          <p className="section-help">
+            Programa de tiempos operativos: selecciona equipo, intervalo y marca las tareas
+            realizadas.
+          </p>
+        </div>
       </div>
 
       {canManage ? (
-        <form className="admin-card" onSubmit={(e) => void handleSubmit(e)}>
-          <h4>Registrar mantenimiento</h4>
-          <div className="field-grid two">
-            <label className="field">
-              <span>Equipo (sigla)</span>
-              <select value={machineId} onChange={(e) => setMachineId(e.target.value)} required>
-                <option value="">Seleccionar…</option>
-                {machines.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.sigla} — {m.marca} {m.modelo}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Horómetro al realizarlo</span>
-              <input
-                inputMode="decimal"
-                value={horometro}
-                onChange={(e) => setHorometro(e.target.value)}
-                required
-                placeholder="Ej: 127582"
-              />
-            </label>
-            <label className="field" style={{ gridColumn: '1 / -1' }}>
-              <span>Intervalo / tipo de mantenimiento</span>
-              <select
-                value={intervaloId}
-                onChange={(e) => setIntervaloId(e.target.value as MaintenanceIntervalId)}
-              >
-                {MAINTENANCE_PROGRAM.map((interval) => (
-                  <option key={interval.id} value={interval.id}>
-                    {interval.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <form className="desktop-grid-2" onSubmit={(e) => void handleSubmit(e)}>
+          <div className="admin-card">
+            <h4>Datos del registro</h4>
+            <div className="field-grid">
+              <label className="field">
+                <span>Equipo (sigla)</span>
+                <select value={machineId} onChange={(e) => setMachineId(e.target.value)} required>
+                  <option value="">Seleccionar…</option>
+                  {machines.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.sigla} — {m.marca} {m.modelo}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Horómetro al realizarlo</span>
+                <input
+                  inputMode="decimal"
+                  value={horometro}
+                  onChange={(e) => setHorometro(e.target.value)}
+                  required
+                  placeholder="Ej: 127582"
+                />
+              </label>
+              <label className="field">
+                <span>Intervalo / tipo de mantenimiento</span>
+                <select
+                  value={intervaloId}
+                  onChange={(e) => setIntervaloId(e.target.value as MaintenanceIntervalId)}
+                >
+                  {MAINTENANCE_PROGRAM.map((interval) => (
+                    <option key={interval.id} value={interval.id}>
+                      {interval.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Observaciones</span>
+                <textarea
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                  placeholder="Repuestos, hallazgos, detalle del trabajo…"
+                />
+              </label>
+            </div>
+            {error ? <p className="form-error">{error}</p> : null}
+            <button type="submit" className="btn btn-primary" disabled={loading || !machineId}>
+              {loading ? 'Guardando…' : 'Registrar mantenimiento'}
+            </button>
           </div>
 
-          {currentInterval?.subtitle ? (
-            <p className="section-help">{currentInterval.subtitle}</p>
-          ) : null}
-
-          <div className="section">
-            <div className="meta-row" style={{ justifyContent: 'space-between' }}>
-              <h4 className="mini-title">Tareas del intervalo</h4>
+          <div className="admin-card">
+            <div className="toolbar compact">
+              <div>
+                <h4 className="mini-title">Tareas del intervalo</h4>
+                {currentInterval?.subtitle ? (
+                  <p className="section-help">{currentInterval.subtitle}</p>
+                ) : (
+                  <p className="section-help">
+                    {selectedTasks.length} de {currentInterval?.tasks.length || 0} realizadas
+                  </p>
+                )}
+              </div>
               <div className="btn-row">
                 <button type="button" className="btn btn-ghost btn-small" onClick={selectAll}>
                   Marcar todas
@@ -171,10 +192,7 @@ export function MaintenanceAdmin({ canManage }: Props) {
                 </button>
               </div>
             </div>
-            <p className="section-help">
-              {selectedTasks.length} de {currentInterval?.tasks.length || 0} realizadas
-            </p>
-            <div className="task-list">
+            <div className="task-list desktop-tasks">
               {(currentInterval?.tasks || []).map((task) => {
                 const checked = selectedTasks.includes(task.id)
                 return (
@@ -190,64 +208,58 @@ export function MaintenanceAdmin({ canManage }: Props) {
               })}
             </div>
           </div>
-
-          <label className="field">
-            <span>Observaciones</span>
-            <textarea
-              value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Detalle adicional del trabajo, repuestos usados, hallazgos…"
-            />
-          </label>
-
-          {error ? <p className="form-error">{error}</p> : null}
-          <button type="submit" className="btn btn-primary" disabled={loading || !machineId}>
-            {loading ? 'Guardando…' : 'Registrar mantenimiento'}
-          </button>
         </form>
       ) : null}
 
       <div className="section">
         <h3 className="section-title">Historial</h3>
       </div>
-      <div className="history-list">
-        {items.map((item) => (
-          <div key={item.id} className="history-item static">
-            <div className="meta-row">
-              <strong>{item.sigla}</strong>
-              <span className="badge synced">{item.tipoMantenimiento}</span>
-            </div>
-            <div className="meta-row">
-              <span>Horómetro: {item.horometro}</span>
-              <span>·</span>
-              <span>{item.mecanicoNombre}</span>
-              <span>·</span>
-              <span>{new Date(item.createdAt).toLocaleString('es-CL')}</span>
-            </div>
-            {item.tareas?.length ? (
-              <ul className="task-summary">
-                {item.tareas.map((t) => (
-                  <li key={t.id}>{t.label}</li>
-                ))}
-              </ul>
+      <div className="table-panel">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Equipo</th>
+              <th>Intervalo</th>
+              <th>Horómetro</th>
+              <th>Mecánico</th>
+              <th>Tareas</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td>{new Date(item.createdAt).toLocaleString('es-CL')}</td>
+                <td>
+                  <strong>{item.sigla}</strong>
+                </td>
+                <td>{item.tipoMantenimiento}</td>
+                <td>{item.horometro}</td>
+                <td>{item.mecanicoNombre}</td>
+                <td>{item.tareas?.length || 0}</td>
+                <td>
+                  {canManage ? (
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-small"
+                      onClick={() => void remove(item)}
+                    >
+                      Eliminar
+                    </button>
+                  ) : null}
+                </td>
+              </tr>
+            ))}
+            {!items.length ? (
+              <tr>
+                <td colSpan={7} className="empty-cell">
+                  Sin mantenimientos registrados.
+                </td>
+              </tr>
             ) : null}
-            {item.observaciones ? (
-              <p className="section-help">{item.observaciones}</p>
-            ) : null}
-            {canManage ? (
-              <div className="btn-row">
-                <button
-                  type="button"
-                  className="btn btn-danger btn-small"
-                  onClick={() => void remove(item)}
-                >
-                  Eliminar
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ))}
-        {!items.length ? <div className="empty">Sin mantenimientos registrados.</div> : null}
+          </tbody>
+        </table>
       </div>
     </div>
   )
