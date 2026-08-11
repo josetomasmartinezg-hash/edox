@@ -9,8 +9,8 @@ export default function BrandLogo({ compact = false }: BrandLogoProps) {
       className={`soinver-logo-img ${compact ? 'soinver-logo-img--compact' : ''}`}
       src="/logo-soinver-h.png"
       alt="Soinver Ingenieria"
-      width={compact ? 140 : 180}
-      height={compact ? 88 : 113}
+      width={compact ? 64 : 72}
+      height={compact ? 64 : 72}
       decoding="async"
     />
   )
