@@ -51,9 +51,12 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
     <div className="desktop-app">
       <aside className="desktop-sidebar">
         <div className="sidebar-brand">
-          <div className="brand-kicker">Sistema Edox</div>
-          <h1>Panel</h1>
-          <p>Control operacional</p>
+          <img
+            className="sidebar-logo"
+            src="/logo-soinver.png"
+            alt="SOINVER Ingeniería"
+          />
+          <p>Panel de control operacional</p>
         </div>
 
         <nav className="sidebar-nav">
@@ -96,6 +99,11 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
             <h2>{copy.title}</h2>
             <p>{copy.subtitle}</p>
           </div>
+          <img
+            className="desktop-topbar-logo"
+            src="/logo-soinver.png"
+            alt="SOINVER"
+          />
         </header>
 
         <main className="desktop-content">

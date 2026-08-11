@@ -1,21 +1,25 @@
 :root {
-  --bg-deep: #111827;
-  --bg: #1f2937;
-  --bg-mid: #374151;
-  --bg-soft: #4b5563;
+  --brand-red: #d2143a;
+  --brand-red-dark: #b01030;
+  --brand-charcoal: #3c3c3b;
+  --brand-gray: #898989;
+  --bg-deep: #2a2a29;
+  --bg: #3c3c3b;
+  --bg-mid: #525251;
+  --bg-soft: #6b6b6a;
   --surface: #ffffff;
-  --surface-2: #f3f4f6;
-  --ink: #111827;
-  --ink-soft: #4b5563;
-  --line: #d1d5db;
-  --accent: #334155;
-  --accent-ink: #f8fafc;
-  --danger: #b91c1c;
-  --ok: #166534;
-  --warn: #92400e;
-  --shadow: 0 8px 24px rgba(17, 24, 39, 0.12);
+  --surface-2: #f5f5f5;
+  --ink: #3c3c3b;
+  --ink-soft: #6b6b6a;
+  --line: #d4d4d4;
+  --accent: #d2143a;
+  --accent-ink: #ffffff;
+  --danger: #d2143a;
+  --ok: #2f6f4e;
+  --warn: #9a6b16;
+  --shadow: 0 10px 28px rgba(60, 60, 59, 0.12);
   --radius: 10px;
-  --font-display: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --font-display: 'Montserrat', 'Segoe UI', sans-serif;
   --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
   color: var(--ink);
   background: var(--bg-deep);
@@ -39,7 +43,7 @@ body {
   margin: 0;
   min-width: 320px;
   background:
-    linear-gradient(180deg, #f3f4f6 0%, #e5e7eb 100%);
+    linear-gradient(180deg, #f7f7f7 0%, #ececec 100%);
   color: var(--ink);
 }
 
@@ -87,7 +91,7 @@ img {
   font-family: var(--font-display);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--brand-gray);
   font-size: 0.72rem;
   font-weight: 600;
 }
@@ -98,15 +102,25 @@ img {
   font-size: clamp(1.7rem, 5vw, 2.1rem);
   line-height: 1.1;
   letter-spacing: -0.02em;
-  color: #111827;
-  font-weight: 700;
+  color: var(--brand-charcoal);
+  font-weight: 800;
 }
 
 .brand p {
   margin: 4px 0 0;
-  color: #4b5563;
+  color: var(--brand-gray);
   font-size: 0.95rem;
   max-width: 40ch;
+}
+
+.brand-logo {
+  display: block;
+  width: min(280px, 100%);
+  height: auto;
+}
+
+.brand-logo.compact {
+  width: min(210px, 100%);
 }
 
 .status-pill {
@@ -143,9 +157,10 @@ img {
 }
 
 .hero-strip {
-  background: #1f2937;
+  background: linear-gradient(120deg, #3c3c3b 0%, #2f2f2e 70%, #4a1a24 100%);
   color: #f9fafb;
   padding: 18px 18px 16px;
+  border-top: 4px solid var(--brand-red);
 }
 
 .hero-strip h2 {
@@ -153,14 +168,14 @@ img {
   font-family: var(--font-display);
   font-size: 1.35rem;
   letter-spacing: -0.01em;
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.2;
 }
 
 .hero-strip p {
   margin: 8px 0 0;
   font-size: 0.92rem;
-  color: #d1d5db;
+  color: #d0d0d0;
 }
 
 .panel-body {
@@ -306,29 +321,29 @@ textarea {
 }
 
 .btn-primary {
-  background: #1f2937;
-  color: #f9fafb;
+  background: var(--brand-red);
+  color: #fff;
 }
 
 .btn-primary:hover {
-  background: #111827;
+  background: var(--brand-red-dark);
 }
 
 .btn-accent {
-  background: #374151;
-  color: #f9fafb;
+  background: var(--brand-charcoal);
+  color: #fff;
 }
 
 .btn-ghost {
   background: #fff;
-  color: #1f2937;
+  color: var(--brand-charcoal);
   box-shadow: inset 0 0 0 1px #d1d5db;
 }
 
 .btn-danger {
-  background: #fef2f2;
-  color: var(--danger);
-  box-shadow: inset 0 0 0 1px #fecaca;
+  background: #fff5f6;
+  color: var(--brand-red);
+  box-shadow: inset 0 0 0 1px #f2c1cb;
 }
 
 .btn:disabled {
@@ -638,8 +653,8 @@ textarea {
 }
 
 .tab-btn.active {
-  background: #1f2937;
-  border-color: #1f2937;
+  background: var(--brand-charcoal);
+  border-color: var(--brand-charcoal);
   color: #f9fafb;
 }
 
@@ -684,8 +699,8 @@ textarea {
 }
 
 .chip.active {
-  background: #1f2937;
-  border-color: #1f2937;
+  background: var(--brand-charcoal);
+  border-color: var(--brand-charcoal);
   color: #f9fafb;
 }
 
@@ -814,53 +829,71 @@ textarea {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  width: min(480px, 100%);
+  width: min(520px, 100%);
 }
 
 .login-panel {
   width: 100%;
 }
 
+.login-hero {
+  background: #fff !important;
+  border-top: 4px solid var(--brand-red);
+  color: var(--brand-charcoal);
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.login-hero p {
+  color: var(--brand-gray) !important;
+  margin: 0 !important;
+}
+
 /* ─── Desktop admin layout ─── */
 .desktop-app {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 260px 1fr;
-  background: #e5e7eb;
+  grid-template-columns: 280px 1fr;
+  background: #ececec;
 }
 
 .desktop-sidebar {
-  background: #111827;
+  background: #3c3c3b;
   color: #f9fafb;
   display: flex;
   flex-direction: column;
-  padding: 24px 18px;
+  padding: 22px 18px;
   position: sticky;
   top: 0;
   height: 100vh;
+  border-right: 3px solid var(--brand-red);
 }
 
-.sidebar-brand .brand-kicker {
-  color: #9ca3af;
+.sidebar-brand {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 8px;
 }
 
-.sidebar-brand h1 {
-  margin: 4px 0 0;
-  font-family: var(--font-display);
-  font-size: 1.8rem;
-  color: #fff;
+.sidebar-brand .sidebar-logo {
+  width: 100%;
+  max-width: 220px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
 .sidebar-brand p {
-  margin: 4px 0 0;
-  color: #9ca3af;
-  font-size: 0.9rem;
+  margin: 0;
+  color: #cfcfcf;
+  font-size: 0.88rem;
 }
 
 .sidebar-nav {
   display: grid;
   gap: 6px;
-  margin-top: 28px;
+  margin-top: 22px;
   flex: 1;
 }
 
@@ -870,22 +903,22 @@ textarea {
   border-radius: 8px;
   padding: 11px 12px;
   background: transparent;
-  color: #d1d5db;
+  color: #e4e4e4;
   font-weight: 600;
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
 .sidebar-link.active {
-  background: #374151;
+  background: var(--brand-red);
   color: #fff;
 }
 
 .sidebar-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
   padding-top: 14px;
   display: grid;
   gap: 10px;
@@ -902,7 +935,7 @@ textarea {
 }
 
 .sidebar-user span {
-  color: #9ca3af;
+  color: #c2c2c2;
   font-size: 0.82rem;
 }
 
@@ -913,8 +946,8 @@ textarea {
 
 .sidebar-actions .btn-ghost {
   background: transparent;
-  color: #e5e7eb;
-  box-shadow: inset 0 0 0 1px rgba(229, 231, 235, 0.25);
+  color: #f0f0f0;
+  box-shadow: inset 0 0 0 1px rgba(240, 240, 240, 0.28);
 }
 
 .desktop-main {
@@ -925,21 +958,31 @@ textarea {
 
 .desktop-topbar {
   background: #fff;
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid #d4d4d4;
   padding: 18px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 }
 
 .desktop-topbar h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.45rem;
-  color: #111827;
+  color: var(--brand-charcoal);
+  font-weight: 750;
 }
 
 .desktop-topbar p {
   margin: 4px 0 0;
-  color: #6b7280;
+  color: var(--brand-gray);
   font-size: 0.92rem;
+}
+
+.desktop-topbar-logo {
+  height: 42px;
+  width: auto;
 }
 
 .desktop-content {

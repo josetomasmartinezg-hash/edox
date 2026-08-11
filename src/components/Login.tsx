@@ -13,7 +13,6 @@ export function Login({ onLoggedIn, notice }: Props) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Limpia sesión vieja/rota para no reintentar un token inválido
     clearSession()
   }, [])
 
@@ -34,11 +33,12 @@ export function Login({ onLoggedIn, notice }: Props) {
   return (
     <div className="app-shell login-shell">
       <div className="panel login-panel">
-        <div className="hero-strip">
-          <h2>Iniciar sesión</h2>
-          <p>Panel de control Edox · acceso por perfil</p>
+        <div className="hero-strip login-hero">
+          <img className="brand-logo" src="/logo-soinver.png" alt="SOINVER Ingeniería" />
+          <p>Control de maquinaria · acceso por perfil</p>
         </div>
         <form className="panel-body" onSubmit={(e) => void handleSubmit(e)}>
+          <h2 className="section-title">Iniciar sesión</h2>
           {notice ? <div className="demo-hint">{notice}</div> : null}
           <label className="field">
             <span>Correo</span>

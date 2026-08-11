@@ -103,8 +103,7 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-kicker">Transporte · Campo</div>
-          <h1>Edox</h1>
+          <img className="brand-logo compact" src="/logo-soinver.png" alt="SOINVER Ingeniería" />
           <p>
             Hola {user.name.split(' ')[0]} · parte diario y combustible
             {online ? '' : ' (sin señal)'}
