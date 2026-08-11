@@ -288,7 +288,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
                   setDiscountInput(e.target.value)
                   setDiscountError('')
                 }}
-                placeholder="Ej: SKALERS"
+                placeholder="Ingresá tu código"
                 autoComplete="off"
                 aria-label="Código de descuento"
                 disabled={Boolean(appliedDiscount)}
