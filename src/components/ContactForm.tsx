@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 /** Destino fijo de todos los contactos del sitio */
-const CONTACT_EMAIL = 'e.latorre@soinver.cl'
+const CONTACT_EMAIL = 'recepcion@soinver.cl'
 
 type Status = 'idle' | 'sending' | 'success' | 'error'
 
@@ -63,7 +63,7 @@ export default function ContactForm() {
           .join('\n'),
       )
 
-      // Fallback: abre el correo dirigido únicamente a e.latorre@soinver.cl
+      // Fallback: abre el correo dirigido a recepción
       window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`
       setStatus('success')
       setErrorMsg('')

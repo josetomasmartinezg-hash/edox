@@ -462,7 +462,7 @@ export default function App() {
                 <div>
                   <span>Correo electrónico</span>
                   <strong>
-                    <a href="mailto:e.latorre@soinver.cl">e.latorre@soinver.cl</a>
+                    <a href="mailto:recepcion@soinver.cl">recepcion@soinver.cl</a>
                   </strong>
                 </div>
                 <p className="contact__closing">
