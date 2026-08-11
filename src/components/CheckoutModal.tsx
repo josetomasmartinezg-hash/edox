@@ -214,7 +214,7 @@ export function CheckoutModal({ open, lines, subtotal, onClose, onCompleted, sho
         <div className="checkout-summary">
           <span>
             {lines.reduce((n, l) => n + l.qty, 0)}{' '}
-            {lines.reduce((n, l) => n + l.qty, 0) === 1 ? 'plan' : 'planes'}
+            {lines.reduce((n, l) => n + l.qty, 0) === 1 ? 'producto' : 'productos'}
           </span>
           <strong>Subtotal ${subtotal.toFixed(2)} USD</strong>
         </div>

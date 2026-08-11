@@ -92,7 +92,7 @@ function App() {
 
   function openCheckout() {
     if (!lines.length) {
-      showToast('Agregá al menos un plan')
+      showToast('Agregá al menos un producto')
       return
     }
     setCartOpen(false)
@@ -115,14 +115,14 @@ function App() {
 
           <nav className="nav" aria-label="Principal">
             <a href="#proceso">Cómo funciona</a>
-            <a href="#planes">Planes</a>
+            <a href="#planes">Catálogo</a>
             <a href="#faq">FAQ</a>
           </nav>
 
           <div className="header-actions">
             <a className="btn btn--purple header-cta" href="#planes">
-              <span className="header-cta__full">Quiero mi setup →</span>
-              <span className="header-cta__short">Setup →</span>
+              <span className="header-cta__full">Ver catálogo →</span>
+              <span className="header-cta__short">Catálogo →</span>
             </a>
             <button className="cart-btn" type="button" aria-label="Carrito" onClick={() => setCartOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -158,7 +158,7 @@ function App() {
             </p>
             <div className="hero__cta reveal reveal-delay-3">
               <a className="btn btn--purple" href="#planes">
-                Ver planes y precios
+                Ver catálogo y precios
               </a>
               <a className="btn btn--ghost-purple" href="#proceso">
                 ¿Cómo funciona?
@@ -216,9 +216,9 @@ function App() {
 
         <section className="section" id="planes">
           <div className="container">
-            <p className="section__eyebrow">// Planes</p>
-            <h2 className="section__title">Elegí tu stack</h2>
-            <p className="section__lead">Todos incluyen configuración completa, proxies y soporte.</p>
+            <p className="section__eyebrow">// Catálogo</p>
+            <h2 className="section__title">Productos y precios</h2>
+            <p className="section__lead">BMs, perfiles y fan pages. Entrega por Telegram.</p>
 
             <div className="plans-grid">
               {products.map((product) => {
@@ -301,7 +301,7 @@ function App() {
               </h2>
               <p>Sumate a los media buyers que ya operan con infraestructura profesional.</p>
               <a className="btn btn--purple" href="#planes">
-                Quiero mi setup ahora →
+                Ver catálogo →
               </a>
             </div>
           </div>

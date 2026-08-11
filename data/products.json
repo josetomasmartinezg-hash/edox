@@ -1,56 +1,87 @@
 [
   {
-    "id": "plan-starter",
-    "name": "Starter",
-    "badge": "Starter",
-    "price": 99,
-    "description": "Para empezar a escalar con estructura.",
+    "id": "bm2500-verified",
+    "name": "BM2500 Verified",
+    "badge": "BM",
+    "price": 80,
+    "description": "Business Manager 2500 verificado, listo para operar.",
     "features": [
-      "1 perfil Ads Power",
-      "1 Business Manager",
-      "2 cuentas de ads",
-      "1 proxy residencial",
-      "Garantía 15 días",
-      "Soporte Telegram"
+      "BM 2500 verified",
+      "Entrega por Telegram",
+      "Soporte incluido"
     ],
-    "stock": 20,
-    "cta": "Elegir Starter"
-  },
-  {
-    "id": "plan-pro",
-    "name": "Pro",
-    "badge": "Más popular",
-    "price": 249,
-    "description": "El setup que usa quien escala en serio.",
-    "features": [
-      "2 perfiles Ads Power",
-      "2 Business Managers",
-      "3 cuentas por BM (6 total)",
-      "2 proxies residenciales",
-      "Garantía 15 días",
-      "Onboarding 1:1",
-      "Soporte prioritario"
-    ],
-    "stock": 15,
+    "stock": 25,
     "featured": true,
-    "cta": "Contratar Pro →"
+    "cta": "Comprar BM2500"
   },
   {
-    "id": "plan-agency",
-    "name": "Agency",
-    "badge": "Agency",
-    "price": 449,
-    "description": "Para agencias y buyers de alto volumen.",
+    "id": "bm1-verified",
+    "name": "BM1 Verified",
+    "badge": "BM",
+    "price": 80,
+    "description": "Business Manager 1 verificado.",
     "features": [
-      "4 perfiles Ads Power",
-      "4 Business Managers",
-      "3 cuentas por BM (12 total)",
-      "4 proxies móviles",
-      "Garantía 20 días",
-      "Onboarding extendido",
-      "Soporte VIP"
+      "BM1 verified",
+      "Entrega por Telegram",
+      "Soporte incluido"
     ],
-    "stock": 8,
-    "cta": "Elegir Agency"
+    "stock": 30,
+    "cta": "Comprar BM1 Verified"
+  },
+  {
+    "id": "bm1-standard",
+    "name": "BM1 Standard",
+    "badge": "BM",
+    "price": 60,
+    "description": "Business Manager 1 estándar.",
+    "features": [
+      "BM1 standard",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 30,
+    "cta": "Comprar BM1 Standard"
+  },
+  {
+    "id": "perfil-fb",
+    "name": "Perfil FB",
+    "badge": "Perfil",
+    "price": 40,
+    "description": "Perfil de Facebook listo para uso.",
+    "features": [
+      "Perfil Facebook",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 40,
+    "cta": "Comprar Perfil FB"
+  },
+  {
+    "id": "perfil-fb-verified",
+    "name": "Perfil FB Verified",
+    "badge": "Perfil",
+    "price": 60,
+    "description": "Perfil de Facebook verificado.",
+    "features": [
+      "Perfil FB verified",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 25,
+    "cta": "Comprar Perfil Verified"
+  },
+  {
+    "id": "fan-page",
+    "name": "Fan Page",
+    "badge": "Page",
+    "price": 30,
+    "description": "Fan page de Facebook.",
+    "features": [
+      "Fan page",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 40,
+    "cta": "Comprar Fan Page"
   }
 ]
