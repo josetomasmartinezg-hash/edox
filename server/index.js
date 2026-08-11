@@ -8,11 +8,30 @@ import { createGateMiddleware, registerGateRoutes } from './gate.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
-/** En producción (Render/Railway) usá un disco persistente y DATA_DIR=/var/data */
-const DATA_DIR = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
-  : path.join(root, 'data')
 const SEED_DIR = path.join(root, 'data')
+const LOCAL_DATA_DIR = path.join(root, 'data')
+
+/**
+ * En producción (Render) podés montar un disco en /var/data y setear DATA_DIR.
+ * Si no hay permisos / no hay disco, caemos a ./data para que el servicio arranque.
+ */
+function resolveDataDir() {
+  const configured = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : LOCAL_DATA_DIR
+  try {
+    fs.mkdirSync(configured, { recursive: true })
+    fs.accessSync(configured, fs.constants.W_OK)
+    return configured
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : ''
+    console.warn(
+      `DATA_DIR no usable (${configured})${code ? ` [${code}]` : ''}. Usando ${LOCAL_DATA_DIR}`,
+    )
+    fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true })
+    return LOCAL_DATA_DIR
+  }
+}
+
+const DATA_DIR = resolveDataDir()
 const PRODUCTS_PATH = path.join(DATA_DIR, 'products.json')
 const ORDERS_PATH = path.join(DATA_DIR, 'orders.json')
 
@@ -31,6 +50,7 @@ function ensureDataFiles() {
 }
 
 ensureDataFiles()
+console.log(`Data dir: ${DATA_DIR}`)
 
 const app = express()
 const PORT = Number(process.env.PORT || 8787)
