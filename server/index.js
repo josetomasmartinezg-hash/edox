@@ -100,8 +100,9 @@ const EXTRA_CHAT_IDS = String(
   .split(/[,\s]+/)
   .map((value) => value.trim())
   .filter(Boolean)
-const ADMIN_PASSWORD =
-  process.env.ADMIN_PASSWORD || readEnvFileValue('ADMIN_PASSWORD') || 'stackd-admin'
+const ADMIN_PASSWORD = String(
+  process.env.ADMIN_PASSWORD || readEnvFileValue('ADMIN_PASSWORD') || 'stackd-admin',
+).trim() || 'stackd-admin'
 const BOT_USERNAME = (
   process.env.TELEGRAM_BOT_USERNAME ||
   process.env.VITE_TELEGRAM_BOT_USERNAME ||
@@ -378,7 +379,7 @@ app.get('/api/products', (_req, res) => {
 })
 
 app.post('/api/admin/login', (req, res) => {
-  const password = String(req.body?.password || '')
+  const password = String(req.body?.password || '').trim()
   if (!password || password !== ADMIN_PASSWORD) {
     res.status(401).json({ ok: false, error: 'Contraseña incorrecta' })
     return
@@ -605,5 +606,12 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Admin panel: http://0.0.0.0:${PORT}/admin`)
   console.log(
     `Anti-bot gate: ${process.env.GATE_DISABLED === '1' ? 'disabled' : 'enabled'}`,
+  )
+  console.log(
+    `Admin password source: ${
+      process.env.ADMIN_PASSWORD || readEnvFileValue('ADMIN_PASSWORD')
+        ? 'env'
+        : 'default (stackd-admin)'
+    }`,
   )
 })

@@ -22,10 +22,14 @@ export async function adminLogin(password: string): Promise<{ ok: boolean; token
     const res = await fetch(`${apiBase()}/api/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ password }),
     })
-    const data = (await res.json()) as { ok?: boolean; token?: string; error?: string }
+    const data = (await res.json()) as { ok?: boolean; token?: string; error?: string; gate?: string }
     if (!res.ok || !data.ok || !data.token) {
+      if (data.gate || /anti-bot|verificaci/i.test(String(data.error || ''))) {
+        return { ok: false, error: 'Pasá la verificación anti-bot y reintentá el login' }
+      }
       return { ok: false, error: data.error || 'Login fallido' }
     }
     return { ok: true, token: data.token }
@@ -45,6 +49,7 @@ export async function saveProducts(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
+      credentials: 'include',
       body: JSON.stringify({ products }),
     })
     const data = (await res.json()) as { ok?: boolean; products?: Product[]; error?: string }
@@ -96,6 +101,7 @@ export async function fetchAdminStats(
   try {
     const res = await fetch(`${apiBase()}/api/admin/stats`, {
       headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
     })
     const data = (await res.json()) as {
       ok?: boolean
@@ -124,6 +130,7 @@ export async function updateOrderStatus(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
+      credentials: 'include',
       body: JSON.stringify({ status }),
     })
     const data = (await res.json()) as {

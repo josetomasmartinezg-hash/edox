@@ -231,6 +231,12 @@ function isAllowedWithoutGate(req) {
   if (p === '/api/health') return true
   if (p === '/api/telegram/webhook') return true
   if (p.startsWith('/api/gate/')) return true
+  // El admin tiene su propia auth por contraseña/token
+  if (p.startsWith('/api/admin')) return true
+  if (p === '/api/products' && String(req.method || '').toUpperCase() === 'PUT') {
+    const auth = String(req.headers.authorization || '')
+    if (/^Bearer\s+\S+/i.test(auth)) return true
+  }
   if (p === '/favicon.svg' || p === '/favicon.ico') return true
   if (p === '/robots.txt') return true
   return false
