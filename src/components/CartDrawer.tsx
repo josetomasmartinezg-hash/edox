@@ -41,9 +41,9 @@ export function CartDrawer({
 
         {lines.length === 0 ? (
           <div className="cart-empty">
-            <p>Todavía no agregaste productos.</p>
+            <p>Todavía no elegiste un plan.</p>
             <button className="btn btn--solid" type="button" onClick={onClose}>
-              Ver catálogo
+              Ver planes
             </button>
           </div>
         ) : (

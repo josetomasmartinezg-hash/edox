@@ -326,14 +326,14 @@ export function AdminPanel() {
 
             <section className="admin-section">
               <div className="admin-section__head">
-                <h2>Precios y stock</h2>
-                <p>Los cambios se publican al instante en el catálogo.</p>
+                <h2>Planes y stock</h2>
+                <p>Los cambios se publican al instante en la tienda.</p>
               </div>
               <form className="admin-table-wrap" onSubmit={handleSave}>
                 <table className="admin-table">
                   <thead>
                     <tr>
-                      <th>Producto</th>
+                      <th>Plan</th>
                       <th>Badge</th>
                       <th>Precio USD</th>
                       <th>Antes</th>

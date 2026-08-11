@@ -39,6 +39,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: hidden;
   background:
     radial-gradient(900px 520px at 50% -10%, rgba(139, 92, 246, 0.22), transparent 60%),
     radial-gradient(700px 400px at 100% 20%, rgba(124, 58, 237, 0.12), transparent 55%),

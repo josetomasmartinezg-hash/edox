@@ -110,7 +110,7 @@ function App() {
       <header className="site-header">
         <div className="container site-header__inner">
           <a className="brand" href="#top" aria-label="STACKD inicio">
-            STACKD
+            STACK<span>D</span>
           </a>
 
           <nav className="nav" aria-label="Principal">
@@ -120,8 +120,9 @@ function App() {
           </nav>
 
           <div className="header-actions">
-            <a className="btn btn--purple" href="#planes">
-              Quiero mi setup →
+            <a className="btn btn--purple header-cta" href="#planes">
+              <span className="header-cta__full">Quiero mi setup →</span>
+              <span className="header-cta__short">Setup →</span>
             </a>
             <button className="cart-btn" type="button" aria-label="Carrito" onClick={() => setCartOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">

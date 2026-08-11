@@ -23,6 +23,7 @@
   font-size: 1.05rem;
 }
 
+.brand span,
 .brand--footer span {
   color: var(--purple);
 }
@@ -68,6 +69,17 @@
   transform: translateY(0);
 }
 
+.btn:focus-visible,
+.cart-btn:focus-visible,
+.icon-btn:focus-visible,
+.pay-option:focus-within,
+.form input:focus-visible,
+.form textarea:focus-visible,
+.nav a:focus-visible {
+  outline: 2px solid rgba(139, 92, 246, 0.7);
+  outline-offset: 2px;
+}
+
 .btn--purple {
   background: var(--purple);
   color: white;
@@ -96,8 +108,13 @@
 }
 
 .btn--ghost {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--ink);
+  border: 1px solid transparent;
+}
+
+.btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .btn--solid,
@@ -110,6 +127,10 @@
   background: transparent;
   color: var(--ink);
   border: 1px solid var(--line-strong);
+}
+
+.btn--line:hover {
+  background: var(--purple-soft);
 }
 
 .cart-btn {
@@ -294,11 +315,12 @@
 
 /* Sections */
 .section {
-  padding: 5rem 0 1rem;
+  padding: 4.75rem 0;
 }
 
 .section--cta {
-  padding-bottom: 4rem;
+  padding-top: 2.5rem;
+  padding-bottom: 4.5rem;
 }
 
 .section__eyebrow {
@@ -1020,7 +1042,9 @@
 
 .pay-option {
   display: grid;
-  gap: 0.15rem;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: center;
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 0.9rem 1rem;
@@ -1034,11 +1058,17 @@
 }
 
 .pay-option strong {
+  display: block;
   font-size: 1rem;
 }
 
 .pay-option small {
+  display: block;
   color: var(--muted);
+}
+
+.pay-option input {
+  accent-color: var(--purple);
 }
 
 .pay-panel {
@@ -1116,14 +1146,16 @@
 }
 
 @media (min-width: 980px) {
-  .process-grid,
-  .value-grid,
-  .plans-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .process-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .value-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .plans-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .plan-card.is-featured {
@@ -1131,8 +1163,41 @@
   }
 }
 
+.header-cta__short {
+  display: none;
+}
+
 @media (max-width: 720px) {
-  .header-actions .btn--purple {
+  .header-cta {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.84rem;
+  }
+
+  .header-cta__full {
     display: none;
+  }
+
+  .header-cta__short {
+    display: inline;
+  }
+
+  .hero {
+    padding-top: 3.2rem;
+  }
+
+  .section {
+    padding: 3.5rem 0;
+  }
+
+  .plans-grid {
+    gap: 1.1rem;
+  }
+
+  .plan-card.is-featured {
+    order: -1;
+  }
+
+  .hero__cta .btn {
+    width: min(100%, 320px);
   }
 }
