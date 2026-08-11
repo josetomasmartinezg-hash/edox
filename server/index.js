@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createGateMiddleware, registerGateRoutes } from './gate.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -35,6 +36,10 @@ const app = express()
 const PORT = Number(process.env.PORT || 8787)
 const ENV_PATH = path.join(root, '.env')
 app.set('trust proxy', 1)
+app.use(cors())
+app.use(express.json({ limit: '100kb' }))
+registerGateRoutes(app)
+app.use(createGateMiddleware())
 
 /**
  * Node --env-file a veces pierde valores negativos (chat ids de grupos).
@@ -104,9 +109,6 @@ function persistChatId(nextId) {
 
 /** @type {Map<string, number>} */
 const adminTokens = new Map()
-
-app.use(cors())
-app.use(express.json({ limit: '100kb' }))
 
 function readProducts() {
   const raw = fs.readFileSync(PRODUCTS_PATH, 'utf8')
@@ -574,4 +576,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Telegram configured: ${configured()}`)
   console.log(`Bot username: @${BOT_USERNAME}`)
   console.log(`Admin panel: http://0.0.0.0:${PORT}/admin`)
+  console.log(
+    `Anti-bot gate: ${process.env.GATE_DISABLED === '1' ? 'disabled' : 'enabled'}`,
+  )
 })
