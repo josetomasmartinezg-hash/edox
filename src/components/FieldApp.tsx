@@ -1,10 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { HistoryList } from './HistoryList'
 import { RecordForm } from './RecordForm'
 import { useOnlineStatus } from '../hooks/useOnline'
 import { getAllRecords, getRecord, saveRecord } from '../lib/db'
 import { syncPending, syncRecord } from '../lib/sync'
-import { createEmptyRecord, type MachinaryRecord, type User } from '../types'
+import {
+  FIELD_TYPE_LABELS,
+  createEmptyRecord,
+  type FieldRecordType,
+  type MachinaryRecord,
+  type User,
+} from '../types'
 
 type View = 'home' | 'form' | 'detail'
 
@@ -15,8 +21,30 @@ type Props = {
   onLogout: () => void
 }
 
+const TABS: { id: FieldRecordType; title: string; help: string; cta: string }[] = [
+  {
+    id: 'combustible',
+    title: 'Combustible',
+    help: 'Litros en estanque, litros cargados y foto de respaldo.',
+    cta: 'Nueva carga',
+  },
+  {
+    id: 'revision_diaria',
+    title: 'Revisión diaria',
+    help: 'Chequeo antes de operar, horómetro y viajes.',
+    cta: 'Nueva revisión',
+  },
+  {
+    id: 'mantenimiento',
+    title: 'Mantenimiento',
+    help: 'Aceites, diferencial, grasa y lo aplicado en terreno.',
+    cta: 'Nuevo mantenimiento',
+  },
+]
+
 export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
   const { online, serverOk, syncing, lastSyncMessage, setLastSyncMessage } = useOnlineStatus()
+  const [tab, setTab] = useState<FieldRecordType>('combustible')
   const [view, setView] = useState<View>('home')
   const [records, setRecords] = useState<MachinaryRecord[]>([])
   const [draft, setDraft] = useState<MachinaryRecord | null>(null)
@@ -45,17 +73,28 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
     }
   }, [lastSyncMessage, setLastSyncMessage])
 
+  const filtered = useMemo(
+    () =>
+      records.filter((r) => (r.tipoRegistro || 'combustible') === tab),
+    [records, tab],
+  )
+
   const pendingCount = records.filter((r) => r.syncStatus !== 'synced').length
+  const currentTab = TABS.find((t) => t.id === tab)!
 
   async function startNew() {
-    setDraft(createEmptyRecord(user.name))
+    setDraft(createEmptyRecord(user.name, tab))
     setView('form')
   }
 
   async function openRecord(id: string) {
     const record = await getRecord(id)
     if (!record) return
-    setDraft(record)
+    // Normaliza registros antiguos sin tipo
+    setDraft({
+      ...record,
+      tipoRegistro: record.tipoRegistro || 'combustible',
+    })
     setView('detail')
   }
 
@@ -64,6 +103,7 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
     setSaving(true)
     const local: MachinaryRecord = {
       ...draft,
+      tipoRegistro: draft.tipoRegistro || tab,
       operador: draft.operador || user.name,
       firmaOperador: draft.firmaOperador || draft.operador || user.name,
       userId: user.id,
@@ -105,7 +145,7 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
         <div className="brand">
           <img className="brand-logo compact" src="/logo-soinver.png" alt="SOINVER Ingeniería" />
           <p>
-            Hola {user.name.split(' ')[0]} · parte diario y combustible
+            Hola {user.name.split(' ')[0]} · terreno
             {online ? '' : ' (sin señal)'}
           </p>
         </div>
@@ -130,15 +170,33 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
       {view === 'home' ? (
         <div className="panel">
           <div className="hero-strip">
-            <h2>Parte diario</h2>
-            <p>Escanea la máquina, registra bencina y deja foto de respaldo.</p>
+            <h2>Operación en terreno</h2>
+            <p>Elige una pestaña según la faena: combustible, revisión o mantenimiento.</p>
           </div>
           <div className="panel-body">
+            <div className="field-tabs">
+              {TABS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`field-tab ${tab === item.id ? 'active' : ''}`}
+                  onClick={() => setTab(item.id)}
+                >
+                  {item.title}
+                </button>
+              ))}
+            </div>
+
+            <section className="section">
+              <h3 className="section-title">{currentTab.title}</h3>
+              <p className="section-help">{currentTab.help}</p>
+            </section>
+
             <div className="nav-grid">
               <button type="button" className="nav-card" onClick={() => void startNew()}>
                 <div>
-                  <strong>Nuevo registro</strong>
-                  <span>QR + litros + foto · funciona offline</span>
+                  <strong>{currentTab.cta}</strong>
+                  <span>QR + formulario · funciona offline</span>
                 </div>
                 <em>Empezar</em>
               </button>
@@ -152,11 +210,15 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
             </div>
 
             <section className="section">
-              <h3 className="section-title">Historial local</h3>
+              <h3 className="section-title">Historial · {FIELD_TYPE_LABELS[tab]}</h3>
               <p className="section-help">
-                Los pendientes quedan en este dispositivo hasta que haya internet.
+                Solo se muestran los registros de esta pestaña.
               </p>
-              <HistoryList records={records} onOpen={(id) => void openRecord(id)} />
+              <HistoryList
+                records={filtered}
+                onOpen={(id) => void openRecord(id)}
+                emptyText={`Sin registros de ${FIELD_TYPE_LABELS[tab].toLowerCase()} todavía.`}
+              />
             </section>
           </div>
         </div>

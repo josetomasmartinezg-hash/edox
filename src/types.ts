@@ -113,8 +113,17 @@ export type MaintenanceRecord = {
   updatedAt: string
 }
 
+export type FieldRecordType = 'combustible' | 'revision_diaria' | 'mantenimiento'
+
+export const FIELD_TYPE_LABELS: Record<FieldRecordType, string> = {
+  combustible: 'Combustible',
+  revision_diaria: 'Revisión diaria',
+  mantenimiento: 'Mantenimiento',
+}
+
 export type MachinaryRecord = {
   id: string
+  tipoRegistro: FieldRecordType
   formNumber: string
   fecha: string
   lugarTrabajo: string
@@ -165,11 +174,15 @@ export const DEFAULT_MAINTENANCE: MaintenanceRow[] = [
   { id: 'grasa', tipo: 'Grasa', nivel: '', seAdiciona: '', seAplica: '' },
 ]
 
-export function createEmptyRecord(operador = ''): MachinaryRecord {
+export function createEmptyRecord(
+  operador = '',
+  tipoRegistro: FieldRecordType = 'combustible',
+): MachinaryRecord {
   const now = new Date()
   const fecha = now.toISOString().slice(0, 10)
   return {
     id: crypto.randomUUID(),
+    tipoRegistro,
     formNumber: String(Math.floor(10000 + Math.random() * 90000)),
     fecha,
     lugarTrabajo: '',

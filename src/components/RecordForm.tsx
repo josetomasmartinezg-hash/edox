@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { ChecklistStatus, MachinaryRecord } from '../types'
-import { parseMachineQr } from '../types'
+import type { ChecklistStatus, FieldRecordType, MachinaryRecord } from '../types'
+import { FIELD_TYPE_LABELS, parseMachineQr } from '../types'
 import { PhotoCapture } from './PhotoCapture'
 import { QrScanner } from './QrScanner'
 
@@ -12,8 +12,26 @@ type Props = {
   saving?: boolean
 }
 
+function canSaveRecord(record: MachinaryRecord) {
+  const base = record.maquina.trim() && record.operador.trim()
+  if (!base) return false
+
+  const tipo = record.tipoRegistro || 'combustible'
+  if (tipo === 'combustible') {
+    return Boolean(record.litrosEnEstanque.trim() && record.litrosCargados.trim())
+  }
+  if (tipo === 'revision_diaria') {
+    return record.checklist.some((item) => item.status)
+  }
+  // mantenimiento
+  return record.mantenimiento.some(
+    (row) => row.nivel.trim() || row.seAdiciona.trim() || row.seAplica.trim(),
+  )
+}
+
 export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props) {
   const [showQr, setShowQr] = useState(false)
+  const tipo: FieldRecordType = record.tipoRegistro || 'combustible'
 
   function patch(partial: Partial<MachinaryRecord>) {
     onChange({ ...record, ...partial })
@@ -39,11 +57,7 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
     })
   }
 
-  const canSave =
-    record.maquina.trim() &&
-    record.operador.trim() &&
-    record.litrosEnEstanque.trim() &&
-    record.litrosCargados.trim()
+  const canSave = canSaveRecord(record)
 
   if (showQr) {
     return (
@@ -64,7 +78,6 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
             className="btn btn-primary"
             onClick={() => {
               setShowQr(false)
-              // Deja que el scanner se desmonte limpio antes de actualizar el form
               window.setTimeout(() => {
                 onChange({ ...record, maquina: '75 D 35' })
               }, 50)
@@ -80,7 +93,7 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
   return (
     <div className="panel">
       <div className="hero-strip">
-        <h2>Formulario maquinaria</h2>
+        <h2>{FIELD_TYPE_LABELS[tipo]}</h2>
         <p>
           Nº {record.formNumber} · Guarda sin señal y se sube solo cuando hay conexión.
         </p>
@@ -130,146 +143,172 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
           </div>
         </section>
 
-        <section className="section">
-          <h3 className="section-title">Chequeo diario antes de operar</h3>
-          <div className="checklist">
-            {record.checklist.map((item) => (
-              <div key={item.id} className="check-row">
-                <p>{item.label}</p>
-                <div className="status-options">
-                  {(['bueno', 'malo', 'na'] as ChecklistStatus[]).map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      className={`${status} ${item.status === status ? `active ${status}` : ''}`}
-                      onClick={() => setChecklist(item.id, status)}
-                    >
-                      {status === 'bueno' ? 'Bueno' : status === 'malo' ? 'Malo' : 'N.A.'}
-                    </button>
-                  ))}
-                </div>
+        {tipo === 'revision_diaria' ? (
+          <>
+            <section className="section">
+              <h3 className="section-title">Chequeo diario antes de operar</h3>
+              <div className="checklist">
+                {record.checklist.map((item) => (
+                  <div key={item.id} className="check-row">
+                    <p>{item.label}</p>
+                    <div className="status-options">
+                      {(['bueno', 'malo', 'na'] as ChecklistStatus[]).map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          className={`${status} ${item.status === status ? `active ${status}` : ''}`}
+                          onClick={() => setChecklist(item.id, status)}
+                        >
+                          {status === 'bueno' ? 'Bueno' : status === 'malo' ? 'Malo' : 'N.A.'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
 
-        <section className="section">
-          <h3 className="section-title">Horas / viajes</h3>
-          <div className="field-grid two">
+            <section className="section">
+              <h3 className="section-title">Horas / viajes</h3>
+              <div className="field-grid two">
+                <label className="field">
+                  <span>Horómetro inicial</span>
+                  <input
+                    inputMode="decimal"
+                    value={record.horasInicial}
+                    onChange={(e) => patch({ horasInicial: e.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  <span>Horómetro final</span>
+                  <input
+                    inputMode="decimal"
+                    value={record.horasFinal}
+                    onChange={(e) => patch({ horasFinal: e.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  <span>Total horas</span>
+                  <input
+                    inputMode="decimal"
+                    value={record.viajesTotalHoras}
+                    onChange={(e) => patch({ viajesTotalHoras: e.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  <span>Cantidad viajes</span>
+                  <input
+                    inputMode="numeric"
+                    value={record.viajesCantidad}
+                    onChange={(e) => patch({ viajesCantidad: e.target.value })}
+                  />
+                </label>
+              </div>
+            </section>
+          </>
+        ) : null}
+
+        {tipo === 'combustible' ? (
+          <section className="fuel-box">
+            <h3>Carga de combustible</h3>
+            <p className="section-help">
+              Registra litros en estanque vs litros cargados, con foto de respaldo.
+            </p>
+            <div className="field-grid two">
+              <label className="field">
+                <span>Litros en estanque</span>
+                <input
+                  inputMode="decimal"
+                  value={record.litrosEnEstanque}
+                  placeholder="Ej: 120"
+                  onChange={(e) => patch({ litrosEnEstanque: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Litros cargados</span>
+                <input
+                  inputMode="decimal"
+                  value={record.litrosCargados}
+                  placeholder="Ej: 444,42"
+                  onChange={(e) => patch({ litrosCargados: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Nº guía / boleta</span>
+                <input
+                  value={record.guiaNumero}
+                  placeholder="Ej: 662166847"
+                  onChange={(e) => patch({ guiaNumero: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Horómetro</span>
+                <input
+                  inputMode="decimal"
+                  value={record.horasInicial}
+                  placeholder="Horómetro actual"
+                  onChange={(e) => patch({ horasInicial: e.target.value })}
+                />
+              </label>
+            </div>
+            <PhotoCapture
+              value={record.photoDataUrl || record.photoUrl}
+              onChange={(photoDataUrl) => patch({ photoDataUrl })}
+            />
+          </section>
+        ) : null}
+
+        {tipo === 'mantenimiento' ? (
+          <section className="section">
+            <h3 className="section-title">Control de mantenimiento</h3>
             <label className="field">
-              <span>Horómetro inicial</span>
+              <span>Horómetro al realizarlo</span>
               <input
                 inputMode="decimal"
                 value={record.horasInicial}
+                placeholder="Ej: 127582"
                 onChange={(e) => patch({ horasInicial: e.target.value })}
               />
             </label>
-            <label className="field">
-              <span>Horómetro final</span>
-              <input
-                inputMode="decimal"
-                value={record.horasFinal}
-                onChange={(e) => patch({ horasFinal: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Total horas</span>
-              <input
-                inputMode="decimal"
-                value={record.viajesTotalHoras}
-                onChange={(e) => patch({ viajesTotalHoras: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Cantidad viajes</span>
-              <input
-                inputMode="numeric"
-                value={record.viajesCantidad}
-                onChange={(e) => patch({ viajesCantidad: e.target.value })}
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="fuel-box">
-          <h3>Control de combustible</h3>
-          <p className="section-help">
-            Registra lo que tiene el estanque vs lo que se cargó (el papel solo tenía un campo).
-          </p>
-          <div className="field-grid two">
-            <label className="field">
-              <span>Litros en estanque</span>
-              <input
-                inputMode="decimal"
-                value={record.litrosEnEstanque}
-                placeholder="Ej: 120"
-                onChange={(e) => patch({ litrosEnEstanque: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Litros cargados</span>
-              <input
-                inputMode="decimal"
-                value={record.litrosCargados}
-                placeholder="Ej: 444,42"
-                onChange={(e) => patch({ litrosCargados: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Nº guía / boleta</span>
-              <input
-                value={record.guiaNumero}
-                placeholder="Ej: 662166847"
-                onChange={(e) => patch({ guiaNumero: e.target.value })}
-              />
-            </label>
-          </div>
-          <PhotoCapture
-            value={record.photoDataUrl || record.photoUrl}
-            onChange={(photoDataUrl) => patch({ photoDataUrl })}
-          />
-        </section>
-
-        <section className="section">
-          <h3 className="section-title">Control de mantenimiento</h3>
-          <div className="table-scroll">
-            <table className="maint-table">
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th>Nivel</th>
-                  <th>Se adiciona</th>
-                  <th>Se aplica</th>
-                </tr>
-              </thead>
-              <tbody>
-                {record.mantenimiento.map((row) => (
-                  <tr key={row.id}>
-                    <td>{row.tipo}</td>
-                    <td>
-                      <input
-                        value={row.nivel}
-                        onChange={(e) => setMaintenance(row.id, 'nivel', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={row.seAdiciona}
-                        onChange={(e) => setMaintenance(row.id, 'seAdiciona', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={row.seAplica}
-                        onChange={(e) => setMaintenance(row.id, 'seAplica', e.target.value)}
-                      />
-                    </td>
+            <div className="table-scroll">
+              <table className="maint-table">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Nivel</th>
+                    <th>Se adiciona</th>
+                    <th>Se aplica</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {record.mantenimiento.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.tipo}</td>
+                      <td>
+                        <input
+                          value={row.nivel}
+                          onChange={(e) => setMaintenance(row.id, 'nivel', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value={row.seAdiciona}
+                          onChange={(e) => setMaintenance(row.id, 'seAdiciona', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value={row.seAplica}
+                          onChange={(e) => setMaintenance(row.id, 'seAplica', e.target.value)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
 
         <section className="section">
           <h3 className="section-title">Observaciones y firmas</h3>
@@ -277,7 +316,7 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
             <span>Observaciones</span>
             <textarea
               value={record.observaciones}
-              placeholder="Ej: Traslado de moto y excavadora..."
+              placeholder="Detalle del trabajo..."
               onChange={(e) => patch({ observaciones: e.target.value })}
             />
           </label>
@@ -296,13 +335,6 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
                 onChange={(e) => patch({ firmaSupervisor: e.target.value })}
               />
             </label>
-            <label className="field">
-              <span>Firma jefe faena</span>
-              <input
-                value={record.firmaJefeFaena}
-                onChange={(e) => patch({ firmaJefeFaena: e.target.value })}
-              />
-            </label>
           </div>
         </section>
 
@@ -316,12 +348,16 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
             disabled={!canSave || saving}
             onClick={onSave}
           >
-            {saving ? 'Guardando…' : 'Guardar registro'}
+            {saving ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
         {!canSave ? (
           <p className="section-help">
-            Completa máquina, operador, litros en estanque y litros cargados.
+            {tipo === 'combustible'
+              ? 'Completa máquina, operador, litros en estanque y litros cargados.'
+              : tipo === 'revision_diaria'
+                ? 'Completa máquina, operador y al menos un ítem del chequeo.'
+                : 'Completa máquina, operador y al menos un dato de mantenimiento.'}
           </p>
         ) : null}
       </div>

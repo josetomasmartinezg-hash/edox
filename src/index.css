@@ -1125,6 +1125,28 @@ textarea {
   background: #d2143a;
 }
 
+.field-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.field-tab {
+  border: 1px solid #d4d4d4;
+  border-radius: 8px;
+  padding: 12px 10px;
+  background: #fff;
+  color: var(--brand-charcoal);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.field-tab.active {
+  background: var(--brand-red);
+  border-color: var(--brand-red);
+  color: #fff;
+}
+
 .desktop-tasks {
   max-height: 520px;
 }
