@@ -39,9 +39,13 @@ export type Permissions = {
   view_machines: boolean
   manage_maintenance: boolean
   view_maintenance: boolean
+  manage_documents: boolean
+  view_documents: boolean
   field_form: boolean
   view_all_records: boolean
 }
+
+export type DocumentAlert = 'expired' | 'soon' | 'ok' | 'none'
 
 export type Machine = {
   id: string
@@ -55,8 +59,28 @@ export type Machine = {
   active?: boolean
   qrPayload?: string | null
   qrDataUrl?: string | null
+  documentAlert?: DocumentAlert
+  documentsCount?: number
+  expiredCount?: number
+  soonCount?: number
   createdAt?: string
   updatedAt?: string
+}
+
+export type MachineDocument = {
+  id: string
+  name: string
+  machineId: string
+  sigla: string
+  expiresAt?: string | null
+  fileUrl: string
+  fileName: string
+  mimeType: string
+  uploadedById?: string
+  uploadedByName?: string
+  status?: DocumentAlert
+  createdAt: string
+  updatedAt: string
 }
 
 export type MaintenanceTaskDone = {

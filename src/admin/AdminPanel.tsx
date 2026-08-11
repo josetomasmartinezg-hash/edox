@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import type { Permissions, User } from '../types'
 import { ROLE_LABELS } from '../types'
+import { DocumentsAdmin } from './DocumentsAdmin'
 import { MachinesAdmin } from './MachinesAdmin'
 import { MaintenanceAdmin } from './MaintenanceAdmin'
 import { UsersAdmin } from './UsersAdmin'
 
-type Tab = 'maquinaria' | 'usuarios' | 'mantenimiento'
+type Tab = 'maquinaria' | 'usuarios' | 'mantenimiento' | 'documentacion'
 
 type Props = {
   user: User
@@ -27,6 +28,10 @@ const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
     title: 'Mantenimiento',
     subtitle: 'Programa por intervalos y registro de trabajos',
   },
+  documentacion: {
+    title: 'Documentación',
+    subtitle: 'PDF y fotos por equipo, con control de vencimiento',
+  },
 }
 
 export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) {
@@ -40,6 +45,9 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
     }
     if (permissions.view_maintenance || permissions.manage_maintenance) {
       list.push({ id: 'mantenimiento', label: 'Mantenimiento' })
+    }
+    if (permissions.view_documents || permissions.manage_documents) {
+      list.push({ id: 'documentacion', label: 'Documentación' })
     }
     return list
   }, [permissions])
@@ -113,6 +121,9 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
           {tab === 'usuarios' ? <UsersAdmin /> : null}
           {tab === 'mantenimiento' ? (
             <MaintenanceAdmin canManage={permissions.manage_maintenance || !!user.isPrincipal} />
+          ) : null}
+          {tab === 'documentacion' ? (
+            <DocumentsAdmin canManage={permissions.manage_documents || !!user.isPrincipal} />
           ) : null}
         </main>
       </div>

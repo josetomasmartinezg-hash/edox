@@ -7,7 +7,14 @@ import { randomUUID } from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { MAINTENANCE_INTERVALS, ROLES, publicUser, roleCan } from './constants.js'
+import {
+  MAINTENANCE_INTERVALS,
+  ROLES,
+  documentStatus,
+  publicUser,
+  roleCan,
+  worstDocumentStatus,
+} from './constants.js'
 import { authOptional, authRequired, requirePermission, signToken } from './auth.js'
 import { ensureSeedData } from './seed.js'
 import { dataDir, readJson, uploadsDir, writeJson } from './store.js'
@@ -26,7 +33,15 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 12 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok =
+      file.mimetype.startsWith('image/') ||
+      file.mimetype === 'application/pdf' ||
+      /\.(pdf|png|jpe?g|webp|gif)$/i.test(file.originalname)
+    if (!ok) return cb(new Error('Solo se permiten PDF o imágenes'))
+    cb(null, true)
+  },
 })
 
 const app = express()
@@ -77,6 +92,8 @@ app.get('/api/auth/me', authRequired, (req, res) => {
       view_machines: req.user.isPrincipal || roleCan(req.user.role, 'view_machines'),
       manage_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'manage_maintenance'),
       view_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'view_maintenance'),
+      manage_documents: req.user.isPrincipal || roleCan(req.user.role, 'manage_documents'),
+      view_documents: req.user.isPrincipal || roleCan(req.user.role, 'view_documents'),
       field_form: req.user.isPrincipal || roleCan(req.user.role, 'field_form'),
       view_all_records: req.user.isPrincipal || roleCan(req.user.role, 'view_all_records'),
     },
@@ -208,9 +225,29 @@ function normalizeMachine(machine) {
   }
 }
 
+function machineDocumentAlert(machineId, sigla) {
+  const docs = readJson('documents.json', []).filter(
+    (d) =>
+      d.machineId === machineId ||
+      normalizeSigla(d.sigla) === normalizeSigla(sigla),
+  )
+  const statuses = docs.map((d) => documentStatus(d.expiresAt))
+  return {
+    documentAlert: worstDocumentStatus(statuses),
+    documentsCount: docs.length,
+    expiredCount: statuses.filter((s) => s === 'expired').length,
+    soonCount: statuses.filter((s) => s === 'soon').length,
+  }
+}
+
 app.get('/api/machines', authRequired, requirePermission('view_machines'), async (_req, res) => {
   const machines = readJson('machines.json', []).map(normalizeMachine)
-  const withCodes = await Promise.all(machines.map(withQr))
+  const withCodes = await Promise.all(
+    machines.map(async (machine) => {
+      const withCode = await withQr(machine)
+      return { ...withCode, ...machineDocumentAlert(machine.id, machine.sigla) }
+    }),
+  )
   res.json(
     withCodes.sort((a, b) => a.sigla.localeCompare(b.sigla, 'es', { sensitivity: 'base' })),
   )
@@ -266,17 +303,32 @@ app.get(
         observaciones: m.observaciones || '',
       }))
 
+    const documents = readJson('documents.json', [])
+      .filter(
+        (d) =>
+          d.machineId === machine.id || normalizeSigla(d.sigla) === sigla,
+      )
+      .map((d) => ({
+        ...d,
+        status: documentStatus(d.expiresAt),
+      }))
+
     const timeline = [...records, ...maintenances].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
 
     res.json({
-      machine: await withQr(machine),
+      machine: {
+        ...(await withQr(machine)),
+        ...machineDocumentAlert(machine.id, machine.sigla),
+      },
       resumen: {
         totalRegistros: records.length,
         totalMantenimientos: maintenances.length,
+        totalDocumentos: documents.length,
         ultimoRegistro: timeline[0]?.createdAt || null,
       },
+      documents,
       timeline,
     })
   },
@@ -421,6 +473,106 @@ app.delete('/api/machines/:id', authRequired, requirePermission('manage_machines
   )
   res.json({ ok: true })
 })
+
+/* ─── Documents ─── */
+app.get(
+  '/api/documents',
+  authRequired,
+  requirePermission('view_documents'),
+  (_req, res) => {
+    const docs = readJson('documents.json', [])
+      .map((d) => ({ ...d, status: documentStatus(d.expiresAt) }))
+      .sort((a, b) => {
+        const rank = { expired: 0, soon: 1, ok: 2 }
+        const ra = rank[a.status] ?? 3
+        const rb = rank[b.status] ?? 3
+        if (ra !== rb) return ra - rb
+        return String(a.expiresAt || '9999').localeCompare(String(b.expiresAt || '9999'))
+      })
+    res.json(docs)
+  },
+)
+
+app.post(
+  '/api/documents',
+  authRequired,
+  requirePermission('manage_documents'),
+  (req, res) => {
+    upload.single('file')(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ error: err.message || 'Error al subir archivo' })
+      }
+
+      const { name, machineId, sigla, expiresAt } = req.body || {}
+      if (!name?.trim()) {
+        return res.status(400).json({ error: 'El nombre del documento es obligatorio' })
+      }
+      if (!machineId && !sigla?.trim()) {
+        return res.status(400).json({ error: 'Debes seleccionar un equipo' })
+      }
+      if (!req.file) {
+        return res.status(400).json({ error: 'Debes subir un PDF o una foto' })
+      }
+
+      const machines = readJson('machines.json', [])
+      const machine =
+        machines.find((m) => m.id === machineId) ||
+        machines.find((m) => normalizeSigla(m.sigla) === normalizeSigla(sigla))
+
+      if (!machine) {
+        return res.status(404).json({ error: 'Equipo no encontrado' })
+      }
+
+      const doc = {
+        id: randomUUID(),
+        name: String(name).trim(),
+        machineId: machine.id,
+        sigla: machine.sigla,
+        expiresAt: expiresAt ? String(expiresAt).trim() : null,
+        fileUrl: `/uploads/${req.file.filename}`,
+        fileName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        uploadedById: req.user.id,
+        uploadedByName: req.user.name,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      const all = readJson('documents.json', [])
+      all.push(doc)
+      writeJson('documents.json', all)
+      res.status(201).json({ ...doc, status: documentStatus(doc.expiresAt) })
+    })
+  },
+)
+
+app.delete(
+  '/api/documents/:id',
+  authRequired,
+  requirePermission('manage_documents'),
+  (req, res) => {
+    const all = readJson('documents.json', [])
+    const doc = all.find((d) => d.id === req.params.id)
+    if (!doc) return res.status(404).json({ error: 'Documento no encontrado' })
+
+    if (doc.fileUrl) {
+      const filePath = path.join(uploadsDir, path.basename(doc.fileUrl))
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath)
+        } catch {
+          // ignore delete errors
+        }
+      }
+    }
+
+    writeJson(
+      'documents.json',
+      all.filter((d) => d.id !== req.params.id),
+    )
+    res.json({ ok: true })
+  },
+)
 
 /* ─── Maintenance ─── */
 app.get(

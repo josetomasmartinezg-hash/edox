@@ -14,8 +14,31 @@ export const PERMISSIONS = {
   view_machines: ['administrador', 'supervisor', 'operador', 'mecanico', 'operador_surtidor'],
   manage_maintenance: ['administrador', 'mecanico'],
   view_maintenance: ['administrador', 'supervisor', 'mecanico'],
+  manage_documents: ['administrador', 'supervisor'],
+  view_documents: ['administrador', 'supervisor', 'mecanico'],
   field_form: ['administrador', 'supervisor', 'operador', 'operador_surtidor'],
   view_all_records: ['administrador', 'supervisor'],
+}
+
+/** Días antes del vencimiento para alerta amarilla */
+export const DOCUMENT_SOON_DAYS = 30
+
+export function documentStatus(expiresAt, soonDays = DOCUMENT_SOON_DAYS) {
+  if (!expiresAt) return 'ok'
+  const end = new Date(`${expiresAt}T23:59:59`)
+  if (Number.isNaN(end.getTime())) return 'ok'
+  const now = new Date()
+  if (end.getTime() < now.getTime()) return 'expired'
+  const diffDays = (end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  if (diffDays <= soonDays) return 'soon'
+  return 'ok'
+}
+
+export function worstDocumentStatus(statuses) {
+  if (statuses.includes('expired')) return 'expired'
+  if (statuses.includes('soon')) return 'soon'
+  if (statuses.includes('ok')) return 'ok'
+  return 'none'
 }
 
 /** Intervalos del programa de mantenimiento (manual de tiempos operativos) */

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../lib/auth'
-import type { Machine } from '../types'
+import type { Machine, MachineDocument } from '../types'
 
 const emptyForm = {
   marca: '',
@@ -37,9 +37,17 @@ type HistorialResponse = {
   resumen: {
     totalRegistros: number
     totalMantenimientos: number
+    totalDocumentos?: number
     ultimoRegistro: string | null
   }
+  documents?: MachineDocument[]
   timeline: TimelineItem[]
+}
+
+function alertLabel(alert?: string) {
+  if (alert === 'expired') return 'Doc. vencido'
+  if (alert === 'soon') return 'Doc. por vencer'
+  return ''
 }
 
 type View = 'list' | 'create' | 'detail' | 'edit'
@@ -408,6 +416,61 @@ export function MachinesAdmin({ canManage }: Props) {
           </div>
         </div>
 
+        {historial.documents?.length ? (
+          <>
+            <div className="section">
+              <h3 className="section-title">Documentos del equipo</h3>
+            </div>
+            <div className="table-panel">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Estado</th>
+                    <th>Nombre</th>
+                    <th>Vencimiento</th>
+                    <th>Archivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historial.documents.map((doc) => (
+                    <tr
+                      key={doc.id}
+                      className={
+                        doc.status === 'expired'
+                          ? 'row-alert-expired'
+                          : doc.status === 'soon'
+                            ? 'row-alert-soon'
+                            : ''
+                      }
+                    >
+                      <td>
+                        <span
+                          className={`badge ${
+                            doc.status === 'expired'
+                              ? 'error'
+                              : doc.status === 'soon'
+                                ? 'pending'
+                                : 'synced'
+                          }`}
+                        >
+                          {alertLabel(doc.status) || 'Vigente'}
+                        </span>
+                      </td>
+                      <td>{doc.name}</td>
+                      <td>{doc.expiresAt || '—'}</td>
+                      <td>
+                        <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="link-quiet">
+                          Ver
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : null}
+
         <div className="section">
           <h3 className="section-title">Historial de ingresos</h3>
           <p className="section-help">
@@ -477,7 +540,8 @@ export function MachinesAdmin({ canManage }: Props) {
         <div>
           <h3 className="section-title">Lista de maquinaria</h3>
           <p className="section-help">
-            Selecciona una máquina para ver su ficha e historial de ingresos.
+            Selecciona una máquina para ver su ficha e historial. Amarillo = documento por vencer,
+            rojo = documento vencido.
           </p>
         </div>
         {canManage ? (
@@ -485,6 +549,11 @@ export function MachinesAdmin({ canManage }: Props) {
             Agregar maquinaria
           </button>
         ) : null}
+      </div>
+
+      <div className="legend-row">
+        <span className="legend-item soon">Documento por vencer</span>
+        <span className="legend-item expired">Documento vencido</span>
       </div>
 
       {error ? <p className="form-error">{error}</p> : null}
@@ -500,6 +569,7 @@ export function MachinesAdmin({ canManage }: Props) {
               <th>Capacidad</th>
               <th>Nº chasis</th>
               <th>Nº motor</th>
+              <th>Docs</th>
               <th></th>
             </tr>
           </thead>
@@ -507,7 +577,13 @@ export function MachinesAdmin({ canManage }: Props) {
             {machines.map((machine) => (
               <tr
                 key={machine.id}
-                className="clickable-row"
+                className={`clickable-row ${
+                  machine.documentAlert === 'expired'
+                    ? 'row-alert-expired'
+                    : machine.documentAlert === 'soon'
+                      ? 'row-alert-soon'
+                      : ''
+                }`}
                 onClick={() => void loadDetail(machine.id)}
               >
                 <td>
@@ -519,12 +595,25 @@ export function MachinesAdmin({ canManage }: Props) {
                 <td>{machine.capacidadEstanque ? `${machine.capacidadEstanque} L` : '—'}</td>
                 <td>{machine.numeroChasis || '—'}</td>
                 <td>{machine.numeroMotor || '—'}</td>
+                <td>
+                  {machine.documentAlert === 'expired' || machine.documentAlert === 'soon' ? (
+                    <span
+                      className={`badge ${
+                        machine.documentAlert === 'expired' ? 'error' : 'pending'
+                      }`}
+                    >
+                      {alertLabel(machine.documentAlert)}
+                    </span>
+                  ) : (
+                    machine.documentsCount || 0
+                  )}
+                </td>
                 <td className="row-cta">Abrir</td>
               </tr>
             ))}
             {!machines.length ? (
               <tr>
-                <td colSpan={8} className="empty-cell">
+                <td colSpan={9} className="empty-cell">
                   No hay maquinaria.{' '}
                   {canManage ? 'Usa “Agregar maquinaria” para crear la primera.' : ''}
                 </td>

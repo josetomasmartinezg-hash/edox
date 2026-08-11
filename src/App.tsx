@@ -14,6 +14,8 @@ const emptyPermissions: Permissions = {
   view_machines: false,
   manage_maintenance: false,
   view_maintenance: false,
+  manage_documents: false,
+  view_documents: false,
   field_form: false,
   view_all_records: false,
 }

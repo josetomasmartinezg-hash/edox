@@ -46,6 +46,7 @@ export function ensureSeedData() {
   readJson('machines.json', [])
   readJson('maintenance.json', [])
   readJson('records.json', [])
+  readJson('documents.json', [])
 
   return { principalEmail: PRINCIPAL.email, defaultPassword: PRINCIPAL.password }
 }

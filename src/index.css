@@ -1074,6 +1074,57 @@ textarea {
   padding: 28px 14px !important;
 }
 
+.row-alert-soon {
+  background: #fff8e1 !important;
+}
+
+.row-alert-soon:hover {
+  background: #ffefb8 !important;
+}
+
+.row-alert-expired {
+  background: #fde8ec !important;
+}
+
+.row-alert-expired:hover {
+  background: #f8d0d8 !important;
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--brand-charcoal);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+}
+
+.legend-item.soon::before,
+.legend-item.expired::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend-item.soon::before {
+  background: #f5c542;
+}
+
+.legend-item.expired::before {
+  background: #d2143a;
+}
+
 .desktop-tasks {
   max-height: 520px;
 }
