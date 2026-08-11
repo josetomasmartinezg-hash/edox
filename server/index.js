@@ -690,7 +690,11 @@ app.get('/api/records/:id', authRequired, (req, res) => {
 })
 
 app.post('/api/records', authRequired, upload.single('photo'), (req, res) => {
-  if (!(req.user.isPrincipal || roleCan(req.user.role, 'field_form'))) {
+  const canWrite =
+    req.user.isPrincipal ||
+    roleCan(req.user.role, 'field_form') ||
+    roleCan(req.user.role, 'view_all_records')
+  if (!canWrite) {
     return res.status(403).json({ error: 'No tienes permiso para registrar partes' })
   }
 
@@ -704,10 +708,16 @@ app.post('/api/records', authRequired, upload.single('photo'), (req, res) => {
   const records = readJson('records.json', [])
   const id = payload.id || randomUUID()
   const existing = records.findIndex((r) => r.id === id)
+  const tipoRegistro = ['combustible', 'revision_diaria', 'mantenimiento'].includes(
+    payload.tipoRegistro,
+  )
+    ? payload.tipoRegistro
+    : 'combustible'
 
   const record = {
     ...payload,
     id,
+    tipoRegistro,
     userId: req.user.id,
     photoUrl: req.file ? `/uploads/${req.file.filename}` : payload.photoUrl || null,
     syncedAt: new Date().toISOString(),

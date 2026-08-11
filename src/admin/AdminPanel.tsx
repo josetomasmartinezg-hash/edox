@@ -2,11 +2,19 @@ import { useMemo, useState } from 'react'
 import type { Permissions, User } from '../types'
 import { ROLE_LABELS } from '../types'
 import { DocumentsAdmin } from './DocumentsAdmin'
+import { FieldRecordsAdmin } from './FieldRecordsAdmin'
 import { MachinesAdmin } from './MachinesAdmin'
 import { MaintenanceAdmin } from './MaintenanceAdmin'
 import { UsersAdmin } from './UsersAdmin'
 
-type Tab = 'maquinaria' | 'usuarios' | 'mantenimiento' | 'documentacion'
+type Tab =
+  | 'maquinaria'
+  | 'combustible'
+  | 'revision_diaria'
+  | 'mantenimiento'
+  | 'programa_mantenimiento'
+  | 'usuarios'
+  | 'documentacion'
 
 type Props = {
   user: User
@@ -20,13 +28,25 @@ const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
     title: 'Maquinaria',
     subtitle: 'Listado de equipos, ficha e historial de ingresos',
   },
-  usuarios: {
-    title: 'Usuarios',
-    subtitle: 'Perfiles y accesos del sistema',
+  combustible: {
+    title: 'Combustible',
+    subtitle: 'Cargas de combustible por equipo',
+  },
+  revision_diaria: {
+    title: 'Revisión diaria',
+    subtitle: 'Chequeos diarios antes de operar',
   },
   mantenimiento: {
     title: 'Mantenimiento',
-    subtitle: 'Programa por intervalos y registro de trabajos',
+    subtitle: 'Registros de mantenimiento en terreno',
+  },
+  programa_mantenimiento: {
+    title: 'Programa de mantenimiento',
+    subtitle: 'Intervalos del manual y tareas realizadas',
+  },
+  usuarios: {
+    title: 'Usuarios',
+    subtitle: 'Perfiles y accesos del sistema',
   },
   documentacion: {
     title: 'Documentación',
@@ -40,20 +60,27 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
     if (permissions.view_machines || permissions.manage_machines) {
       list.push({ id: 'maquinaria', label: 'Maquinaria' })
     }
-    if (permissions.manage_users) {
-      list.push({ id: 'usuarios', label: 'Usuarios' })
+    if (permissions.view_all_records || permissions.field_form) {
+      list.push({ id: 'combustible', label: 'Combustible' })
+      list.push({ id: 'revision_diaria', label: 'Revisión diaria' })
+      list.push({ id: 'mantenimiento', label: 'Mantenimiento' })
     }
     if (permissions.view_maintenance || permissions.manage_maintenance) {
-      list.push({ id: 'mantenimiento', label: 'Mantenimiento' })
+      list.push({ id: 'programa_mantenimiento', label: 'Programa mant.' })
     }
     if (permissions.view_documents || permissions.manage_documents) {
       list.push({ id: 'documentacion', label: 'Documentación' })
+    }
+    if (permissions.manage_users) {
+      list.push({ id: 'usuarios', label: 'Usuarios' })
     }
     return list
   }, [permissions])
 
   const [tab, setTab] = useState<Tab>(tabs[0]?.id || 'maquinaria')
   const copy = TAB_COPY[tab]
+  const canEditRecords =
+    permissions.field_form || permissions.view_all_records || !!user.isPrincipal
 
   return (
     <div className="desktop-app">
@@ -118,13 +145,22 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
           {tab === 'maquinaria' ? (
             <MachinesAdmin canManage={permissions.manage_machines || !!user.isPrincipal} />
           ) : null}
-          {tab === 'usuarios' ? <UsersAdmin /> : null}
+          {tab === 'combustible' ? (
+            <FieldRecordsAdmin tipo="combustible" user={user} canManage={canEditRecords} />
+          ) : null}
+          {tab === 'revision_diaria' ? (
+            <FieldRecordsAdmin tipo="revision_diaria" user={user} canManage={canEditRecords} />
+          ) : null}
           {tab === 'mantenimiento' ? (
+            <FieldRecordsAdmin tipo="mantenimiento" user={user} canManage={canEditRecords} />
+          ) : null}
+          {tab === 'programa_mantenimiento' ? (
             <MaintenanceAdmin canManage={permissions.manage_maintenance || !!user.isPrincipal} />
           ) : null}
           {tab === 'documentacion' ? (
             <DocumentsAdmin canManage={permissions.manage_documents || !!user.isPrincipal} />
           ) : null}
+          {tab === 'usuarios' ? <UsersAdmin /> : null}
         </main>
       </div>
     </div>
