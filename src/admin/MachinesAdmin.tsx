@@ -238,9 +238,19 @@ export function MachinesAdmin({ canManage }: Props) {
             <label className="field">
               <span>Capacidad estanque (L)</span>
               <input
-                inputMode="decimal"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                step="1"
                 value={form.capacidadEstanque}
-                onChange={(e) => setForm({ ...form, capacidadEstanque: e.target.value })}
+                onChange={(e) => {
+                  const onlyNumbers = e.target.value.replace(/[^\d]/g, '')
+                  setForm({ ...form, capacidadEstanque: onlyNumbers })
+                }}
+                onKeyDown={(e) => {
+                  if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault()
+                }}
+                placeholder="Solo números"
               />
             </label>
             <label className="field">

@@ -309,7 +309,9 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
     modelo: String(modelo).trim(),
     anio: String(anio || '').trim(),
     sigla: normalizedSigla,
-    capacidadEstanque: String(capacidadEstanque || '').trim(),
+    capacidadEstanque: String(capacidadEstanque || '')
+      .replace(/[^\d]/g, '')
+      .trim(),
     numeroChasis: String(numeroChasis || '').trim(),
     numeroMotor: String(numeroMotor || '').trim(),
     active: true,
@@ -357,7 +359,7 @@ app.put('/api/machines/:id', authRequired, requirePermission('manage_machines'),
     sigla: nextSigla,
     capacidadEstanque:
       req.body.capacidadEstanque != null
-        ? String(req.body.capacidadEstanque).trim()
+        ? String(req.body.capacidadEstanque).replace(/[^\d]/g, '').trim()
         : current.capacidadEstanque,
     numeroChasis:
       req.body.numeroChasis != null
