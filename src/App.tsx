@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import BrandLogo from './components/BrandLogo'
 import ContactForm from './components/ContactForm'
 import './App.css'
 
@@ -99,13 +100,7 @@ export default function App() {
       <header className={`site-header ${scrolled ? 'is-scrolled' : ''}`}>
         <div className="site-header__inner">
           <a className="brand-mark" href="#inicio" onClick={closeMenu}>
-            <img
-              className="brand-mark__logo"
-              src="/logo-soinver-h.svg"
-              alt="Soinver Ingeniería"
-              width={168}
-              height={55}
-            />
+            <BrandLogo compact />
           </a>
 
           <nav className={`site-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Principal">
@@ -478,13 +473,7 @@ export default function App() {
       <footer className="site-footer">
         <div className="shell site-footer__inner">
           <div className="brand-mark">
-            <img
-              className="brand-mark__logo"
-              src="/logo-soinver-h.svg"
-              alt="Soinver Ingeniería"
-              width={168}
-              height={55}
-            />
+            <BrandLogo compact />
           </div>
           <p>© {new Date().getFullYear()} Soinver Ingeniería S.A. · Capacidades 2026</p>
         </div>

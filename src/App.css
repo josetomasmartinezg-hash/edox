@@ -129,22 +129,59 @@
 .brand-mark {
   display: inline-flex;
   align-items: center;
-  gap: 0.7rem;
   flex-shrink: 0;
-  /* Fondo claro para que el logo conserve rojo/negro/gris originales */
-  padding: 0.35rem 0.55rem;
+  /* Fondo claro: el logo mantiene rojo/negro/gris originales */
+  padding: 0.4rem 0.65rem;
   background: #ffffff;
   border-radius: 2px;
 }
 
-.brand-mark__logo {
-  display: block;
-  width: clamp(132px, 18vw, 168px);
-  height: auto;
-  /* Evita que filtros o mix-blend alteren los colores del logo */
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: #111111;
   filter: none !important;
   mix-blend-mode: normal !important;
-  image-rendering: auto;
+}
+
+.brand-logo__mark {
+  width: 1.55rem;
+  height: 2.15rem;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.brand-logo__text {
+  display: grid;
+  gap: 0.12rem;
+  line-height: 1;
+}
+
+.brand-logo__text strong {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #111111;
+}
+
+.brand-logo__text span {
+  padding-top: 0.2rem;
+  border-top: 1.5px solid #707070;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: #707070;
+}
+
+.brand-logo--compact .brand-logo__text strong {
+  font-size: 1.2rem;
+}
+
+.brand-logo--compact .brand-logo__text span {
+  font-size: 0.68rem;
 }
 
 .site-nav {
