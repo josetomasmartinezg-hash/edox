@@ -1461,9 +1461,24 @@ app.delete(
 /* ─── Static frontend ─── */
 const dist = path.join(root, 'dist')
 if (fs.existsSync(dist)) {
-  app.use(express.static(dist))
+  app.use(
+    express.static(dist, {
+      setHeaders(res, filePath) {
+        const base = path.basename(filePath)
+        if (
+          base === 'index.html' ||
+          base === 'sw.js' ||
+          base === 'registerSW.js' ||
+          base === 'manifest.webmanifest'
+        ) {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+        }
+      },
+    }),
+  )
   app.get(/.*/, (req, res, next) => {
     if (req.path.startsWith('/uploads/') || req.path.startsWith('/api/')) return next()
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
     res.sendFile(path.join(dist, 'index.html'))
   })
 }

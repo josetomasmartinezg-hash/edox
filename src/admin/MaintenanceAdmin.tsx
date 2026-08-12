@@ -391,7 +391,7 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
         </div>
         {canAssign ? (
           <button type="button" className="btn btn-primary" onClick={openAssign}>
-            Agregar
+            Agregar mantenimiento
           </button>
         ) : null}
       </div>
