@@ -106,6 +106,27 @@ app.get('/api/users', authRequired, requirePermission('manage_users'), (_req, re
   res.json(users)
 })
 
+/** Lista liviana para selects de operador (sin datos sensibles) */
+app.get('/api/operators', authRequired, (req, res) => {
+  if (
+    !req.user.isPrincipal &&
+    !roleCan(req.user.role, 'field_form') &&
+    !roleCan(req.user.role, 'view_all_records') &&
+    !roleCan(req.user.role, 'admin_panel')
+  ) {
+    return res.status(403).json({ error: 'Sin permiso' })
+  }
+  const operators = readJson('users.json', [])
+    .filter((u) => u.active !== false)
+    .map((u) => ({
+      id: u.id,
+      name: u.name,
+      role: u.role,
+    }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es', { sensitivity: 'base' }))
+  res.json(operators)
+})
+
 app.post('/api/users', authRequired, requirePermission('manage_users'), (req, res) => {
   const { name, email, password, role } = req.body || {}
   if (!name?.trim() || !email?.trim() || !password || !role) {

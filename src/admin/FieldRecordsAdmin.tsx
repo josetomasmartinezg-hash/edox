@@ -10,6 +10,7 @@ import {
 import {
   DEFAULT_CHECKLIST,
   FIELD_TYPE_LABELS,
+  ROLE_LABELS,
   createEmptyRecord,
   type ChecklistStatus,
   type FieldRecordType,
@@ -18,6 +19,12 @@ import {
   type User,
 } from '../types'
 import { PhotoCapture } from '../components/PhotoCapture'
+
+type OperatorOption = {
+  id: string
+  name: string
+  role: User['role']
+}
 
 type Props = {
   tipo: FieldRecordType
@@ -39,6 +46,7 @@ function formatDate(value?: string) {
 
 export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
   const [machines, setMachines] = useState<Machine[]>([])
+  const [operators, setOperators] = useState<OperatorOption[]>([])
   const [records, setRecords] = useState<MachinaryRecord[]>([])
   const [showForm, setShowForm] = useState(false)
   const [draft, setDraft] = useState<MachinaryRecord | null>(null)
@@ -52,11 +60,13 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
   )
 
   async function load() {
-    const [mRes, rRes] = await Promise.all([
+    const [mRes, rRes, oRes] = await Promise.all([
       apiFetch('/api/machines'),
       apiFetch('/api/records'),
+      apiFetch('/api/operators'),
     ])
     if (mRes.ok) setMachines(await mRes.json())
+    if (oRes.ok) setOperators(await oRes.json())
     if (rRes.ok) {
       const data = (await rRes.json()) as MachinaryRecord[]
       setRecords(
@@ -73,7 +83,7 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
   }, [tipo])
 
   function openCreate() {
-    setDraft(createEmptyRecord(user.name, tipo))
+    setDraft(createEmptyRecord('', tipo))
     setError('')
     setShowForm(true)
   }
@@ -277,11 +287,26 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
             </label>
             <label className="field">
               <span>Operador</span>
-              <input
+              <select
                 value={draft.operador}
-                onChange={(e) => patch({ operador: e.target.value })}
+                onChange={(e) =>
+                  patch({
+                    operador: e.target.value,
+                    firmaOperador: e.target.value || draft.firmaOperador,
+                  })
+                }
                 required
-              />
+              >
+                <option value="">Seleccionar…</option>
+                {operators.map((op) => (
+                  <option key={op.id} value={op.name}>
+                    {op.name} · {ROLE_LABELS[op.role] || op.role}
+                  </option>
+                ))}
+                {draft.operador && !operators.some((op) => op.name === draft.operador) ? (
+                  <option value={draft.operador}>{draft.operador}</option>
+                ) : null}
+              </select>
             </label>
           </div>
 

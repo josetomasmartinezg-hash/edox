@@ -1,12 +1,19 @@
-import { useMemo, useState } from 'react'
-import type { ChecklistStatus, FieldRecordType, MachinaryRecord } from '../types'
-import { FIELD_TYPE_LABELS, parseMachineQr } from '../types'
+import { useEffect, useMemo, useState } from 'react'
+import type { ChecklistStatus, FieldRecordType, MachinaryRecord, RoleId } from '../types'
+import { FIELD_TYPE_LABELS, ROLE_LABELS, parseMachineQr } from '../types'
 import {
   LIGHT_TRUCK_MAINTENANCE_PROGRAM,
   getInterval,
 } from '../data/maintenanceProgram'
+import { apiFetch } from '../lib/auth'
 import { PhotoCapture } from './PhotoCapture'
 import { QrScanner } from './QrScanner'
+
+type OperatorOption = {
+  id: string
+  name: string
+  role: RoleId
+}
 
 type Props = {
   record: MachinaryRecord
@@ -36,7 +43,15 @@ function canSaveRecord(record: MachinaryRecord) {
 
 export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props) {
   const [showQr, setShowQr] = useState(false)
+  const [operators, setOperators] = useState<OperatorOption[]>([])
   const tipo: FieldRecordType = record.tipoRegistro || 'combustible'
+
+  useEffect(() => {
+    void (async () => {
+      const res = await apiFetch('/api/operators')
+      if (res.ok) setOperators(await res.json())
+    })()
+  }, [])
 
   function patch(partial: Partial<MachinaryRecord>) {
     onChange({ ...record, ...partial })
@@ -155,11 +170,26 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
             </label>
             <label className="field">
               <span>Operador</span>
-              <input
+              <select
                 value={record.operador}
-                placeholder="Nombre del operador"
-                onChange={(e) => patch({ operador: e.target.value })}
-              />
+                onChange={(e) =>
+                  patch({
+                    operador: e.target.value,
+                    firmaOperador: e.target.value || record.firmaOperador,
+                  })
+                }
+                required
+              >
+                <option value="">Seleccionar…</option>
+                {operators.map((op) => (
+                  <option key={op.id} value={op.name}>
+                    {op.name} · {ROLE_LABELS[op.role] || op.role}
+                  </option>
+                ))}
+                {record.operador && !operators.some((op) => op.name === record.operador) ? (
+                  <option value={record.operador}>{record.operador}</option>
+                ) : null}
+              </select>
             </label>
           </div>
         </section>
