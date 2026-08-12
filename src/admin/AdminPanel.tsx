@@ -55,9 +55,7 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
     if (permissions.view_machines || permissions.manage_machines) {
       list.push({ id: 'maquinaria', label: 'Maquinaria' })
     }
-    if (permissions.view_maintenance || permissions.manage_maintenance) {
-      list.push({ id: 'mantenimiento', label: 'Mantenimiento' })
-    }
+    list.push({ id: 'mantenimiento', label: 'Mantenimiento' })
     if (permissions.view_all_records || permissions.field_form) {
       list.push({ id: 'combustible', label: 'Combustible' })
       list.push({ id: 'revision_diaria', label: 'Revisión diaria' })
