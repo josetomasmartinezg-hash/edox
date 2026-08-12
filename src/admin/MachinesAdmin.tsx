@@ -419,7 +419,7 @@ export function MachinesAdmin({ canManage }: Props) {
         </div>
 
         <form
-          className="admin-card"
+          className="admin-card machine-form-card"
           onSubmit={(e) => void (view === 'create' ? handleCreate(e) : handleUpdate(e))}
         >
           <div className="field-grid two">
@@ -438,11 +438,15 @@ export function MachinesAdmin({ canManage }: Props) {
                 ))}
               </select>
             </label>
-            <div className="field" style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <button type="button" className="btn btn-ghost btn-small" onClick={openCategories}>
-                Administrar categorías
-              </button>
-            </div>
+            <label className="field">
+              <span>Sigla</span>
+              <input
+                value={form.sigla}
+                onChange={(e) => setForm({ ...form, sigla: e.target.value })}
+                required
+                placeholder="Ej: 75 D 35"
+              />
+            </label>
             <label className="field">
               <span>Marca</span>
               <input
@@ -464,15 +468,6 @@ export function MachinesAdmin({ canManage }: Props) {
               <input
                 value={form.anio}
                 onChange={(e) => setForm({ ...form, anio: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Sigla</span>
-              <input
-                value={form.sigla}
-                onChange={(e) => setForm({ ...form, sigla: e.target.value })}
-                required
-                placeholder="Ej: 75 D 35"
               />
             </label>
             <label className="field">
@@ -510,18 +505,33 @@ export function MachinesAdmin({ canManage }: Props) {
               />
             </label>
           </div>
+
+          <p className="section-help field-hint-row">
+            <button type="button" className="link-quiet" onClick={openCategories}>
+              Administrar categorías
+            </button>
+          </p>
+
           <label className="check-inline">
             <input
               type="checkbox"
               checked={form.generateQr}
               onChange={(e) => setForm({ ...form, generateQr: e.target.checked })}
             />
-            Generar / actualizar QR al guardar
+            <span>Generar / actualizar QR al guardar</span>
           </label>
+
           {error ? <p className="form-error">{error}</p> : null}
-          <div className="btn-row">
+          <div className="machine-form-actions">
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Guardando…' : view === 'create' ? 'Guardar máquina' : 'Actualizar'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setView(view === 'edit' && selectedId ? 'detail' : 'list')}
+            >
+              Cancelar
             </button>
           </div>
         </form>

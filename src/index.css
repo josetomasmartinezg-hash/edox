@@ -289,6 +289,17 @@ textarea {
   color: var(--ink);
 }
 
+input[type='checkbox'],
+input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0;
+  border-radius: 4px;
+  flex-shrink: 0;
+  accent-color: var(--brand-red, #d2143a);
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -665,9 +676,39 @@ textarea {
 .check-inline {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  margin: 4px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--brand-charcoal, #3c3c3b);
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.check-inline span {
+  flex: 1;
+  min-width: 0;
+}
+
+.machine-form-card {
+  max-width: 820px;
+}
+
+.machine-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.field-hint-row {
+  margin: -4px 0 4px;
 }
 
 .qr-card {
