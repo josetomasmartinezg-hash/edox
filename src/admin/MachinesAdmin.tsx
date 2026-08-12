@@ -95,6 +95,10 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterDocs, setFilterDocs] = useState<'all' | 'expired' | 'soon' | 'ok'>('all')
+  const [pautaFile, setPautaFile] = useState<File | null>(null)
+  const [pautaParsing, setPautaParsing] = useState(false)
+  const [pautaParseMsg, setPautaParseMsg] = useState('')
+  const [pautaParseError, setPautaParseError] = useState('')
 
   const machineMaintenances = useMemo(() => {
     if (!historial?.machine) return []
@@ -226,6 +230,51 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
     await loadDetail(machine.id)
   }
 
+  function resetPautaFile() {
+    setPautaFile(null)
+    setPautaParsing(false)
+    setPautaParseMsg('')
+    setPautaParseError('')
+  }
+
+  async function handlePautaFile(file: File | null) {
+    setPautaFile(file)
+    setPautaParseMsg('')
+    setPautaParseError('')
+    if (!file) return
+    setPautaParsing(true)
+    const payload = new FormData()
+    payload.append('file', file)
+    const res = await apiFetch('/api/pauta/parse', { method: 'POST', body: payload })
+    const data = await res.json().catch(() => ({}))
+    setPautaParsing(false)
+    if (!res.ok) {
+      setPautaParseError(data.error || 'No se pudo leer el archivo')
+      return
+    }
+    setForm((current) => ({ ...current, pauta: data.pauta || emptyPautaList() }))
+    setPautaParseMsg(
+      `Pauta extraída: ${data.tipos} tipos, ${data.items} ítems. Revisa y corrige si hace falta.`,
+    )
+  }
+
+  async function attachPautaFile(machineId: string) {
+    if (!pautaFile) return true
+    const payload = new FormData()
+    payload.append('file', pautaFile)
+    const res = await apiFetch(`/api/machines/${machineId}/pauta-file`, {
+      method: 'POST',
+      body: payload,
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error || 'La máquina se guardó, pero no se pudo adjuntar el archivo de pauta')
+      return false
+    }
+    resetPautaFile()
+    return true
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!canManage) return
@@ -240,11 +289,13 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
       body: JSON.stringify({ ...form, pauta: cleanPauta(form.pauta) }),
     })
     const data = await res.json()
-    setLoading(false)
     if (!res.ok) {
+      setLoading(false)
       setError(data.error || 'Error al guardar')
       return
     }
+    await attachPautaFile(data.id)
+    setLoading(false)
     setForm(emptyForm)
     await loadList()
     await loadDetail(data.id)
@@ -264,11 +315,13 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
       body: JSON.stringify({ ...form, pauta: cleanPauta(form.pauta) }),
     })
     const data = await res.json()
-    setLoading(false)
     if (!res.ok) {
+      setLoading(false)
       setError(data.error || 'Error al actualizar')
       return
     }
+    await attachPautaFile(data.id)
+    setLoading(false)
     await loadList()
     await loadDetail(data.id)
   }
@@ -298,6 +351,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
     const cats = categories.length ? categories : await loadCategories()
     const categoriaId = cats[0]?.id || ''
     setForm({ ...emptyForm, categoriaId, pauta: emptyPautaList() })
+    resetPautaFile()
     setView('create')
   }
 
@@ -314,6 +368,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
       generateQr: true,
       pauta: machine.pauta?.length ? machine.pauta : emptyPautaList(),
     })
+    resetPautaFile()
     setError('')
     setView('edit')
   }
@@ -487,7 +542,8 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
             </button>
           </div>
           <p className="section-help">
-            Completa los datos de la máquina. Puedes generar su QR al guardar.
+            Completa los datos de la máquina. Puedes subir la pauta en PDF o Excel y generar su QR
+            al guardar.
           </p>
         </div>
 
@@ -599,12 +655,18 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
               value={form.pauta}
               onChange={(pauta) => setForm({ ...form, pauta })}
               disabled={loading}
+              fileName={pautaFile?.name}
+              existingFileName={view === 'edit' ? historial?.machine.pautaFileName : ''}
+              parsing={pautaParsing}
+              parseMessage={pautaParseMsg}
+              parseError={pautaParseError}
+              onSelectFile={(file) => void handlePautaFile(file)}
             />
           ) : null}
 
           {error ? <p className="form-error">{error}</p> : null}
           <div className="machine-form-actions">
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            <button type="submit" className="btn btn-primary" disabled={loading || pautaParsing}>
               {loading ? 'Guardando…' : view === 'create' ? 'Guardar máquina' : 'Actualizar'}
             </button>
             <button
@@ -676,6 +738,23 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
               <div>
                 <div className="detail-label">Número de motor</div>
                 <div className="detail-value">{machine.numeroMotor || '—'}</div>
+              </div>
+              <div>
+                <div className="detail-label">Pauta (archivo)</div>
+                <div className="detail-value">
+                  {machine.pautaFileUrl ? (
+                    <a
+                      href={machine.pautaFileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="link-quiet"
+                    >
+                      {machine.pautaFileName || 'Ver archivo'}
+                    </a>
+                  ) : (
+                    '—'
+                  )}
+                </div>
               </div>
             </div>
 
@@ -751,6 +830,19 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
               onChange={setRunDraft}
               disabled={loading}
             />
+            {machine.pautaFileUrl ? (
+              <p className="section-help">
+                Archivo de pauta:{' '}
+                <a
+                  href={machine.pautaFileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="link-quiet"
+                >
+                  {machine.pautaFileName || 'Ver PDF / Excel'}
+                </a>
+              </p>
+            ) : null}
             {error ? <p className="form-error">{error}</p> : null}
             {(machine.pauta || []).length ? (
               <div className="machine-form-actions">
@@ -841,7 +933,9 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
                         </span>
                       </td>
                       <td>{doc.name}</td>
-                      <td>{doc.expiresAt || '—'}</td>
+                      <td>
+                        {doc.kind === 'pauta' ? 'Pauta' : doc.expiresAt || '—'}
+                      </td>
                       <td>
                         <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="link-quiet">
                           Ver

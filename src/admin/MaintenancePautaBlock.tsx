@@ -45,9 +45,25 @@ type EditorProps = {
   value: MachinePautaTipo[]
   onChange: (value: MachinePautaTipo[]) => void
   disabled?: boolean
+  fileName?: string
+  existingFileName?: string
+  parsing?: boolean
+  parseMessage?: string
+  parseError?: string
+  onSelectFile?: (file: File | null) => void
 }
 
-export function MachinePautaEditor({ value, onChange, disabled }: EditorProps) {
+export function MachinePautaEditor({
+  value,
+  onChange,
+  disabled,
+  fileName,
+  existingFileName,
+  parsing,
+  parseMessage,
+  parseError,
+  onSelectFile,
+}: EditorProps) {
   const tipos = value.length ? value : emptyPautaList()
 
   function updateTipo(id: string, patch: Partial<MachinePautaTipo>) {
@@ -69,9 +85,32 @@ export function MachinePautaEditor({ value, onChange, disabled }: EditorProps) {
       <div className="machine-pauta-head">
         <h4>Pauta de mantenimiento</h4>
         <p className="section-help">
-          Cada equipo tiene su propia pauta. Agrégala a mano: tipo (ej. 10.000 km) e ítems.
+          Sube el PDF o Excel de la pauta (por ejemplo el programa de una motoniveladora 770D).
+          El sistema lee los intervalos e ítems; después puedes corregirlos a mano.
         </p>
       </div>
+
+      {onSelectFile ? (
+        <div className="pauta-upload">
+          <label className="field">
+            <span>Archivo de pauta (PDF o Excel)</span>
+            <input
+              type="file"
+              accept=".pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              disabled={disabled || parsing}
+              onChange={(e) => onSelectFile(e.target.files?.[0] || null)}
+            />
+          </label>
+          {parsing ? <p className="section-help">Leyendo pauta…</p> : null}
+          {fileName ? (
+            <p className="pauta-upload-ok">Archivo listo para guardar: {fileName}</p>
+          ) : existingFileName ? (
+            <p className="section-help">Archivo actual: {existingFileName}</p>
+          ) : null}
+          {parseMessage ? <p className="pauta-upload-ok">{parseMessage}</p> : null}
+          {parseError ? <p className="pauta-upload-err">{parseError}</p> : null}
+        </div>
+      ) : null}
 
       {tipos.map((tipo, index) => (
         <div key={tipo.id} className="pauta-tipo-card">
@@ -168,7 +207,8 @@ export function MachinePautaRun({ pauta, draft, onChange, disabled }: RunProps) 
       <div className="machine-pauta">
         <h4>Registrar mantenimiento</h4>
         <p className="section-help">
-          Esta máquina aún no tiene pauta. Edita el equipo y agrégala a mano.
+          Esta máquina aún no tiene pauta. Edita el equipo y súbela en PDF o Excel, o agrégala a
+          mano.
         </p>
       </div>
     )

@@ -711,6 +711,29 @@ textarea {
   margin: 0 0 4px;
 }
 
+.pauta-upload {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.pauta-upload-ok,
+.pauta-upload-err {
+  margin: 0;
+  font-size: 14px;
+}
+
+.pauta-upload-ok {
+  color: #166534;
+}
+
+.pauta-upload-err {
+  color: #b91c1c;
+}
+
 .pauta-tipo-card {
   display: grid;
   gap: 10px;

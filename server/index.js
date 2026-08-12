@@ -18,6 +18,7 @@ import {
 import { authOptional, authRequired, requirePermission, signToken } from './auth.js'
 import { ensureSeedData } from './seed.js'
 import { dataDir, readJson, uploadsDir, writeJson } from './store.js'
+import { isPautaFile, parsePautaFile, pautaSummary } from './parsePauta.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(__dirname, '..')
@@ -31,18 +32,95 @@ const storage = multer.diskStorage({
   },
 })
 
+function isImageOrPdf(file) {
+  const name = String(file?.originalname || '')
+  const mime = String(file?.mimetype || '')
+  return (
+    mime.startsWith('image/') ||
+    mime === 'application/pdf' ||
+    /\.(pdf|png|jpe?g|webp|gif)$/i.test(name)
+  )
+}
+
 const upload = multer({
   storage,
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const ok =
-      file.mimetype.startsWith('image/') ||
-      file.mimetype === 'application/pdf' ||
-      /\.(pdf|png|jpe?g|webp|gif)$/i.test(file.originalname)
-    if (!ok) return cb(new Error('Solo se permiten PDF o imágenes'))
+    if (!isImageOrPdf(file)) return cb(new Error('Solo se permiten PDF o imágenes'))
     cb(null, true)
   },
 })
+
+const documentUpload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (isImageOrPdf(file) || isPautaFile(file)) return cb(null, true)
+    return cb(new Error('Solo se permiten PDF, Excel o imágenes'))
+  },
+})
+
+const pautaUpload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!isPautaFile(file)) return cb(new Error('Solo se permiten PDF o Excel'))
+    cb(null, true)
+  },
+})
+
+const pautaParseUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!isPautaFile(file)) return cb(new Error('Solo se permiten PDF o Excel'))
+    cb(null, true)
+  },
+})
+
+function unlinkUpload(fileUrl) {
+  if (!fileUrl) return
+  const filePath = path.join(uploadsDir, path.basename(fileUrl))
+  if (!fs.existsSync(filePath)) return
+  try {
+    fs.unlinkSync(filePath)
+  } catch {
+    // ignore delete errors
+  }
+}
+
+function upsertPautaDocument(machine, file, user) {
+  const docs = readJson('documents.json', [])
+  const existing = docs.find((d) => d.machineId === machine.id && d.kind === 'pauta')
+  if (existing?.fileUrl) unlinkUpload(existing.fileUrl)
+  if (machine.pautaFileUrl && machine.pautaFileUrl !== existing?.fileUrl) {
+    unlinkUpload(machine.pautaFileUrl)
+  }
+
+  const doc = {
+    id: existing?.id || randomUUID(),
+    name: 'Pauta de mantenimiento',
+    kind: 'pauta',
+    machineId: machine.id,
+    sigla: machine.sigla,
+    expiresAt: null,
+    fileUrl: `/uploads/${file.filename}`,
+    fileName: file.originalname,
+    mimeType: file.mimetype,
+    uploadedById: user?.id,
+    uploadedByName: user?.name,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  if (existing) {
+    docs[docs.findIndex((d) => d.id === existing.id)] = doc
+  } else {
+    docs.push(doc)
+  }
+  writeJson('documents.json', docs)
+  return doc
+}
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -271,6 +349,9 @@ function normalizeMachine(machine) {
     categoriaId: category?.id || machine.categoriaId || '',
     categoria: category?.name || machine.categoria || '',
     pauta: normalizePauta(machine.pauta),
+    pautaFileUrl: machine.pautaFileUrl || null,
+    pautaFileName: machine.pautaFileName || '',
+    pautaMimeType: machine.pautaMimeType || '',
   }
 }
 
@@ -293,8 +374,9 @@ function resolveCategory(categoriaId, categoriaName) {
 function machineDocumentAlert(machineId, sigla) {
   const docs = readJson('documents.json', []).filter(
     (d) =>
-      d.machineId === machineId ||
-      normalizeSigla(d.sigla) === normalizeSigla(sigla),
+      d.kind !== 'pauta' &&
+      (d.machineId === machineId ||
+      normalizeSigla(d.sigla) === normalizeSigla(sigla)),
   )
   const statuses = docs.map((d) => documentStatus(d.expiresAt))
   return {
@@ -488,6 +570,77 @@ app.delete('/api/categories/:id', authRequired, requirePermission('manage_machin
   res.json({ ok: true })
 })
 
+app.post(
+  '/api/pauta/parse',
+  authRequired,
+  requirePermission('manage_machines'),
+  (req, res) => {
+    pautaParseUpload.single('file')(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({ error: err.message || 'Error al leer el archivo' })
+      }
+      if (!req.file) {
+        return res.status(400).json({ error: 'Debes subir un PDF o un Excel de la pauta' })
+      }
+      try {
+        const pauta = await parsePautaFile(req.file)
+        const summary = pautaSummary(pauta)
+        if (!summary.items) {
+          return res.status(422).json({
+            error:
+              'No se detectaron ítems en el archivo. Revisa que sea una pauta (PDF o Excel) e inténtalo de nuevo, o cárgala a mano.',
+            pauta: [],
+            ...summary,
+          })
+        }
+        res.json({
+          pauta,
+          fileName: req.file.originalname,
+          ...summary,
+        })
+      } catch (error) {
+        res.status(400).json({ error: error.message || 'No se pudo leer la pauta' })
+      }
+    })
+  },
+)
+
+app.post(
+  '/api/machines/:id/pauta-file',
+  authRequired,
+  requirePermission('manage_machines'),
+  (req, res) => {
+    pautaUpload.single('file')(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ error: err.message || 'Error al subir la pauta' })
+      }
+      if (!req.file) {
+        return res.status(400).json({ error: 'Debes subir un PDF o un Excel de la pauta' })
+      }
+
+      const machines = readJson('machines.json', [])
+      const idx = machines.findIndex((m) => m.id === req.params.id)
+      if (idx < 0) {
+        unlinkUpload(`/uploads/${req.file.filename}`)
+        return res.status(404).json({ error: 'Máquina no encontrada' })
+      }
+
+      const machine = machines[idx]
+      const doc = upsertPautaDocument(machine, req.file, req.user)
+      machine.pautaFileUrl = doc.fileUrl
+      machine.pautaFileName = doc.fileName
+      machine.pautaMimeType = doc.mimeType
+      machine.updatedAt = new Date().toISOString()
+      machines[idx] = machine
+      writeJson('machines.json', machines)
+      res.json({
+        machine: normalizeMachine(machine),
+        document: { ...doc, status: documentStatus(doc.expiresAt) },
+      })
+    })
+  },
+)
+
 app.post('/api/machines', authRequired, requirePermission('manage_machines'), async (req, res) => {
   const {
     marca,
@@ -675,7 +828,7 @@ app.post(
   authRequired,
   requirePermission('manage_documents'),
   (req, res) => {
-    upload.single('file')(req, res, (err) => {
+    documentUpload.single('file')(req, res, (err) => {
       if (err) {
         return res.status(400).json({ error: err.message || 'Error al subir archivo' })
       }
@@ -688,7 +841,7 @@ app.post(
         return res.status(400).json({ error: 'Debes seleccionar un equipo' })
       }
       if (!req.file) {
-        return res.status(400).json({ error: 'Debes subir un PDF o una foto' })
+        return res.status(400).json({ error: 'Debes subir un PDF, Excel o una foto' })
       }
 
       const machines = readJson('machines.json', [])
@@ -732,14 +885,17 @@ app.delete(
     const doc = all.find((d) => d.id === req.params.id)
     if (!doc) return res.status(404).json({ error: 'Documento no encontrado' })
 
-    if (doc.fileUrl) {
-      const filePath = path.join(uploadsDir, path.basename(doc.fileUrl))
-      if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath)
-        } catch {
-          // ignore delete errors
-        }
+    if (doc.fileUrl) unlinkUpload(doc.fileUrl)
+
+    if (doc.kind === 'pauta' && doc.machineId) {
+      const machines = readJson('machines.json', [])
+      const idx = machines.findIndex((m) => m.id === doc.machineId)
+      if (idx >= 0 && machines[idx].pautaFileUrl === doc.fileUrl) {
+        machines[idx].pautaFileUrl = null
+        machines[idx].pautaFileName = ''
+        machines[idx].pautaMimeType = ''
+        machines[idx].updatedAt = new Date().toISOString()
+        writeJson('machines.json', machines)
       }
     }
 

@@ -6,7 +6,8 @@ type Props = {
   canManage: boolean
 }
 
-function statusLabel(status?: string) {
+function statusLabel(status?: string, kind?: string) {
+  if (kind === 'pauta') return 'Pauta'
   if (status === 'expired') return 'Vencido'
   if (status === 'soon') return 'Por vencer'
   if (status === 'ok') return 'Vigente'
@@ -50,7 +51,7 @@ export function DocumentsAdmin({ canManage }: Props) {
     e.preventDefault()
     if (!canManage) return
     if (!file) {
-      setError('Debes subir un PDF o una foto')
+      setError('Debes subir un PDF, Excel o una foto')
       return
     }
     setLoading(true)
@@ -88,8 +89,8 @@ export function DocumentsAdmin({ canManage }: Props) {
         <div>
           <h3 className="section-title">Documentación</h3>
           <p className="section-help">
-            Sube PDF o fotos por equipo. Si hay fecha de vencimiento: amarillo = próximo a vencer
-            (30 días), rojo = vencido.
+            Sube PDF, Excel o fotos por equipo. Si hay fecha de vencimiento: amarillo = próximo a
+            vencer (30 días), rojo = vencido.
           </p>
         </div>
         {canManage ? (
@@ -132,10 +133,10 @@ export function DocumentsAdmin({ canManage }: Props) {
               />
             </label>
             <label className="field">
-              <span>Subir PDF o foto</span>
+              <span>Subir PDF, Excel o foto</span>
               <input
                 type="file"
-                accept="application/pdf,image/*"
+                accept=".pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
                 required
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
@@ -200,7 +201,7 @@ export function DocumentsAdmin({ canManage }: Props) {
                           : 'synced'
                     }`}
                   >
-                    {statusLabel(doc.status)}
+                    {statusLabel(doc.status, doc.kind)}
                   </span>
                 </td>
                 <td>

@@ -79,6 +79,9 @@ export type Machine = {
   categoriaId?: string
   categoria?: string
   pauta?: MachinePautaTipo[]
+  pautaFileUrl?: string | null
+  pautaFileName?: string
+  pautaMimeType?: string
   active?: boolean
   qrPayload?: string | null
   qrDataUrl?: string | null
@@ -93,6 +96,7 @@ export type Machine = {
 export type MachineDocument = {
   id: string
   name: string
+  kind?: string
   machineId: string
   sigla: string
   expiresAt?: string | null
