@@ -48,5 +48,40 @@ export function ensureSeedData() {
   readJson('records.json', [])
   readJson('documents.json', [])
 
+  const defaultCategories = [
+    'Motoniveladora',
+    'Cargador frontal',
+    'Camioneta',
+    'Camión Liviano',
+  ]
+  const categories = readJson('categories.json', [])
+  if (!categories.length) {
+    writeJson(
+      'categories.json',
+      defaultCategories.map((name) => ({
+        id: randomUUID(),
+        name,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })),
+    )
+  } else {
+    // Asegura que existan las categorías base si faltan
+    const names = new Set(categories.map((c) => String(c.name).toLowerCase()))
+    let changed = false
+    for (const name of defaultCategories) {
+      if (!names.has(name.toLowerCase())) {
+        categories.push({
+          id: randomUUID(),
+          name,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        changed = true
+      }
+    }
+    if (changed) writeJson('categories.json', categories)
+  }
+
   return { principalEmail: PRINCIPAL.email, defaultPassword: PRINCIPAL.password }
 }

@@ -47,6 +47,13 @@ export type Permissions = {
 
 export type DocumentAlert = 'expired' | 'soon' | 'ok' | 'none'
 
+export type MachineCategory = {
+  id: string
+  name: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export type Machine = {
   id: string
   marca: string
@@ -56,6 +63,8 @@ export type Machine = {
   capacidadEstanque: string
   numeroChasis: string
   numeroMotor: string
+  categoriaId?: string
+  categoria?: string
   active?: boolean
   qrPayload?: string | null
   qrDataUrl?: string | null

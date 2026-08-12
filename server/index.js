@@ -218,11 +218,36 @@ function normalizeSigla(value) {
 }
 
 function normalizeMachine(machine) {
+  const categories = readJson('categories.json', [])
+  const category =
+    categories.find((c) => c.id === machine.categoriaId) ||
+    categories.find(
+      (c) =>
+        String(c.name).toLowerCase() === String(machine.categoria || '').toLowerCase(),
+    )
   return {
     ...machine,
     numeroChasis: machine.numeroChasis || '',
     numeroMotor: machine.numeroMotor || '',
+    categoriaId: category?.id || machine.categoriaId || '',
+    categoria: category?.name || machine.categoria || '',
   }
+}
+
+function resolveCategory(categoriaId, categoriaName) {
+  const categories = readJson('categories.json', [])
+  if (categoriaId) {
+    const byId = categories.find((c) => c.id === categoriaId)
+    if (byId) return byId
+  }
+  if (categoriaName?.trim()) {
+    return (
+      categories.find(
+        (c) => String(c.name).toLowerCase() === String(categoriaName).trim().toLowerCase(),
+      ) || null
+    )
+  }
+  return null
 }
 
 function machineDocumentAlert(machineId, sigla) {
@@ -319,7 +344,7 @@ app.get(
 
     res.json({
       machine: {
-        ...(await withQr(machine)),
+        ...(await withQr(normalizeMachine(machine))),
         ...machineDocumentAlert(machine.id, machine.sigla),
       },
       resumen: {
@@ -334,6 +359,95 @@ app.get(
   },
 )
 
+/* ─── Categories ─── */
+app.get('/api/categories', authRequired, requirePermission('view_machines'), (_req, res) => {
+  const categories = readJson('categories.json', []).sort((a, b) =>
+    String(a.name).localeCompare(String(b.name), 'es', { sensitivity: 'base' }),
+  )
+  res.json(categories)
+})
+
+app.post('/api/categories', authRequired, requirePermission('manage_machines'), (req, res) => {
+  const name = String(req.body?.name || '').trim()
+  if (!name) return res.status(400).json({ error: 'El nombre de la categoría es obligatorio' })
+
+  const categories = readJson('categories.json', [])
+  if (categories.some((c) => String(c.name).toLowerCase() === name.toLowerCase())) {
+    return res.status(409).json({ error: 'Ya existe esa categoría' })
+  }
+
+  const category = {
+    id: randomUUID(),
+    name,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  categories.push(category)
+  writeJson('categories.json', categories)
+  res.status(201).json(category)
+})
+
+app.put('/api/categories/:id', authRequired, requirePermission('manage_machines'), (req, res) => {
+  const categories = readJson('categories.json', [])
+  const idx = categories.findIndex((c) => c.id === req.params.id)
+  if (idx < 0) return res.status(404).json({ error: 'Categoría no encontrada' })
+
+  const name = String(req.body?.name || '').trim()
+  if (!name) return res.status(400).json({ error: 'El nombre de la categoría es obligatorio' })
+  if (
+    categories.some(
+      (c) => c.id !== req.params.id && String(c.name).toLowerCase() === name.toLowerCase(),
+    )
+  ) {
+    return res.status(409).json({ error: 'Ya existe esa categoría' })
+  }
+
+  const previousName = categories[idx].name
+  categories[idx] = {
+    ...categories[idx],
+    name,
+    updatedAt: new Date().toISOString(),
+  }
+  writeJson('categories.json', categories)
+
+  // Actualiza nombre en máquinas que usen esta categoría
+  const machines = readJson('machines.json', [])
+  let changed = false
+  for (const machine of machines) {
+    if (machine.categoriaId === categories[idx].id || machine.categoria === previousName) {
+      machine.categoriaId = categories[idx].id
+      machine.categoria = name
+      machine.updatedAt = new Date().toISOString()
+      changed = true
+    }
+  }
+  if (changed) writeJson('machines.json', machines)
+
+  res.json(categories[idx])
+})
+
+app.delete('/api/categories/:id', authRequired, requirePermission('manage_machines'), (req, res) => {
+  const categories = readJson('categories.json', [])
+  const category = categories.find((c) => c.id === req.params.id)
+  if (!category) return res.status(404).json({ error: 'Categoría no encontrada' })
+
+  const machines = readJson('machines.json', [])
+  const inUse = machines.some(
+    (m) => m.categoriaId === category.id || m.categoria === category.name,
+  )
+  if (inUse) {
+    return res.status(400).json({
+      error: 'No se puede eliminar: hay maquinaria usando esta categoría',
+    })
+  }
+
+  writeJson(
+    'categories.json',
+    categories.filter((c) => c.id !== req.params.id),
+  )
+  res.json({ ok: true })
+})
+
 app.post('/api/machines', authRequired, requirePermission('manage_machines'), async (req, res) => {
   const {
     marca,
@@ -343,10 +457,17 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
     capacidadEstanque,
     numeroChasis,
     numeroMotor,
+    categoriaId,
+    categoria,
     generateQr = true,
   } = req.body || {}
   if (!marca?.trim() || !modelo?.trim() || !sigla?.trim()) {
     return res.status(400).json({ error: 'Marca, modelo y sigla son obligatorios' })
+  }
+
+  const category = resolveCategory(categoriaId, categoria)
+  if (!category) {
+    return res.status(400).json({ error: 'Debes seleccionar una categoría' })
   }
 
   const machines = readJson('machines.json', [])
@@ -366,6 +487,8 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
       .trim(),
     numeroChasis: String(numeroChasis || '').trim(),
     numeroMotor: String(numeroMotor || '').trim(),
+    categoriaId: category.id,
+    categoria: category.name,
     active: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -403,6 +526,15 @@ app.put('/api/machines/:id', authRequired, requirePermission('manage_machines'),
     return res.status(409).json({ error: 'Ya existe una máquina con esa sigla' })
   }
 
+  const nextCategory =
+    req.body.categoriaId || req.body.categoria
+      ? resolveCategory(req.body.categoriaId, req.body.categoria)
+      : resolveCategory(current.categoriaId, current.categoria)
+
+  if ((req.body.categoriaId || req.body.categoria) && !nextCategory) {
+    return res.status(400).json({ error: 'Categoría inválida' })
+  }
+
   const updated = {
     ...current,
     marca: req.body.marca?.trim() || current.marca,
@@ -421,6 +553,8 @@ app.put('/api/machines/:id', authRequired, requirePermission('manage_machines'),
       req.body.numeroMotor != null
         ? String(req.body.numeroMotor).trim()
         : current.numeroMotor || '',
+    categoriaId: nextCategory?.id || current.categoriaId || '',
+    categoria: nextCategory?.name || current.categoria || '',
     active: typeof req.body.active === 'boolean' ? req.body.active : current.active,
     updatedAt: new Date().toISOString(),
   }

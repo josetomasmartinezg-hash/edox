@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../lib/auth'
-import type { Machine, MachineDocument } from '../types'
+import type { Machine, MachineCategory, MachineDocument } from '../types'
 
 const emptyForm = {
+  categoriaId: '',
   marca: '',
   modelo: '',
   anio: '',
@@ -50,7 +51,7 @@ function alertLabel(alert?: string) {
   return ''
 }
 
-type View = 'list' | 'create' | 'detail' | 'edit'
+type View = 'list' | 'create' | 'detail' | 'edit' | 'categories'
 
 type Props = {
   canManage: boolean
@@ -71,19 +72,30 @@ function formatDate(value?: string | null) {
 export function MachinesAdmin({ canManage }: Props) {
   const [view, setView] = useState<View>('list')
   const [machines, setMachines] = useState<Machine[]>([])
+  const [categories, setCategories] = useState<MachineCategory[]>([])
   const [form, setForm] = useState(emptyForm)
+  const [catForm, setCatForm] = useState({ id: '', name: '' })
+  const [editingCat, setEditingCat] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [historial, setHistorial] = useState<HistorialResponse | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  async function loadCategories() {
+    const res = await apiFetch('/api/categories')
+    if (!res.ok) return []
+    const data = (await res.json()) as MachineCategory[]
+    setCategories(data)
+    return data
+  }
+
   async function loadList() {
-    const res = await apiFetch('/api/machines')
-    if (!res.ok) {
+    const [machinesRes] = await Promise.all([apiFetch('/api/machines'), loadCategories()])
+    if (!machinesRes.ok) {
       setError('No se pudieron cargar las máquinas')
       return
     }
-    setMachines(await res.json())
+    setMachines(await machinesRes.json())
   }
 
   async function loadDetail(id: string) {
@@ -108,6 +120,10 @@ export function MachinesAdmin({ canManage }: Props) {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!canManage) return
+    if (!form.categoriaId) {
+      setError('Debes seleccionar una categoría')
+      return
+    }
     setLoading(true)
     setError('')
     const res = await apiFetch('/api/machines', {
@@ -128,6 +144,10 @@ export function MachinesAdmin({ canManage }: Props) {
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault()
     if (!canManage || !selectedId) return
+    if (!form.categoriaId) {
+      setError('Debes seleccionar una categoría')
+      return
+    }
     setLoading(true)
     setError('')
     const res = await apiFetch(`/api/machines/${selectedId}`, {
@@ -164,14 +184,16 @@ export function MachinesAdmin({ canManage }: Props) {
     await loadList()
   }
 
-  function openCreate() {
-    setForm(emptyForm)
+  async function openCreate() {
     setError('')
+    const cats = categories.length ? categories : await loadCategories()
+    setForm({ ...emptyForm, categoriaId: cats[0]?.id || '' })
     setView('create')
   }
 
   function openEdit(machine: Machine) {
     setForm({
+      categoriaId: machine.categoriaId || '',
       marca: machine.marca,
       modelo: machine.modelo,
       anio: machine.anio,
@@ -183,6 +205,158 @@ export function MachinesAdmin({ canManage }: Props) {
     })
     setError('')
     setView('edit')
+  }
+
+  function openCategories() {
+    setCatForm({ id: '', name: '' })
+    setEditingCat(false)
+    setError('')
+    setView('categories')
+    void loadCategories()
+  }
+
+  async function saveCategory(e: React.FormEvent) {
+    e.preventDefault()
+    if (!canManage) return
+    const name = catForm.name.trim()
+    if (!name) {
+      setError('Ingrese el nombre de la categoría')
+      return
+    }
+    setLoading(true)
+    setError('')
+    const res = await apiFetch(editingCat ? `/api/categories/${catForm.id}` : '/api/categories', {
+      method: editingCat ? 'PUT' : 'POST',
+      body: JSON.stringify({ name }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setLoading(false)
+    if (!res.ok) {
+      setError(data.error || 'No se pudo guardar la categoría')
+      return
+    }
+    setCatForm({ id: '', name: '' })
+    setEditingCat(false)
+    await loadList()
+  }
+
+  async function deleteCategory(category: MachineCategory) {
+    if (!canManage) return
+    if (!confirm(`¿Eliminar categoría "${category.name}"?`)) return
+    setError('')
+    const res = await apiFetch(`/api/categories/${category.id}`, { method: 'DELETE' })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setError(data.error || 'No se pudo eliminar la categoría')
+      return
+    }
+    await loadList()
+  }
+
+  function startEditCategory(category: MachineCategory) {
+    setCatForm({ id: category.id, name: category.name })
+    setEditingCat(true)
+    setError('')
+  }
+
+  if (view === 'categories') {
+    return (
+      <div className="admin-section">
+        <div className="section">
+          <div className="meta-row" style={{ justifyContent: 'space-between' }}>
+            <h3 className="section-title">Categorías de maquinaria</h3>
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setView('list')}>
+              Volver a lista
+            </button>
+          </div>
+          <p className="section-help">
+            Agrega, edita o elimina categorías. No se puede eliminar una categoría si hay equipos usándola.
+          </p>
+        </div>
+
+        {canManage ? (
+          <form className="admin-card" onSubmit={(e) => void saveCategory(e)}>
+            <label className="field">
+              <span>{editingCat ? 'Editar categoría' : 'Nueva categoría'}</span>
+              <input
+                value={catForm.name}
+                onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
+                placeholder="Ej: Excavadora"
+                required
+              />
+            </label>
+            {error ? <p className="form-error">{error}</p> : null}
+            <div className="btn-row">
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                {loading ? 'Guardando…' : editingCat ? 'Guardar cambios' : 'Agregar categoría'}
+              </button>
+              {editingCat ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setEditingCat(false)
+                    setCatForm({ id: '', name: '' })
+                  }}
+                >
+                  Cancelar
+                </button>
+              ) : null}
+            </div>
+          </form>
+        ) : null}
+
+        <div className="table-panel">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Equipos</th>
+                {canManage ? <th></th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((category) => {
+                const count = machines.filter((m) => m.categoriaId === category.id).length
+                return (
+                  <tr key={category.id}>
+                    <td>
+                      <strong>{category.name}</strong>
+                    </td>
+                    <td>{count}</td>
+                    {canManage ? (
+                      <td className="row-cta">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-small"
+                          onClick={() => startEditCategory(category)}
+                        >
+                          Editar
+                        </button>{' '}
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-small"
+                          onClick={() => void deleteCategory(category)}
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    ) : null}
+                  </tr>
+                )
+              })}
+              {!categories.length ? (
+                <tr>
+                  <td colSpan={canManage ? 3 : 2} className="empty-cell">
+                    No hay categorías.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
   }
 
   if (view === 'create' || view === 'edit') {
@@ -211,6 +385,26 @@ export function MachinesAdmin({ canManage }: Props) {
           onSubmit={(e) => void (view === 'create' ? handleCreate(e) : handleUpdate(e))}
         >
           <div className="field-grid two">
+            <label className="field">
+              <span>Categoría</span>
+              <select
+                value={form.categoriaId}
+                onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}
+                required
+              >
+                <option value="">Seleccione categoría</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="field" style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost btn-small" onClick={openCategories}>
+                Administrar categorías
+              </button>
+            </div>
             <label className="field">
               <span>Marca</span>
               <input
@@ -324,6 +518,10 @@ export function MachinesAdmin({ canManage }: Props) {
           <div className="admin-card">
             <h4>Datos del equipo</h4>
             <div className="field-grid two">
+              <div>
+                <div className="detail-label">Categoría</div>
+                <div className="detail-value">{machine.categoria || '—'}</div>
+              </div>
               <div>
                 <div className="detail-label">Marca</div>
                 <div className="detail-value">{machine.marca}</div>
@@ -544,11 +742,16 @@ export function MachinesAdmin({ canManage }: Props) {
             rojo = documento vencido.
           </p>
         </div>
-        {canManage ? (
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            Agregar maquinaria
+        <div className="btn-row">
+          <button type="button" className="btn btn-ghost" onClick={openCategories}>
+            Categorías
           </button>
-        ) : null}
+          {canManage ? (
+            <button type="button" className="btn btn-primary" onClick={() => void openCreate()}>
+              Agregar maquinaria
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="legend-row">
@@ -563,6 +766,7 @@ export function MachinesAdmin({ canManage }: Props) {
           <thead>
             <tr>
               <th>Sigla</th>
+              <th>Categoría</th>
               <th>Marca</th>
               <th>Modelo</th>
               <th>Año</th>
@@ -589,6 +793,7 @@ export function MachinesAdmin({ canManage }: Props) {
                 <td>
                   <strong>{machine.sigla}</strong>
                 </td>
+                <td>{machine.categoria || '—'}</td>
                 <td>{machine.marca}</td>
                 <td>{machine.modelo}</td>
                 <td>{machine.anio || '—'}</td>
@@ -613,7 +818,7 @@ export function MachinesAdmin({ canManage }: Props) {
             ))}
             {!machines.length ? (
               <tr>
-                <td colSpan={9} className="empty-cell">
+                <td colSpan={10} className="empty-cell">
                   No hay maquinaria.{' '}
                   {canManage ? 'Usa “Agregar maquinaria” para crear la primera.' : ''}
                 </td>
