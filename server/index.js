@@ -1022,10 +1022,57 @@ app.get('/api/records/:id', authRequired, (req, res) => {
   res.json(record)
 })
 
+function syncMaintenanceFromFieldRecord(record, user) {
+  if (record.tipoRegistro !== 'mantenimiento') return
+
+  const tareas = Array.isArray(record.mantenimiento)
+    ? record.mantenimiento
+        .filter((t) => t && (t.id || t.tipo || t.label))
+        .map((t) => ({
+          id: String(t.id || randomUUID()),
+          label: String(t.tipo || t.label || '').trim(),
+          realizado: t.realizado === true || t.realizado === 'true',
+        }))
+        .filter((t) => t.label)
+    : []
+  if (!tareas.some((t) => t.realizado)) return
+
+  const machines = readJson('machines.json', [])
+  const machine = machines.find(
+    (m) => normalizeSigla(m.sigla) === normalizeSigla(record.maquina),
+  )
+  const tipoNombre =
+    String(record.tipoMantenimiento || '').trim() ||
+    (machine?.pauta || []).find((t) => t.id === record.intervaloMantenimiento)?.nombre ||
+    String(record.intervaloMantenimiento || 'Pauta')
+
+  const all = readJson('maintenance.json', [])
+  const idx = all.findIndex((m) => m.fieldRecordId === record.id)
+  const item = {
+    id: idx >= 0 ? all[idx].id : randomUUID(),
+    fieldRecordId: record.id,
+    machineId: machine?.id || null,
+    sigla: machine?.sigla || String(record.maquina || '').trim().toUpperCase(),
+    tipoMantenimiento: tipoNombre,
+    intervaloId: record.intervaloMantenimiento || null,
+    horometro: String(record.horasInicial || '').trim() || '—',
+    tareas,
+    observaciones: String(record.observaciones || '').trim(),
+    mecanicoId: user.id,
+    mecanicoNombre: record.operador || user.name,
+    createdAt: idx >= 0 ? all[idx].createdAt : record.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  if (idx >= 0) all[idx] = item
+  else all.push(item)
+  writeJson('maintenance.json', all)
+}
+
 app.post('/api/records', authRequired, upload.single('photo'), (req, res) => {
   const canWrite =
     req.user.isPrincipal ||
     roleCan(req.user.role, 'field_form') ||
+    roleCan(req.user.role, 'manage_maintenance') ||
     roleCan(req.user.role, 'view_all_records')
   if (!canWrite) {
     return res.status(403).json({ error: 'No tienes permiso para registrar partes' })
@@ -1065,6 +1112,7 @@ app.post('/api/records', authRequired, upload.single('photo'), (req, res) => {
   }
 
   writeJson('records.json', records)
+  syncMaintenanceFromFieldRecord(record, req.user)
   res.status(201).json(record)
 })
 

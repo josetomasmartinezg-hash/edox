@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ChecklistStatus, FieldRecordType, MachinaryRecord, RoleId } from '../types'
-import { FIELD_TYPE_LABELS, ROLE_LABELS, parseMachineQr } from '../types'
+import type {
+  ChecklistStatus,
+  FieldRecordType,
+  Machine,
+  MachinaryRecord,
+  RoleId,
+} from '../types'
 import {
-  LIGHT_TRUCK_MAINTENANCE_PROGRAM,
-  getInterval,
-} from '../data/maintenanceProgram'
+  FIELD_TYPE_LABELS,
+  ROLE_LABELS,
+  findMachineByCode,
+  parseMachineQrMeta,
+} from '../types'
 import { apiFetch } from '../lib/auth'
+import { loadMachines } from '../lib/machines'
+import {
+  cleanPauta,
+  pautaSummaryText,
+  pautaTipoToRows,
+} from '../admin/MaintenancePautaBlock'
 import { PhotoCapture } from './PhotoCapture'
 import { QrScanner } from './QrScanner'
 
@@ -37,6 +50,7 @@ function canSaveRecord(record: MachinaryRecord) {
   // mantenimiento: tipo de pauta + al menos un OK
   return Boolean(
     record.intervaloMantenimiento &&
+      record.horasInicial.trim() &&
       record.mantenimiento.some((row) => row.realizado),
   )
 }
@@ -44,17 +58,58 @@ function canSaveRecord(record: MachinaryRecord) {
 export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props) {
   const [showQr, setShowQr] = useState(false)
   const [operators, setOperators] = useState<OperatorOption[]>([])
+  const [machines, setMachines] = useState<Machine[]>([])
   const tipo: FieldRecordType = record.tipoRegistro || 'combustible'
+  const selectedMachine = useMemo(
+    () => findMachineByCode(machines, record.maquina),
+    [machines, record.maquina],
+  )
+  const pauta = useMemo(
+    () => cleanPauta(selectedMachine?.pauta || []),
+    [selectedMachine],
+  )
 
   useEffect(() => {
     void (async () => {
-      const res = await apiFetch('/api/operators')
-      if (res.ok) setOperators(await res.json())
+      const [opsRes, list] = await Promise.all([
+        apiFetch('/api/operators'),
+        loadMachines(),
+      ])
+      if (opsRes.ok) setOperators(await opsRes.json())
+      setMachines(list)
     })()
   }, [])
 
   function patch(partial: Partial<MachinaryRecord>) {
     onChange({ ...record, ...partial })
+  }
+
+  function applyMachine(machine: Machine, keepTipoId?: string) {
+    if (tipo !== 'mantenimiento') {
+      patch({ maquina: machine.sigla })
+      return
+    }
+    const tipos = cleanPauta(machine.pauta || [])
+    const current =
+      tipos.find((t) => t.id === keepTipoId) ||
+      tipos.find((t) => t.id === record.intervaloMantenimiento) ||
+      tipos[0]
+    patch({
+      maquina: machine.sigla,
+      intervaloMantenimiento: current?.id || '',
+      tipoMantenimiento: current?.nombre || '',
+      mantenimiento: current ? pautaTipoToRows(current) : [],
+    })
+  }
+
+  function applyPautaTipo(tipoId: string) {
+    const current = pauta.find((t) => t.id === tipoId)
+    if (!current) return
+    patch({
+      intervaloMantenimiento: current.id,
+      tipoMantenimiento: current.nombre,
+      mantenimiento: pautaTipoToRows(current),
+    })
   }
 
   function setChecklist(id: string, status: ChecklistStatus) {
@@ -65,22 +120,6 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
     })
   }
 
-  function applyMaintInterval(intervaloId: string) {
-    const interval = getInterval(intervaloId) || LIGHT_TRUCK_MAINTENANCE_PROGRAM[0]
-    if (!interval) return
-    patch({
-      intervaloMantenimiento: interval.id,
-      mantenimiento: interval.tasks.map((t) => ({
-        id: t.id,
-        tipo: t.label,
-        nivel: '',
-        seAdiciona: '',
-        seAplica: '',
-        realizado: false,
-      })),
-    })
-  }
-
   function toggleTaskOk(id: string) {
     patch({
       mantenimiento: record.mantenimiento.map((row) =>
@@ -88,6 +127,27 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
       ),
     })
   }
+
+  useEffect(() => {
+    if (tipo !== 'mantenimiento' || !record.maquina || !machines.length) return
+    const machine = findMachineByCode(machines, record.maquina)
+    if (!machine) return
+    const tipos = cleanPauta(machine.pauta || [])
+    if (tipos.some((t) => t.id === record.intervaloMantenimiento) && record.mantenimiento.length) {
+      return
+    }
+    if (!tipos.length && machine.sigla.trim().toUpperCase() === record.maquina.trim().toUpperCase()) {
+      return
+    }
+    const current = tipos[0]
+    onChange({
+      ...record,
+      maquina: machine.sigla,
+      intervaloMantenimiento: current?.id || '',
+      tipoMantenimiento: current?.nombre || '',
+      mantenimiento: current ? pautaTipoToRows(current) : [],
+    })
+  }, [tipo, record.maquina, machines])
 
   const canSave = canSaveRecord(record)
   const doneCount = useMemo(
@@ -101,26 +161,20 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
         <div className="panel-body">
           <QrScanner
             onScan={(value) => {
-              patch({ maquina: parseMachineQr(value) })
+              const meta = parseMachineQrMeta(value)
+              const machine =
+                findMachineByCode(machines, value) ||
+                findMachineByCode(machines, meta.sigla)
+              if (machine) applyMachine(machine)
+              else patch({ maquina: meta.sigla })
               setShowQr(false)
             }}
             onClose={() => setShowQr(false)}
           />
           <div className="demo-hint">
-            Tip demo: si no tienes QR o cámara, usa el botón de máquina demo o escribe el código.
+            Escanea el QR del equipo para cargar su pauta. Si no hay cámara, elige la máquina en la
+            lista.
           </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              setShowQr(false)
-              window.setTimeout(() => {
-                onChange({ ...record, maquina: '75 D 35' })
-              }, 50)
-            }}
-          >
-            Usar máquina demo (75 D 35)
-          </button>
         </div>
       </div>
     )
@@ -157,16 +211,31 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
             <label className="field">
               <span>Máquina</span>
               <div className="btn-row">
-                <input
-                  value={record.maquina}
-                  placeholder="Escanea QR o escribe ID"
-                  onChange={(e) => patch({ maquina: e.target.value })}
+                <select
+                  value={selectedMachine?.id || ''}
+                  onChange={(e) => {
+                    const machine = machines.find((m) => m.id === e.target.value)
+                    if (machine) applyMachine(machine)
+                    else patch({ maquina: '' })
+                  }}
                   style={{ flex: 1 }}
-                />
+                >
+                  <option value="">Seleccionar o escanear QR…</option>
+                  {machines.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.sigla} — {m.marca} {m.modelo}
+                    </option>
+                  ))}
+                </select>
                 <button type="button" className="btn btn-accent" onClick={() => setShowQr(true)}>
                   QR
                 </button>
               </div>
+              {selectedMachine ? (
+                <p className="section-help">{pautaSummaryText(selectedMachine)}</p>
+              ) : record.maquina ? (
+                <p className="section-help">Código: {record.maquina}</p>
+              ) : null}
             </label>
             <label className="field">
               <span>Operador</span>
@@ -311,54 +380,66 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
 
         {tipo === 'mantenimiento' ? (
           <section className="section">
-            <h3 className="section-title">Tipo de mantenimiento</h3>
-            <div className="type-pill-row">
-              {LIGHT_TRUCK_MAINTENANCE_PROGRAM.map((interval) => (
-                <button
-                  key={interval.id}
-                  type="button"
-                  className={`type-pill ${
-                    record.intervaloMantenimiento === interval.id ? 'active' : ''
-                  }`}
-                  onClick={() => applyMaintInterval(interval.id)}
-                >
-                  {interval.label}
-                </button>
-              ))}
-            </div>
-            <label className="field">
-              <span>Kilometraje</span>
-              <input
-                inputMode="numeric"
-                value={record.horasInicial}
-                placeholder="Ej: 45280"
-                onChange={(e) =>
-                  patch({ horasInicial: e.target.value.replace(/[^\d.]/g, '') })
-                }
-              />
-            </label>
-            <h3 className="section-title">
-              Pauta {getInterval(record.intervaloMantenimiento || '')?.label || ''}
-            </h3>
-            <p className="section-help">
-              {doneCount} de {record.mantenimiento.length || 0} con OK — toca cada ítem
-            </p>
-            <div className="task-list">
-              {record.mantenimiento.map((row) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  className={`task-ok-item ${row.realizado ? 'done' : ''}`}
-                  onClick={() => toggleTaskOk(row.id)}
-                >
-                  <span className="task-ok-badge">{row.realizado ? 'OK' : ''}</span>
-                  <span className="task-ok-label">{row.tipo}</span>
-                </button>
-              ))}
-              {!record.mantenimiento.length ? (
-                <p className="empty">Elige 10.000 o 20.000 km para cargar la pauta.</p>
-              ) : null}
-            </div>
+            <h3 className="section-title">Pauta del equipo</h3>
+            {!selectedMachine ? (
+              <p className="empty">Escanea el QR o selecciona la máquina para ver su pauta.</p>
+            ) : !pauta.length ? (
+              <p className="empty">
+                Esta máquina aún no tiene pauta. Súbela en PDF o Excel al crear o editar el equipo.
+              </p>
+            ) : (
+              <>
+                <p className="section-help">
+                  Se cargó sola la pauta de {selectedMachine.sigla}. Elige el intervalo y marca OK.
+                </p>
+                <div className="type-pill-row">
+                  {pauta.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`type-pill ${
+                        record.intervaloMantenimiento === item.id ? 'active' : ''
+                      }`}
+                      onClick={() => applyPautaTipo(item.id)}
+                    >
+                      {item.nombre}
+                    </button>
+                  ))}
+                </div>
+                <label className="field">
+                  <span>Kilometraje / Horómetro</span>
+                  <input
+                    inputMode="numeric"
+                    value={record.horasInicial}
+                    placeholder="Ej: 45280"
+                    onChange={(e) =>
+                      patch({ horasInicial: e.target.value.replace(/[^\d.]/g, '') })
+                    }
+                  />
+                </label>
+                <h3 className="section-title">
+                  {record.tipoMantenimiento ||
+                    pauta.find((t) => t.id === record.intervaloMantenimiento)?.nombre ||
+                    'Ítems'}
+                </h3>
+                <p className="section-help">
+                  {doneCount} de {record.mantenimiento.length || 0} con OK — toca cada ítem
+                </p>
+                <div className="task-list">
+                  {record.mantenimiento.map((row) => (
+                    <button
+                      key={row.id}
+                      type="button"
+                      className={`task-ok-item ${row.realizado ? 'done' : ''}`}
+                      onClick={() => toggleTaskOk(row.id)}
+                    >
+                      <span className="task-ok-badge">{row.realizado ? 'OK' : ''}</span>
+                      <span className="task-ok-label">{row.tipo}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
         ) : null}
 
@@ -425,7 +506,7 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
               ? 'Completa máquina, operador, litros en estanque y litros cargados.'
               : tipo === 'revision_diaria'
                 ? 'Completa máquina, operador y al menos un ítem del chequeo.'
-                : 'Completa máquina, operador y al menos un dato de mantenimiento.'}
+                : 'Completa máquina, operador, horómetro y al menos un ítem OK.'}
           </p>
         ) : null}
       </div>

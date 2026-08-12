@@ -4,10 +4,12 @@ import { ROLE_LABELS } from '../types'
 import { DocumentsAdmin } from './DocumentsAdmin'
 import { FieldRecordsAdmin } from './FieldRecordsAdmin'
 import { MachinesAdmin } from './MachinesAdmin'
+import { MaintenanceAdmin } from './MaintenanceAdmin'
 import { UsersAdmin } from './UsersAdmin'
 
 type Tab =
   | 'maquinaria'
+  | 'mantenimiento'
   | 'combustible'
   | 'revision_diaria'
   | 'usuarios'
@@ -23,7 +25,11 @@ type Props = {
 const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
   maquinaria: {
     title: 'Maquinaria',
-    subtitle: 'Equipos, ficha y pauta de mantenimiento',
+    subtitle: 'Equipos, ficha, QR y pauta (PDF o Excel)',
+  },
+  mantenimiento: {
+    title: 'Mantenimiento',
+    subtitle: 'Elige el equipo: se carga sola la pauta que se subió al crearlo',
   },
   combustible: {
     title: 'Combustible',
@@ -48,6 +54,9 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
     const list: { id: Tab; label: string }[] = []
     if (permissions.view_machines || permissions.manage_machines) {
       list.push({ id: 'maquinaria', label: 'Maquinaria' })
+    }
+    if (permissions.view_maintenance || permissions.manage_maintenance) {
+      list.push({ id: 'mantenimiento', label: 'Mantenimiento' })
     }
     if (permissions.view_all_records || permissions.field_form) {
       list.push({ id: 'combustible', label: 'Combustible' })
@@ -101,7 +110,7 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
             </span>
           </div>
           <div className="sidebar-actions">
-            {permissions.field_form && onBackField ? (
+            {onBackField ? (
               <button type="button" className="btn btn-ghost btn-small" onClick={onBackField}>
                 App terreno
               </button>
@@ -132,6 +141,9 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
               canManage={permissions.manage_machines || !!user.isPrincipal}
               canManageMaintenance={permissions.manage_maintenance || !!user.isPrincipal}
             />
+          ) : null}
+          {tab === 'mantenimiento' ? (
+            <MaintenanceAdmin canManage={permissions.manage_maintenance || !!user.isPrincipal} />
           ) : null}
           {tab === 'combustible' ? (
             <FieldRecordsAdmin tipo="combustible" user={user} canManage={canEditRecords} />

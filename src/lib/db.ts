@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { MachinaryRecord } from '../types'
+import type { Machine, MachinaryRecord } from '../types'
 
 interface EdoxDB extends DBSchema {
   records: {
@@ -7,17 +7,26 @@ interface EdoxDB extends DBSchema {
     value: MachinaryRecord
     indexes: { 'by-sync': string; 'by-created': string }
   }
+  machines: {
+    key: string
+    value: Machine
+  }
 }
 
 let dbPromise: Promise<IDBPDatabase<EdoxDB>> | null = null
 
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<EdoxDB>('edox-maquinaria', 1, {
+    dbPromise = openDB<EdoxDB>('edox-maquinaria', 2, {
       upgrade(db) {
-        const store = db.createObjectStore('records', { keyPath: 'id' })
-        store.createIndex('by-sync', 'syncStatus')
-        store.createIndex('by-created', 'createdAt')
+        if (!db.objectStoreNames.contains('records')) {
+          const store = db.createObjectStore('records', { keyPath: 'id' })
+          store.createIndex('by-sync', 'syncStatus')
+          store.createIndex('by-created', 'createdAt')
+        }
+        if (!db.objectStoreNames.contains('machines')) {
+          db.createObjectStore('machines', { keyPath: 'id' })
+        }
       },
     })
   }
@@ -53,6 +62,21 @@ export async function getPendingRecords() {
 export async function deleteRecord(id: string) {
   const db = await getDb()
   await db.delete('records', id)
+}
+
+export async function saveMachines(machines: Machine[]) {
+  const db = await getDb()
+  const tx = db.transaction('machines', 'readwrite')
+  await tx.store.clear()
+  for (const machine of machines) {
+    await tx.store.put(machine)
+  }
+  await tx.done
+}
+
+export async function getCachedMachines(): Promise<Machine[]> {
+  const db = await getDb()
+  return db.getAll('machines')
 }
 
 export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {

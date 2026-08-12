@@ -164,8 +164,10 @@ export type MachinaryRecord = {
   litrosEnEstanque: string
   litrosCargados: string
   guiaNumero: string
-  /** Intervalo de pauta: km_10000 | km_20000 | … */
+  /** Id del tipo de pauta de esa máquina */
   intervaloMantenimiento?: string
+  /** Nombre del tipo (ej. Cada 250 horas de trabajo) */
+  tipoMantenimiento?: string
   mantenimiento: MaintenanceRow[]
   observaciones: string
   firmaOperador: string
@@ -226,6 +228,7 @@ export function createEmptyRecord(
     litrosCargados: '',
     guiaNumero: '',
     intervaloMantenimiento: tipoRegistro === 'mantenimiento' ? '' : undefined,
+    tipoMantenimiento: tipoRegistro === 'mantenimiento' ? '' : undefined,
     mantenimiento:
       tipoRegistro === 'mantenimiento'
         ? []
@@ -243,12 +246,29 @@ export function createEmptyRecord(
   }
 }
 
-/** Extrae sigla desde QR EDOX|MACHINE|SIGLA|ID o texto libre */
-export function parseMachineQr(raw: string): string {
-  const value = raw.trim()
+/** Extrae sigla e id desde QR EDOX|MACHINE|SIGLA|ID o texto libre */
+export function parseMachineQrMeta(raw: string): { sigla: string; id: string } {
+  const value = String(raw || '').trim()
   if (value.startsWith('EDOX|MACHINE|')) {
     const parts = value.split('|')
-    return parts[2] || value
+    return { sigla: parts[2] || value, id: parts[3] || '' }
   }
-  return value
+  return { sigla: value, id: '' }
+}
+
+export function parseMachineQr(raw: string): string {
+  return parseMachineQrMeta(raw).sigla
+}
+
+export function findMachineByCode<T extends { id: string; sigla: string }>(
+  machines: T[],
+  raw: string,
+): T | null {
+  const { sigla, id } = parseMachineQrMeta(raw)
+  const norm = sigla.trim().toUpperCase()
+  return (
+    machines.find((m) => id && m.id === id) ||
+    machines.find((m) => String(m.sigla).trim().toUpperCase() === norm) ||
+    null
+  )
 }

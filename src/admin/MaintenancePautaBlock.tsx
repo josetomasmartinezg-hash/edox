@@ -1,3 +1,5 @@
+import type { Machine, MaintenanceRow } from '../types'
+
 export type MachinePautaItem = {
   id: string
   label: string
@@ -293,8 +295,8 @@ export function MachinePautaRun({ pauta, draft, onChange, disabled }: RunProps) 
   )
 }
 
-export function cleanPauta(pauta: MachinePautaTipo[]): MachinePautaTipo[] {
-  return pauta
+export function cleanPauta(pauta: MachinePautaTipo[] = []): MachinePautaTipo[] {
+  return (pauta || [])
     .map((tipo) => ({
       ...tipo,
       nombre: tipo.nombre.trim(),
@@ -303,4 +305,26 @@ export function cleanPauta(pauta: MachinePautaTipo[]): MachinePautaTipo[] {
         .filter((item) => item.label),
     }))
     .filter((tipo) => tipo.nombre && tipo.items.length)
+}
+
+export function pautaTipoToRows(tipo: MachinePautaTipo): MaintenanceRow[] {
+  return tipo.items
+    .filter((item) => item.label.trim())
+    .map((item) => ({
+      id: item.id,
+      tipo: item.label,
+      nivel: '',
+      seAdiciona: '',
+      seAplica: '',
+      realizado: false,
+    }))
+}
+
+export function pautaSummaryText(machine?: Machine | null) {
+  if (!machine) return ''
+  const tipos = cleanPauta(machine.pauta || [])
+  const items = tipos.reduce((sum, tipo) => sum + tipo.items.length, 0)
+  const file = machine.pautaFileName ? ` · ${machine.pautaFileName}` : ''
+  if (!tipos.length) return `${machine.marca} ${machine.modelo}${file} · sin pauta`
+  return `${machine.marca} ${machine.modelo} · ${tipos.length} tipos, ${items} ítems${file}`
 }

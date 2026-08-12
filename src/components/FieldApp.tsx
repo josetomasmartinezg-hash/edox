@@ -3,6 +3,7 @@ import { HistoryList } from './HistoryList'
 import { RecordForm } from './RecordForm'
 import { useOnlineStatus } from '../hooks/useOnline'
 import { getAllRecords, getRecord, saveRecord } from '../lib/db'
+import { loadMachines } from '../lib/machines'
 import { syncPending, syncRecord } from '../lib/sync'
 import {
   FIELD_TYPE_LABELS,
@@ -34,6 +35,12 @@ const TABS: { id: FieldRecordType; title: string; help: string; cta: string }[] 
     help: 'Chequeo antes de operar, horómetro y viajes.',
     cta: 'Nueva revisión',
   },
+  {
+    id: 'mantenimiento',
+    title: 'Mantenimiento',
+    help: 'Escanea el QR: se carga sola la pauta del PDF de ese equipo.',
+    cta: 'Nuevo mantenimiento',
+  },
 ]
 
 export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
@@ -51,6 +58,7 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
 
   useEffect(() => {
     void refresh()
+    void loadMachines()
   }, [lastSyncMessage, syncing])
 
   useEffect(() => {
@@ -165,7 +173,7 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
         <div className="panel">
           <div className="hero-strip">
             <h2>Operación en terreno</h2>
-            <p>Elige una pestaña según la faena: combustible o revisión diaria.</p>
+            <p>Elige una pestaña: combustible, revisión diaria o mantenimiento (QR + pauta).</p>
           </div>
           <div className="panel-body">
             <div className="field-tabs">

@@ -99,7 +99,9 @@ export default function App() {
       <AdminPanel
         user={user}
         permissions={permissions}
-        onBackField={permissions.field_form ? () => setScreen('field') : undefined}
+        onBackField={
+          permissions.field_form || user.role === 'mecanico' ? () => setScreen('field') : undefined
+        }
         onLogout={logout}
       />
     )
