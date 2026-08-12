@@ -135,6 +135,7 @@ export type MaintenanceRecord = {
   intervaloId?: string
   horometro: string
   tareas?: MaintenanceTaskDone[]
+  pauta?: MachinePautaTipo[]
   observaciones: string
   instrucciones?: string
   status?: MaintenanceStatus

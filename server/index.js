@@ -936,6 +936,7 @@ function normalizeMaintenance(item) {
     asignadoPorId: item?.asignadoPorId || '',
     asignadoPorNombre: item?.asignadoPorNombre || '',
     comentarios: Array.isArray(item?.comentarios) ? item.comentarios : [],
+    pauta: Array.isArray(item?.pauta) ? item.pauta : [],
   }
 }
 
@@ -949,6 +950,25 @@ function mapTareas(tareas) {
       realizado: t.realizado === true || t.realizado === 'true',
     }))
     .filter((t) => t.label)
+}
+
+function flattenPautaToTareas(pauta) {
+  const tipos = Array.isArray(pauta) ? pauta : []
+  const rows = []
+  for (const tipo of tipos) {
+    for (const item of tipo.items || []) {
+      const label = String(item?.label || '').trim()
+      if (!label) continue
+      rows.push({
+        id: String(item.id || randomUUID()),
+        label,
+        tipoId: String(tipo.id || ''),
+        tipoNombre: String(tipo.nombre || '').trim(),
+        realizado: false,
+      })
+    }
+  }
+  return rows
 }
 
 function pautaItemsForTipo(machine, intervaloId, tipoNombre) {
@@ -1040,21 +1060,22 @@ app.post(
     if (!sigla?.trim() && !machineId) {
       return res.status(400).json({ error: 'Debes seleccionar un equipo (sigla)' })
     }
-    if (!tipoMantenimiento?.trim() && !intervaloId) {
-      return res.status(400).json({ error: 'Intervalo de mantenimiento obligatorio' })
-    }
 
     const machines = readJson('machines.json', [])
     const machine =
       machines.find((m) => m.id === machineId) ||
       machines.find((m) => m.sigla.toUpperCase() === String(sigla).trim().toUpperCase())
 
+    const pautaSnap = normalizePauta(req.body.pauta != null ? req.body.pauta : machine?.pauta)
     let taskRows = mapTareas(tareas)
-    if (!taskRows.length) {
+    if (!taskRows.length && (intervaloId || tipoMantenimiento)) {
       taskRows = pautaItemsForTipo(machine, intervaloId, tipoMantenimiento)
     }
     if (!taskRows.length) {
-      return res.status(400).json({ error: 'Este equipo no tiene ítems en la pauta seleccionada' })
+      taskRows = flattenPautaToTareas(pautaSnap)
+    }
+    if (!taskRows.length) {
+      return res.status(400).json({ error: 'Este equipo no tiene pauta. Súbela en PDF o Excel al crear la máquina.' })
     }
 
     const assigningToOther = asignadoId && asignadoId !== req.user.id
@@ -1073,8 +1094,11 @@ app.post(
       id: randomUUID(),
       machineId: machine?.id || machineId || null,
       sigla: machine?.sigla || String(sigla).trim().toUpperCase(),
-      tipoMantenimiento: String(tipoMantenimiento || intervaloId).trim(),
+      tipoMantenimiento: String(
+        tipoMantenimiento || machine?.pautaFileName || 'Pauta',
+      ).trim(),
       intervaloId: intervaloId || null,
+      pauta: pautaSnap,
       horometro: String(horometro || '').trim(),
       tareas: taskRows,
       observaciones: String(observaciones || '').trim(),

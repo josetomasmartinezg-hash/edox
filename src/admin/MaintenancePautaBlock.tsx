@@ -250,7 +250,7 @@ export function MachinePautaRun({
                 type="button"
                 className={`type-pill ${current?.id === tipo.id ? 'active' : ''}`}
                 disabled={disabled}
-                onClick={() => onChange({ ...draft, tipoId: tipo.id, doneTasks: {} })}
+                onClick={() => onChange({ ...draft, tipoId: tipo.id })}
               >
                 {tipo.nombre}
               </button>

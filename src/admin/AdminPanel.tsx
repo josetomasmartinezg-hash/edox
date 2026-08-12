@@ -29,7 +29,7 @@ const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
   },
   mantenimiento: {
     title: 'Mantenimiento',
-    subtitle: 'Asigna la pauta a un mecánico o supervisor; ellos la marcan en su panel',
+    subtitle: 'Equipos con pauta PDF: aquí asignas la persona que la va a realizar',
   },
   combustible: {
     title: 'Combustible',
