@@ -65,9 +65,9 @@ export function Login({ onLoggedIn, notice }: Props) {
             {loading ? 'Entrando…' : 'Entrar'}
           </button>
           <div className="demo-hint">
-            Usuario: <strong>josetomasmartinezg@gmail.com</strong>
+            Admin: <strong>admin@soinver.cl</strong> / <strong>admin1234</strong>
             <br />
-            Clave: <strong>Edox2026!</strong>
+            Principal: <strong>josetomasmartinezg@gmail.com</strong> / <strong>Edox2026!</strong>
           </div>
         </form>
       </div>

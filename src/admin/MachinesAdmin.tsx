@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/auth'
 import type { Machine, MachineCategory, MachineDocument } from '../types'
 
@@ -80,6 +80,44 @@ export function MachinesAdmin({ canManage }: Props) {
   const [historial, setHistorial] = useState<HistorialResponse | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterDocs, setFilterDocs] = useState<'all' | 'expired' | 'soon' | 'ok'>('all')
+
+  const filteredMachines = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return machines.filter((machine) => {
+      if (filterCategory) {
+        const byId = machine.categoriaId === filterCategory
+        const byName =
+          categories.find((c) => c.id === filterCategory)?.name === machine.categoria
+        if (!byId && !byName) return false
+      }
+      if (filterDocs === 'expired' && machine.documentAlert !== 'expired') return false
+      if (filterDocs === 'soon' && machine.documentAlert !== 'soon') return false
+      if (
+        filterDocs === 'ok' &&
+        (machine.documentAlert === 'expired' || machine.documentAlert === 'soon')
+      ) {
+        return false
+      }
+      if (!q) return true
+      const haystack = [
+        machine.sigla,
+        machine.marca,
+        machine.modelo,
+        machine.anio,
+        machine.categoria,
+        machine.numeroChasis,
+        machine.numeroMotor,
+        machine.capacidadEstanque,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [machines, categories, search, filterCategory, filterDocs])
 
   async function loadCategories() {
     const res = await apiFetch('/api/categories')
@@ -759,6 +797,57 @@ export function MachinesAdmin({ canManage }: Props) {
         <span className="legend-item expired">Documento vencido</span>
       </div>
 
+      <div className="machines-filters">
+        <label className="field search-field">
+          <span>Buscar</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Sigla, marca, modelo, chasis…"
+          />
+        </label>
+        <label className="field">
+          <span>Categoría</span>
+          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+            <option value="">Todas</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Documentos</span>
+          <select
+            value={filterDocs}
+            onChange={(e) => setFilterDocs(e.target.value as typeof filterDocs)}
+          >
+            <option value="all">Todos</option>
+            <option value="expired">Vencidos</option>
+            <option value="soon">Por vencer</option>
+            <option value="ok">Sin alerta</option>
+          </select>
+        </label>
+        {(search || filterCategory || filterDocs !== 'all') && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-small"
+            onClick={() => {
+              setSearch('')
+              setFilterCategory('')
+              setFilterDocs('all')
+            }}
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
+      <p className="section-help filter-count">
+        Mostrando {filteredMachines.length} de {machines.length} equipos
+      </p>
+
       {error ? <p className="form-error">{error}</p> : null}
 
       <div className="table-panel">
@@ -778,7 +867,7 @@ export function MachinesAdmin({ canManage }: Props) {
             </tr>
           </thead>
           <tbody>
-            {machines.map((machine) => (
+            {filteredMachines.map((machine) => (
               <tr
                 key={machine.id}
                 className={`clickable-row ${
@@ -821,6 +910,13 @@ export function MachinesAdmin({ canManage }: Props) {
                 <td colSpan={10} className="empty-cell">
                   No hay maquinaria.{' '}
                   {canManage ? 'Usa “Agregar maquinaria” para crear la primera.' : ''}
+                </td>
+              </tr>
+            ) : null}
+            {machines.length && !filteredMachines.length ? (
+              <tr>
+                <td colSpan={10} className="empty-cell">
+                  Ningún equipo coincide con la búsqueda o el filtro.
                 </td>
               </tr>
             ) : null}

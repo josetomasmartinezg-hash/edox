@@ -1193,6 +1193,36 @@ textarea {
   gap: 10px;
 }
 
+.machines-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.6fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0 8px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.machines-filters .field {
+  margin: 0;
+}
+
+.machines-filters .search-field input {
+  width: 100%;
+}
+
+.filter-count {
+  margin: 0 0 10px;
+}
+
+@media (max-width: 900px) {
+  .machines-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
 .legend-item {
   display: inline-flex;
   align-items: center;
