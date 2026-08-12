@@ -4,15 +4,12 @@ import { ROLE_LABELS } from '../types'
 import { DocumentsAdmin } from './DocumentsAdmin'
 import { FieldRecordsAdmin } from './FieldRecordsAdmin'
 import { MachinesAdmin } from './MachinesAdmin'
-import { MaintenanceAdmin } from './MaintenanceAdmin'
 import { UsersAdmin } from './UsersAdmin'
 
 type Tab =
   | 'maquinaria'
   | 'combustible'
   | 'revision_diaria'
-  | 'mantenimiento'
-  | 'programa_mantenimiento'
   | 'usuarios'
   | 'documentacion'
 
@@ -26,7 +23,7 @@ type Props = {
 const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
   maquinaria: {
     title: 'Maquinaria',
-    subtitle: 'Listado de equipos, ficha e historial de ingresos',
+    subtitle: 'Equipos, ficha y pauta de mantenimiento',
   },
   combustible: {
     title: 'Combustible',
@@ -35,14 +32,6 @@ const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
   revision_diaria: {
     title: 'Revisión diaria',
     subtitle: 'Chequeos diarios antes de operar',
-  },
-  mantenimiento: {
-    title: 'Mantenimiento',
-    subtitle: 'Pauta 10.000 / 20.000 km con checklist OK',
-  },
-  programa_mantenimiento: {
-    title: 'Programa de mantenimiento',
-    subtitle: 'Registrar pauta por equipo: tipo, ítems OK y observaciones',
   },
   usuarios: {
     title: 'Usuarios',
@@ -63,10 +52,6 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
     if (permissions.view_all_records || permissions.field_form) {
       list.push({ id: 'combustible', label: 'Combustible' })
       list.push({ id: 'revision_diaria', label: 'Revisión diaria' })
-      list.push({ id: 'mantenimiento', label: 'Mantenimiento' })
-    }
-    if (permissions.view_maintenance || permissions.manage_maintenance) {
-      list.push({ id: 'programa_mantenimiento', label: 'Programa mant.' })
     }
     if (permissions.view_documents || permissions.manage_documents) {
       list.push({ id: 'documentacion', label: 'Documentación' })
@@ -143,19 +128,16 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
 
         <main className="desktop-content">
           {tab === 'maquinaria' ? (
-            <MachinesAdmin canManage={permissions.manage_machines || !!user.isPrincipal} />
+            <MachinesAdmin
+              canManage={permissions.manage_machines || !!user.isPrincipal}
+              canManageMaintenance={permissions.manage_maintenance || !!user.isPrincipal}
+            />
           ) : null}
           {tab === 'combustible' ? (
             <FieldRecordsAdmin tipo="combustible" user={user} canManage={canEditRecords} />
           ) : null}
           {tab === 'revision_diaria' ? (
             <FieldRecordsAdmin tipo="revision_diaria" user={user} canManage={canEditRecords} />
-          ) : null}
-          {tab === 'mantenimiento' ? (
-            <FieldRecordsAdmin tipo="mantenimiento" user={user} canManage={canEditRecords} />
-          ) : null}
-          {tab === 'programa_mantenimiento' ? (
-            <MaintenanceAdmin canManage={permissions.manage_maintenance || !!user.isPrincipal} />
           ) : null}
           {tab === 'documentacion' ? (
             <DocumentsAdmin canManage={permissions.manage_documents || !!user.isPrincipal} />
