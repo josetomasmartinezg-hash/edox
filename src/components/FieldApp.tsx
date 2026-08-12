@@ -34,12 +34,6 @@ const TABS: { id: FieldRecordType; title: string; help: string; cta: string }[] 
     help: 'Chequeo antes de operar, horómetro y viajes.',
     cta: 'Nueva revisión',
   },
-  {
-    id: 'mantenimiento',
-    title: 'Mantenimiento',
-    help: 'Pauta 10.000 / 20.000 km: marca cada ítem OK y deja observaciones.',
-    cta: '+',
-  },
 ]
 
 export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
@@ -171,7 +165,7 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
         <div className="panel">
           <div className="hero-strip">
             <h2>Operación en terreno</h2>
-            <p>Elige una pestaña según la faena: combustible, revisión o mantenimiento.</p>
+            <p>Elige una pestaña según la faena: combustible o revisión diaria.</p>
           </div>
           <div className="panel-body">
             <div className="field-tabs">
@@ -193,20 +187,12 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
             </section>
 
             <div className="nav-grid">
-              <button
-                type="button"
-                className={`nav-card ${tab === 'mantenimiento' ? 'nav-card-add' : ''}`}
-                onClick={() => void startNew()}
-              >
+              <button type="button" className="nav-card" onClick={() => void startNew()}>
                 <div>
                   <strong>{currentTab.cta}</strong>
-                  <span>
-                    {tab === 'mantenimiento'
-                      ? 'Elige 10.000 o 20.000 km y marca ítems OK'
-                      : 'QR + formulario · funciona offline'}
-                  </span>
+                  <span>QR + formulario · funciona offline</span>
                 </div>
-                <em>{tab === 'mantenimiento' ? 'Nuevo' : 'Empezar'}</em>
+                <em>Empezar</em>
               </button>
               <button type="button" className="nav-card" onClick={() => void forceSync()}>
                 <div>
