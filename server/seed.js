@@ -9,8 +9,47 @@ const PRINCIPAL = {
   role: 'administrador',
 }
 
+const ADMIN = {
+  email: 'admin@soinver.cl',
+  name: 'Administrador SOINVER',
+  password: 'admin1234',
+  role: 'administrador',
+}
+
+function upsertUser(users, spec, extra = {}) {
+  const email = spec.email.toLowerCase()
+  let user = users.find((u) => String(u.email || '').toLowerCase() === email)
+  if (!user) {
+    user = {
+      id: randomUUID(),
+      name: spec.name,
+      email: spec.email,
+      passwordHash: bcrypt.hashSync(spec.password, 10),
+      role: spec.role,
+      isPrincipal: false,
+      active: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...extra,
+    }
+    users.push(user)
+    return users
+  }
+  user.name = user.name || spec.name
+  user.email = user.email || spec.email
+  user.role = spec.role
+  user.active = true
+  if (!user.passwordHash) {
+    user.passwordHash = bcrypt.hashSync(spec.password, 10)
+  }
+  Object.assign(user, extra)
+  const idx = users.findIndex((u) => u.id === user.id)
+  users[idx] = user
+  return users
+}
+
 export function ensureSeedData() {
-  const users = readJson('users.json', [])
+  let users = readJson('users.json', [])
   let principal = users.find((u) => u.email === PRINCIPAL.email || u.isPrincipal)
 
   if (!principal) {
@@ -26,10 +65,8 @@ export function ensureSeedData() {
       updatedAt: new Date().toISOString(),
     }
     users.push(principal)
-    writeJson('users.json', users)
     console.log(`Usuario principal creado: ${PRINCIPAL.email} / ${PRINCIPAL.password}`)
   } else {
-    // Asegura privilegios totales del principal
     principal.isPrincipal = true
     principal.role = 'administrador'
     principal.active = true
@@ -40,8 +77,10 @@ export function ensureSeedData() {
     }
     const idx = users.findIndex((u) => u.id === principal.id)
     users[idx] = principal
-    writeJson('users.json', users)
   }
+
+  users = upsertUser(users, ADMIN)
+  writeJson('users.json', users)
 
   readJson('machines.json', [])
   readJson('maintenance.json', [])

@@ -6,15 +6,38 @@ type Props = {
   notice?: string
 }
 
+const ACCOUNTS = [
+  {
+    id: 'admin',
+    label: 'Administrador',
+    email: 'admin@soinver.cl',
+    password: 'admin1234',
+  },
+  {
+    id: 'principal',
+    label: 'Principal',
+    email: 'josetomasmartinezg@gmail.com',
+    password: 'Edox2026!',
+  },
+] as const
+
 export function Login({ onLoggedIn, notice }: Props) {
-  const [email, setEmail] = useState('josetomasmartinezg@gmail.com')
-  const [password, setPassword] = useState('Edox2026!')
+  const [email, setEmail] = useState<string>(ACCOUNTS[0].email)
+  const [password, setPassword] = useState<string>(ACCOUNTS[0].password)
+  const [showPassword, setShowPassword] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     clearSession()
   }, [])
+
+  function fillAccount(account: (typeof ACCOUNTS)[number]) {
+    setEmail(account.email)
+    setPassword(account.password)
+    setShowPassword(true)
+    setError('')
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -40,6 +63,20 @@ export function Login({ onLoggedIn, notice }: Props) {
         <form className="panel-body" onSubmit={(e) => void handleSubmit(e)}>
           <h2 className="section-title">Iniciar sesión</h2>
           {notice ? <div className="demo-hint">{notice}</div> : null}
+
+          <div className="login-account-row">
+            {ACCOUNTS.map((account) => (
+              <button
+                key={account.id}
+                type="button"
+                className={`type-pill ${email === account.email ? 'active' : ''}`}
+                onClick={() => fillAccount(account)}
+              >
+                {account.label}
+              </button>
+            ))}
+          </div>
+
           <label className="field">
             <span>Correo</span>
             <input
@@ -52,22 +89,36 @@ export function Login({ onLoggedIn, notice }: Props) {
           </label>
           <label className="field">
             <span>Contraseña</span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="password-row">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                onClick={() => setShowPassword((current) => !current)}
+              >
+                {showPassword ? 'Ocultar' : 'Ver'}
+              </button>
+            </div>
           </label>
           {error ? <p className="form-error">{error}</p> : null}
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? 'Entrando…' : 'Entrar'}
           </button>
           <div className="demo-hint">
-            Admin: <strong>admin@soinver.cl</strong> / <strong>admin1234</strong>
+            <strong>Administrador</strong>
             <br />
-            Principal: <strong>josetomasmartinezg@gmail.com</strong> / <strong>Edox2026!</strong>
+            {ACCOUNTS[0].email} / {ACCOUNTS[0].password}
+            <br />
+            <br />
+            <strong>Principal</strong>
+            <br />
+            {ACCOUNTS[1].email} / {ACCOUNTS[1].password}
           </div>
         </form>
       </div>

@@ -2,11 +2,12 @@
 
 App web/PWA para empresas de transporte y maquinaria. Incluye parte diario en terreno (QR + combustible + foto offline) y **panel admin** con roles.
 
-## Acceso principal
+## Acceso
 
-- Correo: `josetomasmartinezg@gmail.com`
-- Clave: `Edox2026!`
-- Perfil: **Administrador** (acceso total)
+- **Administrador:** `admin@soinver.cl` / `admin1234`
+- **Principal:** `josetomasmartinezg@gmail.com` / `Edox2026!`
+
+En la pantalla de login puedes tocar **Administrador** o **Principal** para cargar las credenciales.
 
 ## Perfiles
 

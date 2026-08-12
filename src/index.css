@@ -592,6 +592,20 @@ textarea {
   border: 1px solid #e5e7eb;
 }
 
+.login-account-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.password-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .footer-note {
   margin-top: 18px;
   text-align: center;
