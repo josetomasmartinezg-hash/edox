@@ -65,6 +65,7 @@ export default function App() {
   }, [bootstrap])
 
   function logout() {
+    sessionStorage.setItem('edox_manual_logout', '1')
     clearSession()
     setUser(null)
     setPermissions(emptyPermissions)
