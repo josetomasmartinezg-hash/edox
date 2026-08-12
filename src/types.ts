@@ -75,6 +75,7 @@ export type Machine = {
   anio: string
   sigla: string
   capacidadEstanque: string
+  capacidadEstanque2?: string
   numeroChasis: string
   numeroMotor: string
   categoriaId?: string

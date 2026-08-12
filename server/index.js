@@ -417,6 +417,8 @@ function normalizeMachine(machine) {
     ...machine,
     numeroChasis: machine.numeroChasis || '',
     numeroMotor: machine.numeroMotor || '',
+    capacidadEstanque: machine.capacidadEstanque || '',
+    capacidadEstanque2: machine.capacidadEstanque2 || '',
     categoriaId: category?.id || machine.categoriaId || '',
     categoria: category?.name || machine.categoria || '',
     pauta: normalizePauta(machine.pauta),
@@ -727,6 +729,7 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
     anio,
     sigla,
     capacidadEstanque,
+    capacidadEstanque2,
     numeroChasis,
     numeroMotor,
     categoriaId,
@@ -756,6 +759,9 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
     anio: String(anio || '').trim(),
     sigla: normalizedSigla,
     capacidadEstanque: String(capacidadEstanque || '')
+      .replace(/[^\d]/g, '')
+      .trim(),
+    capacidadEstanque2: String(capacidadEstanque2 || '')
       .replace(/[^\d]/g, '')
       .trim(),
     numeroChasis: String(numeroChasis || '').trim(),
@@ -819,6 +825,10 @@ app.put('/api/machines/:id', authRequired, requirePermission('manage_machines'),
       req.body.capacidadEstanque != null
         ? String(req.body.capacidadEstanque).replace(/[^\d]/g, '').trim()
         : current.capacidadEstanque,
+    capacidadEstanque2:
+      req.body.capacidadEstanque2 != null
+        ? String(req.body.capacidadEstanque2).replace(/[^\d]/g, '').trim()
+        : current.capacidadEstanque2 || '',
     numeroChasis:
       req.body.numeroChasis != null
         ? String(req.body.numeroChasis).trim()

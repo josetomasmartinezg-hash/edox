@@ -17,6 +17,7 @@ const emptyForm = {
   anio: '',
   sigla: '',
   capacidadEstanque: '',
+  capacidadEstanque2: '',
   numeroChasis: '',
   numeroMotor: '',
   generateQr: true,
@@ -65,6 +66,15 @@ type View = 'list' | 'create' | 'detail' | 'edit' | 'categories'
 type Props = {
   canManage: boolean
   canManageMaintenance?: boolean
+}
+
+function tankCapacityLabel(machine: Pick<Machine, 'capacidadEstanque' | 'capacidadEstanque2'>) {
+  const first = machine.capacidadEstanque?.trim()
+  const second = machine.capacidadEstanque2?.trim()
+  if (first && second) return `${first} L / ${second} L`
+  if (first) return `${first} L`
+  if (second) return `${second} L`
+  return '—'
 }
 
 function formatDate(value?: string | null) {
@@ -135,6 +145,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
         machine.numeroChasis,
         machine.numeroMotor,
         machine.capacidadEstanque,
+        machine.capacidadEstanque2,
       ]
         .filter(Boolean)
         .join(' ')
@@ -364,6 +375,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
       anio: machine.anio,
       sigla: machine.sigla,
       capacidadEstanque: machine.capacidadEstanque,
+      capacidadEstanque2: machine.capacidadEstanque2 || '',
       numeroChasis: machine.numeroChasis || '',
       numeroMotor: machine.numeroMotor || '',
       generateQr: true,
@@ -619,6 +631,24 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
               />
             </label>
             <label className="field">
+              <span>Capacidad estanque 2 (L) (opcional)</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                step="1"
+                value={form.capacidadEstanque2}
+                onChange={(e) => {
+                  const onlyNumbers = e.target.value.replace(/[^\d]/g, '')
+                  setForm({ ...form, capacidadEstanque2: onlyNumbers })
+                }}
+                onKeyDown={(e) => {
+                  if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault()
+                }}
+                placeholder="Opcional"
+              />
+            </label>
+            <label className="field">
               <span>Número de chasis</span>
               <input
                 value={form.numeroChasis}
@@ -728,9 +758,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
               </div>
               <div>
                 <div className="detail-label">Capacidad estanque</div>
-                <div className="detail-value">
-                  {machine.capacidadEstanque ? `${machine.capacidadEstanque} L` : '—'}
-                </div>
+                <div className="detail-value">{tankCapacityLabel(machine)}</div>
               </div>
               <div>
                 <div className="detail-label">Número de chasis</div>
@@ -1129,7 +1157,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
                 <td>{machine.marca}</td>
                 <td>{machine.modelo}</td>
                 <td>{machine.anio || '—'}</td>
-                <td>{machine.capacidadEstanque ? `${machine.capacidadEstanque} L` : '—'}</td>
+                <td>{tankCapacityLabel(machine)}</td>
                 <td>{machine.numeroChasis || '—'}</td>
                 <td>{machine.numeroMotor || '—'}</td>
                 <td>
