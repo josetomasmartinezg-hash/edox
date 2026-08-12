@@ -40,6 +40,7 @@ export type Permissions = {
   manage_machines: boolean
   view_machines: boolean
   manage_maintenance: boolean
+  assign_maintenance: boolean
   view_maintenance: boolean
   manage_documents: boolean
   view_documents: boolean
@@ -110,6 +111,16 @@ export type MachineDocument = {
   updatedAt: string
 }
 
+export type MaintenanceStatus = 'pending' | 'in_progress' | 'completed'
+
+export type MaintenanceComment = {
+  id: string
+  texto: string
+  autorId: string
+  autorNombre: string
+  createdAt: string
+}
+
 export type MaintenanceTaskDone = {
   id: string
   label: string
@@ -124,6 +135,15 @@ export type MaintenanceRecord = {
   intervaloId?: string
   horometro: string
   tareas?: MaintenanceTaskDone[]
+  observaciones: string
+  instrucciones?: string
+  status?: MaintenanceStatus
+  asignadoId?: string | null
+  asignadoNombre?: string
+  asignadoRole?: string
+  asignadoPorId?: string
+  asignadoPorNombre?: string
+  comentarios?: MaintenanceComment[]
   /** @deprecated campos antiguos */
   acciones?: string[]
   detalles?: Array<{
@@ -133,7 +153,6 @@ export type MaintenanceRecord = {
     seAplica: string
     realizado: boolean
   }>
-  observaciones: string
   mecanicoId: string
   mecanicoNombre: string
   createdAt: string

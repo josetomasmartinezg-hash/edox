@@ -169,6 +169,7 @@ app.get('/api/auth/me', authRequired, (req, res) => {
       manage_machines: req.user.isPrincipal || roleCan(req.user.role, 'manage_machines'),
       view_machines: req.user.isPrincipal || roleCan(req.user.role, 'view_machines'),
       manage_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'manage_maintenance'),
+      assign_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'assign_maintenance'),
       view_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'view_maintenance'),
       manage_documents: req.user.isPrincipal || roleCan(req.user.role, 'manage_documents'),
       view_documents: req.user.isPrincipal || roleCan(req.user.role, 'view_documents'),
@@ -907,15 +908,113 @@ app.delete(
   },
 )
 
+function maintenanceStatusFromTasks(tareas, requested) {
+  if (requested === 'completed' || requested === 'pending' || requested === 'in_progress') {
+    return requested
+  }
+  const list = Array.isArray(tareas) ? tareas : []
+  if (!list.length) return 'pending'
+  if (list.every((t) => t.realizado)) return 'completed'
+  if (list.some((t) => t.realizado)) return 'in_progress'
+  return 'pending'
+}
+
+function normalizeMaintenance(item) {
+  const tareas = Array.isArray(item?.tareas) ? item.tareas : []
+  const status =
+    item?.status ||
+    (tareas.some((t) => t.realizado) ? 'completed' : 'pending')
+  return {
+    ...item,
+    status,
+    horometro: item?.horometro || '',
+    instrucciones: item?.instrucciones || '',
+    observaciones: item?.observaciones || '',
+    asignadoId: item?.asignadoId || item?.mecanicoId || null,
+    asignadoNombre: item?.asignadoNombre || item?.mecanicoNombre || '',
+    asignadoRole: item?.asignadoRole || '',
+    asignadoPorId: item?.asignadoPorId || '',
+    asignadoPorNombre: item?.asignadoPorNombre || '',
+    comentarios: Array.isArray(item?.comentarios) ? item.comentarios : [],
+  }
+}
+
+function mapTareas(tareas) {
+  if (!Array.isArray(tareas)) return []
+  return tareas
+    .filter((t) => t && (t.id || t.label))
+    .map((t) => ({
+      id: String(t.id || randomUUID()),
+      label: String(t.label || '').trim(),
+      realizado: t.realizado === true || t.realizado === 'true',
+    }))
+    .filter((t) => t.label)
+}
+
+function pautaItemsForTipo(machine, intervaloId, tipoNombre) {
+  const tipos = Array.isArray(machine?.pauta) ? machine.pauta : []
+  const current =
+    tipos.find((t) => t.id === intervaloId) ||
+    tipos.find(
+      (t) =>
+        String(t.nombre || '').trim().toLowerCase() ===
+        String(tipoNombre || '').trim().toLowerCase(),
+    ) ||
+    tipos[0]
+  if (!current) return []
+  return (current.items || [])
+    .filter((item) => String(item?.label || '').trim())
+    .map((item) => ({
+      id: String(item.id || randomUUID()),
+      label: String(item.label).trim(),
+      realizado: false,
+    }))
+}
+
+function resolveAssignee(asignadoId) {
+  if (!asignadoId) return null
+  const users = readJson('users.json', [])
+  const user = users.find((u) => u.id === asignadoId && u.active !== false)
+  if (!user) return null
+  if (!['mecanico', 'supervisor', 'administrador'].includes(user.role) && !user.isPrincipal) {
+    return null
+  }
+  return user
+}
+
+function canSeeAllMaintenance(user) {
+  return (
+    !!user.isPrincipal ||
+    roleCan(user.role, 'assign_maintenance') ||
+    roleCan(user.role, 'view_all_records')
+  )
+}
+
+function canUpdateMaintenance(user, item) {
+  if (!user) return false
+  if (user.isPrincipal || roleCan(user.role, 'assign_maintenance')) return true
+  return item.asignadoId === user.id || item.mecanicoId === user.id
+}
+
 /* ─── Maintenance ─── */
 app.get(
   '/api/maintenance',
   authRequired,
   requirePermission('view_maintenance'),
-  (_req, res) => {
-    const items = readJson('maintenance.json', []).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )
+  (req, res) => {
+    let items = readJson('maintenance.json', []).map(normalizeMaintenance)
+    if (!canSeeAllMaintenance(req.user)) {
+      items = items.filter(
+        (m) => m.asignadoId === req.user.id || m.mecanicoId === req.user.id,
+      )
+    }
+    const rank = { pending: 0, in_progress: 1, completed: 2 }
+    items.sort((a, b) => {
+      const ra = rank[a.status] ?? 3
+      const rb = rank[b.status] ?? 3
+      if (ra !== rb) return ra - rb
+      return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
+    })
     res.json(items)
   },
 )
@@ -933,6 +1032,9 @@ app.post(
       horometro,
       tareas = [],
       observaciones,
+      instrucciones,
+      asignadoId,
+      status,
     } = req.body || {}
 
     if (!sigla?.trim() && !machineId) {
@@ -941,27 +1043,30 @@ app.post(
     if (!tipoMantenimiento?.trim() && !intervaloId) {
       return res.status(400).json({ error: 'Intervalo de mantenimiento obligatorio' })
     }
-    if (!horometro && horometro !== 0) {
-      return res.status(400).json({ error: 'Horómetro obligatorio' })
-    }
 
     const machines = readJson('machines.json', [])
     const machine =
       machines.find((m) => m.id === machineId) ||
       machines.find((m) => m.sigla.toUpperCase() === String(sigla).trim().toUpperCase())
 
-    const taskRows = Array.isArray(tareas)
-      ? tareas
-          .filter((t) => t && t.id && t.label)
-          .map((t) => ({
-            id: String(t.id),
-            label: String(t.label),
-            realizado: t.realizado === true || t.realizado === 'true',
-          }))
-      : []
+    let taskRows = mapTareas(tareas)
+    if (!taskRows.length) {
+      taskRows = pautaItemsForTipo(machine, intervaloId, tipoMantenimiento)
+    }
+    if (!taskRows.length) {
+      return res.status(400).json({ error: 'Este equipo no tiene ítems en la pauta seleccionada' })
+    }
 
-    if (!taskRows.some((t) => t.realizado)) {
-      return res.status(400).json({ error: 'Debes marcar al menos una tarea realizada' })
+    const assigningToOther = asignadoId && asignadoId !== req.user.id
+    if (assigningToOther && !req.user.isPrincipal && !roleCan(req.user.role, 'assign_maintenance')) {
+      return res.status(403).json({ error: 'No puedes asignar mantenimientos a otros usuarios' })
+    }
+
+    const assignee = resolveAssignee(asignadoId) || req.user
+    const nextStatus = maintenanceStatusFromTasks(taskRows, status)
+
+    if (nextStatus === 'completed' && !String(horometro || '').trim()) {
+      return res.status(400).json({ error: 'Ingresa el kilometraje u horómetro para completar' })
     }
 
     const item = {
@@ -970,11 +1075,19 @@ app.post(
       sigla: machine?.sigla || String(sigla).trim().toUpperCase(),
       tipoMantenimiento: String(tipoMantenimiento || intervaloId).trim(),
       intervaloId: intervaloId || null,
-      horometro: String(horometro).trim(),
+      horometro: String(horometro || '').trim(),
       tareas: taskRows,
       observaciones: String(observaciones || '').trim(),
-      mecanicoId: req.user.id,
-      mecanicoNombre: req.user.name,
+      instrucciones: String(instrucciones || '').trim(),
+      status: nextStatus,
+      asignadoId: assignee.id,
+      asignadoNombre: assignee.name,
+      asignadoRole: assignee.role,
+      asignadoPorId: req.user.id,
+      asignadoPorNombre: req.user.name,
+      comentarios: [],
+      mecanicoId: assignee.id,
+      mecanicoNombre: assignee.name,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
@@ -982,14 +1095,101 @@ app.post(
     const all = readJson('maintenance.json', [])
     all.push(item)
     writeJson('maintenance.json', all)
-    res.status(201).json(item)
+    res.status(201).json(normalizeMaintenance(item))
+  },
+)
+
+app.put(
+  '/api/maintenance/:id',
+  authRequired,
+  requirePermission('view_maintenance'),
+  (req, res) => {
+    const all = readJson('maintenance.json', [])
+    const idx = all.findIndex((m) => m.id === req.params.id)
+    if (idx < 0) return res.status(404).json({ error: 'Registro no encontrado' })
+
+    const current = normalizeMaintenance(all[idx])
+    if (!canUpdateMaintenance(req.user, current)) {
+      return res.status(403).json({ error: 'Este mantenimiento no está asignado a ti' })
+    }
+
+    const taskRows =
+      req.body.tareas != null ? mapTareas(req.body.tareas) : current.tareas || []
+    const nextStatus = maintenanceStatusFromTasks(taskRows, req.body.status)
+    const horometro =
+      req.body.horometro != null ? String(req.body.horometro).trim() : current.horometro
+
+    if (nextStatus === 'completed' && !horometro) {
+      return res.status(400).json({ error: 'Ingresa el kilometraje u horómetro para completar' })
+    }
+
+    let comentarios = current.comentarios || []
+    const extra = String(req.body.comentario || '').trim()
+    if (extra) {
+      comentarios = [
+        ...comentarios,
+        {
+          id: randomUUID(),
+          texto: extra,
+          autorId: req.user.id,
+          autorNombre: req.user.name,
+          createdAt: new Date().toISOString(),
+        },
+      ]
+    }
+
+    let assignee = {
+      asignadoId: current.asignadoId,
+      asignadoNombre: current.asignadoNombre,
+      asignadoRole: current.asignadoRole,
+      mecanicoId: current.mecanicoId,
+      mecanicoNombre: current.mecanicoNombre,
+    }
+    if (
+      req.body.asignadoId &&
+      (req.user.isPrincipal || roleCan(req.user.role, 'assign_maintenance'))
+    ) {
+      const nextAssignee = resolveAssignee(req.body.asignadoId)
+      if (!nextAssignee) {
+        return res.status(400).json({ error: 'El asignado debe ser mecánico o supervisor' })
+      }
+      assignee = {
+        asignadoId: nextAssignee.id,
+        asignadoNombre: nextAssignee.name,
+        asignadoRole: nextAssignee.role,
+        mecanicoId: nextAssignee.id,
+        mecanicoNombre: nextAssignee.name,
+      }
+    }
+
+    const updated = {
+      ...current,
+      ...assignee,
+      horometro,
+      tareas: taskRows,
+      observaciones:
+        req.body.observaciones != null
+          ? String(req.body.observaciones).trim()
+          : current.observaciones,
+      instrucciones:
+        req.body.instrucciones != null
+          ? String(req.body.instrucciones).trim()
+          : current.instrucciones,
+      status: nextStatus,
+      comentarios,
+      updatedAt: new Date().toISOString(),
+    }
+
+    all[idx] = updated
+    writeJson('maintenance.json', all)
+    res.json(normalizeMaintenance(updated))
   },
 )
 
 app.delete(
   '/api/maintenance/:id',
   authRequired,
-  requirePermission('manage_maintenance'),
+  requirePermission('assign_maintenance'),
   (req, res) => {
     const all = readJson('maintenance.json', [])
     if (!all.some((m) => m.id === req.params.id)) {
@@ -1058,6 +1258,14 @@ function syncMaintenanceFromFieldRecord(record, user) {
     horometro: String(record.horasInicial || '').trim() || '—',
     tareas,
     observaciones: String(record.observaciones || '').trim(),
+    instrucciones: '',
+    status: 'completed',
+    asignadoId: user.id,
+    asignadoNombre: record.operador || user.name,
+    asignadoRole: user.role,
+    asignadoPorId: user.id,
+    asignadoPorNombre: user.name,
+    comentarios: idx >= 0 ? all[idx].comentarios || [] : [],
     mecanicoId: user.id,
     mecanicoNombre: record.operador || user.name,
     createdAt: idx >= 0 ? all[idx].createdAt : record.createdAt || new Date().toISOString(),

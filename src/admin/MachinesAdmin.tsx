@@ -212,6 +212,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
         intervaloId: current.id,
         horometro: runDraft.horometro.trim(),
         observaciones: runDraft.observaciones.trim(),
+        status: 'completed',
         tareas: current.items.map((item) => ({
           id: item.id,
           label: item.label,

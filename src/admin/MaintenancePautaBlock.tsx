@@ -196,9 +196,24 @@ type RunProps = {
   draft: PautaRunDraft
   onChange: (draft: PautaRunDraft) => void
   disabled?: boolean
+  lockTipo?: boolean
+  title?: string
+  help?: string
+  commentLabel?: string
+  commentPlaceholder?: string
 }
 
-export function MachinePautaRun({ pauta, draft, onChange, disabled }: RunProps) {
+export function MachinePautaRun({
+  pauta,
+  draft,
+  onChange,
+  disabled,
+  lockTipo,
+  title,
+  help,
+  commentLabel,
+  commentPlaceholder,
+}: RunProps) {
   const tipos = (pauta || []).filter((t) => t.nombre.trim() && t.items.some((i) => i.label.trim()))
   const current = tipos.find((t) => t.id === draft.tipoId) || tipos[0] || null
   const items = (current?.items || []).filter((i) => i.label.trim())
@@ -219,26 +234,34 @@ export function MachinePautaRun({ pauta, draft, onChange, disabled }: RunProps) 
   return (
     <div className="machine-pauta">
       <div className="machine-pauta-head">
-        <h4>Registrar mantenimiento</h4>
-        <p className="section-help">Marca cada ítem de la pauta de este equipo con OK.</p>
+        <h4>{title || 'Registrar mantenimiento'}</h4>
+        <p className="section-help">
+          {help || 'Marca cada ítem de la pauta de este equipo con OK.'}
+        </p>
       </div>
 
-      <div className="field">
-        <span>Tipo de pauta</span>
-        <div className="type-pill-row">
-          {tipos.map((tipo) => (
-            <button
-              key={tipo.id}
-              type="button"
-              className={`type-pill ${current?.id === tipo.id ? 'active' : ''}`}
-              disabled={disabled}
-              onClick={() => onChange({ ...draft, tipoId: tipo.id, doneTasks: {} })}
-            >
-              {tipo.nombre}
-            </button>
-          ))}
+      {!lockTipo ? (
+        <div className="field">
+          <span>Tipo de pauta</span>
+          <div className="type-pill-row">
+            {tipos.map((tipo) => (
+              <button
+                key={tipo.id}
+                type="button"
+                className={`type-pill ${current?.id === tipo.id ? 'active' : ''}`}
+                disabled={disabled}
+                onClick={() => onChange({ ...draft, tipoId: tipo.id, doneTasks: {} })}
+              >
+                {tipo.nombre}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <p className="section-help">
+          Tipo: <strong>{current?.nombre || '—'}</strong>
+        </p>
+      )}
 
       <label className="field">
         <span>Kilometraje / Horómetro</span>
@@ -282,11 +305,13 @@ export function MachinePautaRun({ pauta, draft, onChange, disabled }: RunProps) 
       </div>
 
       <label className="field">
-        <span>Comentario / Observaciones</span>
+        <span>{commentLabel || 'Comentario / Observaciones'}</span>
         <textarea
           value={draft.observaciones}
           onChange={(e) => onChange({ ...draft, observaciones: e.target.value })}
-          placeholder="Detalle del trabajo, repuestos, hallazgos…"
+          placeholder={
+            commentPlaceholder || 'Si hay algo extra, déjalo aquí: repuestos, hallazgos, pendientes…'
+          }
           rows={3}
           disabled={disabled}
         />

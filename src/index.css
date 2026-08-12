@@ -734,6 +734,22 @@ textarea {
   color: #b91c1c;
 }
 
+.comment-log {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.comment-log h4 {
+  margin: 0;
+}
+
+.pauta-upload-err {
+  color: #b91c1c;
+}
+
 .pauta-tipo-card {
   display: grid;
   gap: 10px;

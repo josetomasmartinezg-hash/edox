@@ -29,7 +29,7 @@ const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
   },
   mantenimiento: {
     title: 'Mantenimiento',
-    subtitle: 'Elige el equipo: se carga sola la pauta que se subió al crearlo',
+    subtitle: 'Asigna la pauta a un mecánico o supervisor; ellos la marcan en su panel',
   },
   combustible: {
     title: 'Combustible',
@@ -69,7 +69,9 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
     return list
   }, [permissions])
 
-  const [tab, setTab] = useState<Tab>(tabs[0]?.id || 'maquinaria')
+  const [tab, setTab] = useState<Tab>(
+    user.role === 'mecanico' ? 'mantenimiento' : tabs[0]?.id || 'maquinaria',
+  )
   const copy = TAB_COPY[tab]
   const canEditRecords =
     permissions.field_form || permissions.view_all_records || !!user.isPrincipal
@@ -141,7 +143,11 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
             />
           ) : null}
           {tab === 'mantenimiento' ? (
-            <MaintenanceAdmin canManage={permissions.manage_maintenance || !!user.isPrincipal} />
+            <MaintenanceAdmin
+              user={user}
+              canAssign={permissions.assign_maintenance || !!user.isPrincipal}
+              canManage={permissions.manage_maintenance || !!user.isPrincipal}
+            />
           ) : null}
           {tab === 'combustible' ? (
             <FieldRecordsAdmin tipo="combustible" user={user} canManage={canEditRecords} />

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/auth'
-import type { Machine, MaintenanceRecord } from '../types'
+import { ROLE_LABELS, type Machine, type MaintenanceRecord, type User } from '../types'
 import {
   MachinePautaRun,
   cleanPauta,
@@ -9,18 +9,79 @@ import {
   type PautaRunDraft,
 } from './MaintenancePautaBlock'
 
+type Assignee = {
+  id: string
+  name: string
+  role: User['role']
+}
+
 type Props = {
+  user: User
+  canAssign: boolean
   canManage: boolean
 }
 
-type View = 'list' | 'create'
+type View = 'list' | 'assign' | 'execute'
+type StatusFilter = 'open' | 'all' | 'completed'
 
-export function MaintenanceAdmin({ canManage }: Props) {
+function statusLabel(status?: string) {
+  if (status === 'pending') return 'Pendiente'
+  if (status === 'in_progress') return 'En curso'
+  if (status === 'completed') return 'Completado'
+  return 'Pendiente'
+}
+
+function statusClass(status?: string) {
+  if (status === 'completed') return 'synced'
+  if (status === 'in_progress') return 'pending'
+  return 'error'
+}
+
+function formatDate(value?: string) {
+  if (!value) return '—'
+  try {
+    return new Date(value).toLocaleString('es-CL', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    })
+  } catch {
+    return value
+  }
+}
+
+function draftFromItem(item: MaintenanceRecord): PautaRunDraft {
+  const doneTasks: Record<string, boolean> = {}
+  for (const task of item.tareas || []) doneTasks[task.id] = !!task.realizado
+  return {
+    tipoId: item.intervaloId || 'tipo',
+    horometro: item.horometro || '',
+    doneTasks,
+    observaciones: item.observaciones || '',
+  }
+}
+
+function pautaFromItem(item: MaintenanceRecord) {
+  return [
+    {
+      id: item.intervaloId || 'tipo',
+      nombre: item.tipoMantenimiento,
+      items: (item.tareas || []).map((task) => ({ id: task.id, label: task.label })),
+    },
+  ]
+}
+
+export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
   const [view, setView] = useState<View>('list')
   const [machines, setMachines] = useState<Machine[]>([])
+  const [assignees, setAssignees] = useState<Assignee[]>([])
   const [items, setItems] = useState<MaintenanceRecord[]>([])
   const [machineId, setMachineId] = useState('')
+  const [tipoId, setTipoId] = useState('')
+  const [asignadoId, setAsignadoId] = useState('')
+  const [instrucciones, setInstrucciones] = useState('')
   const [runDraft, setRunDraft] = useState<PautaRunDraft>(emptyPautaRun())
+  const [selected, setSelected] = useState<MaintenanceRecord | null>(null)
+  const [filter, setFilter] = useState<StatusFilter>('open')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -28,19 +89,32 @@ export function MaintenanceAdmin({ canManage }: Props) {
     () => machines.find((m) => m.id === machineId) || null,
     [machines, machineId],
   )
+  const pauta = useMemo(() => cleanPauta(selectedMachine?.pauta || []), [selectedMachine])
+  const currentTipo = pauta.find((t) => t.id === tipoId) || pauta[0] || null
 
-  const pauta = useMemo(
-    () => cleanPauta(selectedMachine?.pauta || []),
-    [selectedMachine],
-  )
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const status = item.status || 'pending'
+      if (filter === 'open') return status === 'pending' || status === 'in_progress'
+      if (filter === 'completed') return status === 'completed'
+      return true
+    })
+  }, [items, filter])
 
   async function load() {
-    const [mRes, iRes] = await Promise.all([
+    const [mRes, iRes, oRes] = await Promise.all([
       apiFetch('/api/machines'),
       apiFetch('/api/maintenance'),
+      apiFetch('/api/operators'),
     ])
     if (mRes.ok) setMachines(await mRes.json())
     if (iRes.ok) setItems(await iRes.json())
+    if (oRes.ok) {
+      const people = (await oRes.json()) as Assignee[]
+      setAssignees(
+        people.filter((p) => p.role === 'mecanico' || p.role === 'supervisor' || p.role === 'administrador'),
+      )
+    }
   }
 
   useEffect(() => {
@@ -48,39 +122,37 @@ export function MaintenanceAdmin({ canManage }: Props) {
   }, [])
 
   useEffect(() => {
-    setRunDraft(emptyPautaRun(pauta))
+    setTipoId(pauta[0]?.id || '')
     setError('')
   }, [machineId])
 
-  function openCreate() {
+  function openAssign() {
     setError('')
     setMachineId('')
-    setRunDraft(emptyPautaRun())
-    setView('create')
+    setTipoId('')
+    setAsignadoId('')
+    setInstrucciones('')
+    setView('assign')
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!canManage) return
-    if (!selectedMachine) {
-      setError('Selecciona el equipo')
-      return
-    }
-    const tipos = cleanPauta(selectedMachine.pauta || [])
-    const current = tipos.find((t) => t.id === runDraft.tipoId) || tipos[0]
-    if (!current) {
-      setError('Este equipo no tiene pauta. Súbela en Maquinaria (PDF o Excel).')
-      return
-    }
-    if (!runDraft.horometro.trim()) {
-      setError('Ingresa el kilometraje u horómetro')
-      return
-    }
-    if (!Object.values(runDraft.doneTasks).some(Boolean)) {
-      setError('Marca al menos un ítem con OK')
-      return
-    }
+  function openExecute(item: MaintenanceRecord) {
+    setSelected(item)
+    setRunDraft(draftFromItem(item))
+    setError('')
+    setView('execute')
+  }
 
+  async function handleAssign(e: React.FormEvent) {
+    e.preventDefault()
+    if (!canAssign) return
+    if (!selectedMachine || !currentTipo) {
+      setError('Selecciona el equipo y el tipo de pauta')
+      return
+    }
+    if (!asignadoId) {
+      setError('Asigna el mantenimiento a un mecánico o supervisor')
+      return
+    }
     setLoading(true)
     setError('')
     const res = await apiFetch('/api/maintenance', {
@@ -88,15 +160,55 @@ export function MaintenanceAdmin({ canManage }: Props) {
       body: JSON.stringify({
         machineId: selectedMachine.id,
         sigla: selectedMachine.sigla,
-        tipoMantenimiento: current.nombre,
-        intervaloId: current.id,
-        horometro: runDraft.horometro.trim(),
-        observaciones: runDraft.observaciones.trim(),
-        tareas: current.items.map((item) => ({
+        tipoMantenimiento: currentTipo.nombre,
+        intervaloId: currentTipo.id,
+        instrucciones: instrucciones.trim(),
+        asignadoId,
+        status: 'pending',
+        tareas: currentTipo.items.map((item) => ({
           id: item.id,
           label: item.label,
-          realizado: !!runDraft.doneTasks[item.id],
+          realizado: false,
         })),
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setLoading(false)
+    if (!res.ok) {
+      setError(data.error || 'No se pudo asignar')
+      return
+    }
+    setView('list')
+    await load()
+  }
+
+  async function saveProgress(complete: boolean) {
+    if (!selected || !canManage) return
+    if (complete && !runDraft.horometro.trim()) {
+      setError('Ingresa el kilometraje u horómetro para completar')
+      return
+    }
+    const tareas = (selected.tareas || []).map((task) => ({
+      ...task,
+      realizado: !!runDraft.doneTasks[task.id],
+    }))
+    if (complete && !tareas.some((t) => t.realizado) && !runDraft.observaciones.trim()) {
+      setError('Marca al menos un ítem o deja un comentario')
+      return
+    }
+    setLoading(true)
+    setError('')
+    const res = await apiFetch(`/api/maintenance/${selected.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        horometro: runDraft.horometro.trim(),
+        observaciones: runDraft.observaciones.trim(),
+        tareas,
+        status: complete
+          ? 'completed'
+          : tareas.some((t) => t.realizado)
+            ? 'in_progress'
+            : 'pending',
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -106,6 +218,7 @@ export function MaintenanceAdmin({ canManage }: Props) {
       return
     }
     setView('list')
+    setSelected(null)
     await load()
   }
 
@@ -115,14 +228,14 @@ export function MaintenanceAdmin({ canManage }: Props) {
     await load()
   }
 
-  if (view === 'create') {
+  if (view === 'assign') {
     return (
       <div className="admin-section">
         <div className="toolbar">
           <div>
-            <h3 className="section-title">Nuevo mantenimiento</h3>
+            <h3 className="section-title">Asignar mantenimiento</h3>
             <p className="section-help">
-              Elige el equipo: la pauta del PDF o Excel se carga sola. Marca los ítems con OK.
+              Elige el equipo, el tipo de pauta y a quién se lo asignas. Le aparecerá en su panel.
             </p>
           </div>
           <button type="button" className="btn btn-ghost" onClick={() => setView('list')}>
@@ -130,41 +243,79 @@ export function MaintenanceAdmin({ canManage }: Props) {
           </button>
         </div>
 
-        <form className="maint-create" onSubmit={(e) => void handleSubmit(e)}>
+        <form className="maint-create" onSubmit={(e) => void handleAssign(e)}>
           <div className="admin-card">
-            <h4>Equipo</h4>
-            <label className="field">
-              <span>Seleccionar maquinaria</span>
-              <select
-                value={machineId}
-                onChange={(e) => setMachineId(e.target.value)}
-                required
-              >
-                <option value="">Seleccionar…</option>
-                {machines.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.sigla} — {m.categoria || 'Sin categoría'} · {m.marca} {m.modelo}
-                    {cleanPauta(m.pauta || []).length ? '' : ' (sin pauta)'}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <h4>Equipo y responsable</h4>
+            <div className="field-grid two">
+              <label className="field">
+                <span>Maquinaria</span>
+                <select
+                  value={machineId}
+                  onChange={(e) => setMachineId(e.target.value)}
+                  required
+                >
+                  <option value="">Seleccionar…</option>
+                  {machines.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.sigla} — {m.categoria || 'Sin categoría'} · {m.marca} {m.modelo}
+                      {cleanPauta(m.pauta || []).length ? '' : ' (sin pauta)'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Asignar a</span>
+                <select
+                  value={asignadoId}
+                  onChange={(e) => setAsignadoId(e.target.value)}
+                  required
+                >
+                  <option value="">Mecánico o supervisor…</option>
+                  {assignees.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.name} · {ROLE_LABELS[person.role] || person.role}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             {selectedMachine ? (
               <p className="pauta-upload-ok">{pautaSummaryText(selectedMachine)}</p>
-            ) : (
-              <p className="section-help">
-                Al seleccionar, aparecen los intervalos e ítems que se leyeron del archivo de pauta.
-              </p>
-            )}
-          </div>
-
-          <div className="admin-card">
-            <MachinePautaRun
-              pauta={pauta}
-              draft={runDraft}
-              onChange={setRunDraft}
-              disabled={loading || !selectedMachine}
-            />
+            ) : null}
+            {pauta.length ? (
+              <div className="field">
+                <span>Tipo de pauta</span>
+                <div className="type-pill-row">
+                  {pauta.map((tipo) => (
+                    <button
+                      key={tipo.id}
+                      type="button"
+                      className={`type-pill ${currentTipo?.id === tipo.id ? 'active' : ''}`}
+                      onClick={() => setTipoId(tipo.id)}
+                    >
+                      {tipo.nombre}
+                    </button>
+                  ))}
+                </div>
+                {currentTipo ? (
+                  <p className="section-help">
+                    {currentTipo.items.length} ítems se enviarán al responsable para que los vaya
+                    marcando.
+                  </p>
+                ) : null}
+              </div>
+            ) : selectedMachine ? (
+              <p className="empty">Este equipo no tiene pauta. Súbela en Maquinaria.</p>
+            ) : null}
+            <label className="field">
+              <span>Instrucción (opcional)</span>
+              <textarea
+                value={instrucciones}
+                onChange={(e) => setInstrucciones(e.target.value)}
+                placeholder="Ej: hacer el servicio de 250 h, revisar ruido en el círculo…"
+                rows={3}
+              />
+            </label>
             {error ? <p className="form-error">{error}</p> : null}
             <div className="btn-row">
               <button type="button" className="btn btn-ghost" onClick={() => setView('list')}>
@@ -173,13 +324,100 @@ export function MaintenanceAdmin({ canManage }: Props) {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={loading || !selectedMachine || !pauta.length}
+                disabled={loading || !selectedMachine || !currentTipo || !asignadoId}
               >
-                {loading ? 'Guardando…' : 'Guardar mantenimiento'}
+                {loading ? 'Asignando…' : 'Asignar mantenimiento'}
               </button>
             </div>
           </div>
         </form>
+      </div>
+    )
+  }
+
+  if (view === 'execute' && selected) {
+    const mine = selected.asignadoId === user.id
+    const canEdit = canManage && (mine || canAssign) && selected.status !== 'completed'
+    return (
+      <div className="admin-section">
+        <div className="toolbar">
+          <div>
+            <h3 className="section-title">
+              {selected.sigla} · {selected.tipoMantenimiento}
+            </h3>
+            <p className="section-help">
+              Asignado a {selected.asignadoNombre || '—'} · {statusLabel(selected.status)}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              setView('list')
+              setSelected(null)
+            }}
+          >
+            Volver
+          </button>
+        </div>
+
+        <div className="admin-card">
+          {selected.instrucciones ? (
+            <p className="section-help">
+              <strong>Instrucción:</strong> {selected.instrucciones}
+            </p>
+          ) : null}
+          <MachinePautaRun
+            pauta={pautaFromItem(selected)}
+            draft={runDraft}
+            onChange={setRunDraft}
+            disabled={loading || !canEdit}
+            lockTipo
+            title="Pauta a realizar"
+            help="Ve marcando con OK lo que vas haciendo. Si hay algo extra, déjalo en el comentario."
+            commentLabel="Comentario extra"
+            commentPlaceholder="Hallazgos, repuestos, algo que no estaba en la pauta…"
+          />
+          {selected.comentarios?.length ? (
+            <div className="comment-log">
+              <h4>Comentarios anteriores</h4>
+              {selected.comentarios.map((comment) => (
+                <p key={comment.id} className="section-help">
+                  <strong>{comment.autorNombre}</strong> · {formatDate(comment.createdAt)}
+                  <br />
+                  {comment.texto}
+                </p>
+              ))}
+            </div>
+          ) : null}
+          {error ? <p className="form-error">{error}</p> : null}
+          {canEdit ? (
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={loading}
+                onClick={() => void saveProgress(false)}
+              >
+                {loading ? 'Guardando…' : 'Guardar avance'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={loading}
+                onClick={() => void saveProgress(true)}
+              >
+                Completar mantenimiento
+              </button>
+            </div>
+          ) : (
+            <p className="section-help">
+              {selected.status === 'completed'
+                ? 'Este mantenimiento ya está completado.'
+                : 'Solo el asignado puede ir marcando la pauta.'}
+            </p>
+          )}
+        </div>
       </div>
     )
   }
@@ -190,60 +428,105 @@ export function MaintenanceAdmin({ canManage }: Props) {
         <div>
           <h3 className="section-title">Mantenimiento</h3>
           <p className="section-help">
-            Cada equipo usa la pauta que se subió al crearlo. Presiona + para registrar un servicio.
+            {canAssign
+              ? 'Asigna la pauta de un equipo a un mecánico o supervisor. Ellos la ven en su panel y van marcando lo realizado.'
+              : 'Aquí aparecen los mantenimientos que te asignaron. Ábrelos, marca lo que vas haciendo y deja un comentario si hay algo extra.'}
           </p>
         </div>
-        {canManage ? (
-          <button type="button" className="btn btn-primary btn-add" onClick={openCreate}>
-            +
+        {canAssign ? (
+          <button type="button" className="btn btn-primary" onClick={openAssign}>
+            Asignar
           </button>
         ) : null}
+      </div>
+
+      <div className="legend-row">
+        <button
+          type="button"
+          className={`btn btn-small ${filter === 'open' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setFilter('open')}
+        >
+          Pendientes
+        </button>
+        <button
+          type="button"
+          className={`btn btn-small ${filter === 'completed' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setFilter('completed')}
+        >
+          Completados
+        </button>
+        <button
+          type="button"
+          className={`btn btn-small ${filter === 'all' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setFilter('all')}
+        >
+          Todos
+        </button>
       </div>
 
       <div className="table-panel">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Fecha</th>
+              <th>Estado</th>
               <th>Equipo</th>
               <th>Tipo</th>
-              <th>Medidor</th>
-              <th>Mecánico</th>
-              <th>Ítems OK</th>
+              <th>Asignado a</th>
+              <th>Avance</th>
+              <th>Actualizado</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>{new Date(item.createdAt).toLocaleString('es-CL')}</td>
-                <td>
-                  <strong>{item.sigla}</strong>
-                </td>
-                <td>{item.tipoMantenimiento}</td>
-                <td>{item.horometro}</td>
-                <td>{item.mecanicoNombre}</td>
-                <td>
-                  {item.tareas?.filter((t) => t.realizado).length || 0}
-                  {item.tareas?.length ? ` / ${item.tareas.length}` : ''}
-                </td>
-                <td>
-                  {canManage ? (
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-small"
-                      onClick={() => void remove(item)}
-                    >
-                      Eliminar
-                    </button>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-            {!items.length ? (
+            {filteredItems.map((item) => {
+              const done = item.tareas?.filter((t) => t.realizado).length || 0
+              const total = item.tareas?.length || 0
+              const mine = item.asignadoId === user.id
+              return (
+                <tr key={item.id} className={mine && item.status !== 'completed' ? 'row-alert-soon' : ''}>
+                  <td>
+                    <span className={`badge ${statusClass(item.status)}`}>
+                      {statusLabel(item.status)}
+                    </span>
+                  </td>
+                  <td>
+                    <strong>{item.sigla}</strong>
+                  </td>
+                  <td>{item.tipoMantenimiento}</td>
+                  <td>{item.asignadoNombre || item.mecanicoNombre || '—'}</td>
+                  <td>
+                    {done} / {total} OK
+                  </td>
+                  <td>{formatDate(item.updatedAt || item.createdAt)}</td>
+                  <td>
+                    <div className="btn-row">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-small"
+                        onClick={() => openExecute(item)}
+                      >
+                        {mine && item.status !== 'completed' ? 'Realizar' : 'Ver'}
+                      </button>
+                      {canAssign && item.status !== 'completed' ? (
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-small"
+                          onClick={() => void remove(item)}
+                        >
+                          Eliminar
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+            {!filteredItems.length ? (
               <tr>
                 <td colSpan={7} className="empty-cell">
-                  Sin mantenimientos. {canManage ? 'Presiona + para crear el primero.' : ''}
+                  {canAssign
+                    ? 'No hay mantenimientos en este filtro. Presiona Asignar para crear uno.'
+                    : 'No tienes mantenimientos asignados por ahora.'}
                 </td>
               </tr>
             ) : null}
