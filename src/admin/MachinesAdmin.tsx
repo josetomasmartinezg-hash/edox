@@ -4,6 +4,8 @@ import type { Machine, MachineCategory, MachineDocument, MaintenanceRecord } fro
 import {
   MachinePautaEditor,
   MachinePautaRun,
+  PautaChecklist,
+  PautaFilePreview,
   cleanPauta,
   emptyPautaList,
   emptyPautaRun,
@@ -188,8 +190,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
   async function saveDetailPauta(machine: Machine) {
     if (!canManageMaintenance) return
     const tipos = cleanPauta(machine.pauta || [])
-    const current = tipos.find((t) => t.id === runDraft.tipoId) || tipos[0]
-    if (!current) {
+    if (!tipos.length) {
       setError('Esta máquina no tiene pauta. Edítala para agregarla.')
       return
     }
@@ -197,7 +198,14 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
       setError('Ingresa el kilometraje u horómetro')
       return
     }
-    if (!Object.values(runDraft.doneTasks).some(Boolean)) {
+    const tareas = tipos.flatMap((tipo) =>
+      tipo.items.map((item) => ({
+        id: item.id,
+        label: item.label,
+        realizado: !!runDraft.doneTasks[item.id],
+      })),
+    )
+    if (!tareas.some((t) => t.realizado)) {
       setError('Marca al menos un ítem con OK')
       return
     }
@@ -208,16 +216,13 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
       body: JSON.stringify({
         machineId: machine.id,
         sigla: machine.sigla,
-        tipoMantenimiento: current.nombre,
-        intervaloId: current.id,
+        tipoMantenimiento: machine.pautaFileName || tipos[0]?.nombre || 'Pauta',
+        intervaloId: runDraft.tipoId || tipos[0]?.id,
         horometro: runDraft.horometro.trim(),
         observaciones: runDraft.observaciones.trim(),
         status: 'completed',
-        tareas: current.items.map((item) => ({
-          id: item.id,
-          label: item.label,
-          realizado: !!runDraft.doneTasks[item.id],
-        })),
+        pauta: tipos,
+        tareas,
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -657,7 +662,10 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
               onChange={(pauta) => setForm({ ...form, pauta })}
               disabled={loading}
               fileName={pautaFile?.name}
+              previewFile={pautaFile}
               existingFileName={view === 'edit' ? historial?.machine.pautaFileName : ''}
+              existingFileUrl={view === 'edit' ? historial?.machine.pautaFileUrl : null}
+              existingMimeType={view === 'edit' ? historial?.machine.pautaMimeType : ''}
               parsing={pautaParsing}
               parseMessage={pautaParseMsg}
               parseError={pautaParseError}
@@ -830,20 +838,12 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
               draft={runDraft}
               onChange={setRunDraft}
               disabled={loading}
+              title="Pauta del PDF"
+              help="Esta es la pauta completa del archivo. Márcala con OK y guarda el mantenimiento."
+              fileUrl={machine.pautaFileUrl}
+              fileName={machine.pautaFileName}
+              mimeType={machine.pautaMimeType}
             />
-            {machine.pautaFileUrl ? (
-              <p className="section-help">
-                Archivo de pauta:{' '}
-                <a
-                  href={machine.pautaFileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="link-quiet"
-                >
-                  {machine.pautaFileName || 'Ver PDF / Excel'}
-                </a>
-              </p>
-            ) : null}
             {error ? <p className="form-error">{error}</p> : null}
             {(machine.pauta || []).length ? (
               <div className="machine-form-actions">
@@ -857,6 +857,15 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
                 </button>
               </div>
             ) : null}
+          </div>
+        ) : machine.pautaFileUrl || (machine.pauta || []).length ? (
+          <div className="admin-card">
+            <PautaFilePreview
+              fileUrl={machine.pautaFileUrl}
+              fileName={machine.pautaFileName}
+              mimeType={machine.pautaMimeType}
+            />
+            <PautaChecklist pauta={machine.pauta || []} title="Pauta del equipo" />
           </div>
         ) : null}
 

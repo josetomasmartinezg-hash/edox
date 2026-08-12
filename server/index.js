@@ -127,7 +127,17 @@ const PORT = process.env.PORT || 3001
 
 app.use(cors())
 app.use(express.json({ limit: '15mb' }))
-app.use('/uploads', express.static(uploadsDir))
+app.use(
+  '/uploads',
+  express.static(uploadsDir, {
+    setHeaders(res, filePath) {
+      if (/\.pdf$/i.test(filePath)) {
+        res.setHeader('Content-Type', 'application/pdf')
+        res.setHeader('Content-Disposition', 'inline')
+      }
+    },
+  }),
+)
 app.use(authOptional)
 
 app.get('/api/health', (_req, res) => {
@@ -335,6 +345,66 @@ function normalizePauta(pauta) {
     .filter((tipo) => tipo.nombre && tipo.items.length)
 }
 
+async function parsePautaFromDisk(machine) {
+  const fileUrl = machine?.pautaFileUrl
+  if (!fileUrl) return []
+  const filePath = path.join(uploadsDir, path.basename(fileUrl))
+  if (!fs.existsSync(filePath)) return []
+  try {
+    const buffer = fs.readFileSync(filePath)
+    return normalizePauta(
+      await parsePautaFile({
+        buffer,
+        originalname: machine.pautaFileName || path.basename(fileUrl),
+        mimetype: machine.pautaMimeType || '',
+      }),
+    )
+  } catch {
+    return []
+  }
+}
+
+async function ensureMachinePauta(machine) {
+  const existing = normalizePauta(machine.pauta)
+  if (existing.length) {
+    return { machine: { ...machine, pauta: existing }, saved: false }
+  }
+  const parsed = await parsePautaFromDisk(machine)
+  if (!parsed.length) {
+    return { machine: { ...machine, pauta: existing }, saved: false }
+  }
+  return {
+    machine: { ...machine, pauta: parsed, updatedAt: new Date().toISOString() },
+    saved: true,
+  }
+}
+
+async function persistEnsuredPauta(list) {
+  let changed = false
+  const next = []
+  for (const machine of list) {
+    const result = await ensureMachinePauta(machine)
+    next.push(result.machine)
+    if (result.saved) changed = true
+  }
+  if (changed) writeJson('machines.json', next)
+  return next
+}
+
+function withMachinePautaMeta(item, machines) {
+  const machine =
+    machines.find((m) => m.id === item.machineId) ||
+    machines.find((m) => normalizeSigla(m.sigla) === normalizeSigla(item.sigla))
+  const stored = normalizePauta(item.pauta)
+  return {
+    ...item,
+    pauta: stored.length ? stored : normalizePauta(machine?.pauta),
+    pautaFileUrl: item.pautaFileUrl || machine?.pautaFileUrl || null,
+    pautaFileName: item.pautaFileName || machine?.pautaFileName || '',
+    pautaMimeType: item.pautaMimeType || machine?.pautaMimeType || '',
+  }
+}
+
 function normalizeMachine(machine) {
   const categories = readJson('categories.json', [])
   const category =
@@ -389,7 +459,7 @@ function machineDocumentAlert(machineId, sigla) {
 }
 
 app.get('/api/machines', authRequired, requirePermission('view_machines'), async (_req, res) => {
-  const machines = readJson('machines.json', []).map(normalizeMachine)
+  const machines = (await persistEnsuredPauta(readJson('machines.json', []))).map(normalizeMachine)
   const withCodes = await Promise.all(
     machines.map(async (machine) => {
       const withCode = await withQr(machine)
@@ -402,7 +472,8 @@ app.get('/api/machines', authRequired, requirePermission('view_machines'), async
 })
 
 app.get('/api/machines/:id', authRequired, requirePermission('view_machines'), async (req, res) => {
-  const machine = readJson('machines.json', []).find((m) => m.id === req.params.id)
+  const all = await persistEnsuredPauta(readJson('machines.json', []))
+  const machine = all.find((m) => m.id === req.params.id)
   if (!machine) return res.status(404).json({ error: 'Máquina no encontrada' })
   res.json(await withQr(normalizeMachine(machine)))
 })
@@ -412,7 +483,8 @@ app.get(
   authRequired,
   requirePermission('view_machines'),
   async (req, res) => {
-    const machine = readJson('machines.json', []).find((m) => m.id === req.params.id)
+    const all = await persistEnsuredPauta(readJson('machines.json', []))
+    const machine = all.find((m) => m.id === req.params.id)
     if (!machine) return res.status(404).json({ error: 'Máquina no encontrada' })
 
     const sigla = normalizeSigla(machine.sigla)
@@ -611,7 +683,7 @@ app.post(
   authRequired,
   requirePermission('manage_machines'),
   (req, res) => {
-    pautaUpload.single('file')(req, res, (err) => {
+    pautaUpload.single('file')(req, res, async (err) => {
       if (err) {
         return res.status(400).json({ error: err.message || 'Error al subir la pauta' })
       }
@@ -631,6 +703,12 @@ app.post(
       machine.pautaFileUrl = doc.fileUrl
       machine.pautaFileName = doc.fileName
       machine.pautaMimeType = doc.mimeType
+      try {
+        const parsed = await parsePautaFromDisk(machine)
+        if (parsed.length) machine.pauta = parsed
+      } catch {
+        // keep existing pauta if the file cannot be parsed
+      }
       machine.updatedAt = new Date().toISOString()
       machines[idx] = machine
       writeJson('machines.json', machines)
@@ -937,6 +1015,9 @@ function normalizeMaintenance(item) {
     asignadoPorNombre: item?.asignadoPorNombre || '',
     comentarios: Array.isArray(item?.comentarios) ? item.comentarios : [],
     pauta: Array.isArray(item?.pauta) ? item.pauta : [],
+    pautaFileUrl: item?.pautaFileUrl || null,
+    pautaFileName: item?.pautaFileName || '',
+    pautaMimeType: item?.pautaMimeType || '',
   }
 }
 
@@ -1023,6 +1104,8 @@ app.get(
   requirePermission('view_maintenance'),
   (req, res) => {
     let items = readJson('maintenance.json', []).map(normalizeMaintenance)
+    const machines = readJson('machines.json', [])
+    items = items.map((item) => withMachinePautaMeta(item, machines))
     if (!canSeeAllMaintenance(req.user)) {
       items = items.filter(
         (m) => m.asignadoId === req.user.id || m.mecanicoId === req.user.id,
@@ -1099,6 +1182,9 @@ app.post(
       ).trim(),
       intervaloId: intervaloId || null,
       pauta: pautaSnap,
+      pautaFileUrl: machine?.pautaFileUrl || null,
+      pautaFileName: machine?.pautaFileName || '',
+      pautaMimeType: machine?.pautaMimeType || '',
       horometro: String(horometro || '').trim(),
       tareas: taskRows,
       observaciones: String(observaciones || '').trim(),
@@ -1199,6 +1285,11 @@ app.put(
         req.body.instrucciones != null
           ? String(req.body.instrucciones).trim()
           : current.instrucciones,
+      pauta:
+        req.body.pauta != null ? normalizePauta(req.body.pauta) : current.pauta,
+      pautaFileUrl: current.pautaFileUrl,
+      pautaFileName: current.pautaFileName,
+      pautaMimeType: current.pautaMimeType,
       status: nextStatus,
       comentarios,
       updatedAt: new Date().toISOString(),
@@ -1289,6 +1380,10 @@ function syncMaintenanceFromFieldRecord(record, user) {
     asignadoRole: user.role,
     asignadoPorId: user.id,
     asignadoPorNombre: user.name,
+    pauta: normalizePauta(machine?.pauta),
+    pautaFileUrl: machine?.pautaFileUrl || null,
+    pautaFileName: machine?.pautaFileName || '',
+    pautaMimeType: machine?.pautaMimeType || '',
     comentarios: idx >= 0 ? all[idx].comentarios || [] : [],
     mecanicoId: user.id,
     mecanicoNombre: record.operador || user.name,
@@ -1367,7 +1462,8 @@ app.delete(
 const dist = path.join(root, 'dist')
 if (fs.existsSync(dist)) {
   app.use(express.static(dist))
-  app.get(/.*/, (_req, res) => {
+  app.get(/.*/, (req, res, next) => {
+    if (req.path.startsWith('/uploads/') || req.path.startsWith('/api/')) return next()
     res.sendFile(path.join(dist, 'index.html'))
   })
 }

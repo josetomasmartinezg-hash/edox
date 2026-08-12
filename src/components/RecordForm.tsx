@@ -15,9 +15,11 @@ import {
 import { apiFetch } from '../lib/auth'
 import { loadMachines } from '../lib/machines'
 import {
+  PautaChecklist,
+  PautaFilePreview,
   cleanPauta,
+  flattenPautaToRows,
   pautaSummaryText,
-  pautaTipoToRows,
 } from '../admin/MaintenancePautaBlock'
 import { PhotoCapture } from './PhotoCapture'
 import { QrScanner } from './QrScanner'
@@ -84,32 +86,26 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
     onChange({ ...record, ...partial })
   }
 
-  function applyMachine(machine: Machine, keepTipoId?: string) {
+  function applyMachine(machine: Machine) {
     if (tipo !== 'mantenimiento') {
       patch({ maquina: machine.sigla })
       return
     }
     const tipos = cleanPauta(machine.pauta || [])
-    const current =
-      tipos.find((t) => t.id === keepTipoId) ||
-      tipos.find((t) => t.id === record.intervaloMantenimiento) ||
-      tipos[0]
     patch({
       maquina: machine.sigla,
-      intervaloMantenimiento: current?.id || '',
-      tipoMantenimiento: current?.nombre || '',
-      mantenimiento: current ? pautaTipoToRows(current) : [],
+      intervaloMantenimiento: tipos[0]?.id || '',
+      tipoMantenimiento: machine.pautaFileName || tipos[0]?.nombre || 'Pauta',
+      mantenimiento: flattenPautaToRows(tipos),
     })
   }
 
   function applyPautaTipo(tipoId: string) {
-    const current = pauta.find((t) => t.id === tipoId)
-    if (!current) return
-    patch({
-      intervaloMantenimiento: current.id,
-      tipoMantenimiento: current.nombre,
-      mantenimiento: pautaTipoToRows(current),
+    document.getElementById(`pauta-tipo-${tipoId}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
     })
+    patch({ intervaloMantenimiento: tipoId })
   }
 
   function setChecklist(id: string, status: ChecklistStatus) {
@@ -121,10 +117,29 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
   }
 
   function toggleTaskOk(id: string) {
+    const exists = record.mantenimiento.some((row) => row.id === id)
+    if (exists) {
+      patch({
+        mantenimiento: record.mantenimiento.map((row) =>
+          row.id === id ? { ...row, realizado: !row.realizado } : row,
+        ),
+      })
+      return
+    }
+    const item = pauta.flatMap((tipo) => tipo.items).find((row) => row.id === id)
+    if (!item) return
     patch({
-      mantenimiento: record.mantenimiento.map((row) =>
-        row.id === id ? { ...row, realizado: !row.realizado } : row,
-      ),
+      mantenimiento: [
+        ...record.mantenimiento,
+        {
+          id: item.id,
+          tipo: item.label,
+          nivel: '',
+          seAdiciona: '',
+          seAplica: '',
+          realizado: true,
+        },
+      ],
     })
   }
 
@@ -133,19 +148,20 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
     const machine = findMachineByCode(machines, record.maquina)
     if (!machine) return
     const tipos = cleanPauta(machine.pauta || [])
-    if (tipos.some((t) => t.id === record.intervaloMantenimiento) && record.mantenimiento.length) {
-      return
-    }
+    const expected = flattenPautaToRows(tipos)
+    const sameItems =
+      expected.length === record.mantenimiento.length &&
+      expected.every((row) => record.mantenimiento.some((current) => current.id === row.id))
+    if (sameItems) return
     if (!tipos.length && machine.sigla.trim().toUpperCase() === record.maquina.trim().toUpperCase()) {
       return
     }
-    const current = tipos[0]
     onChange({
       ...record,
       maquina: machine.sigla,
-      intervaloMantenimiento: current?.id || '',
-      tipoMantenimiento: current?.nombre || '',
-      mantenimiento: current ? pautaTipoToRows(current) : [],
+      intervaloMantenimiento: tipos[0]?.id || '',
+      tipoMantenimiento: machine.pautaFileName || tipos[0]?.nombre || 'Pauta',
+      mantenimiento: expected,
     })
   }, [tipo, record.maquina, machines])
 
@@ -383,29 +399,35 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
             <h3 className="section-title">Pauta del equipo</h3>
             {!selectedMachine ? (
               <p className="empty">Escanea el QR o selecciona la máquina para ver su pauta.</p>
-            ) : !pauta.length ? (
+            ) : !pauta.length && !selectedMachine.pautaFileUrl ? (
               <p className="empty">
                 Esta máquina aún no tiene pauta. Súbela en PDF o Excel al crear o editar el equipo.
               </p>
             ) : (
               <>
                 <p className="section-help">
-                  Se cargó sola la pauta de {selectedMachine.sigla}. Elige el intervalo y marca OK.
+                  Se cargó la pauta de {selectedMachine.sigla}
+                  {selectedMachine.pautaFileName ? ` (${selectedMachine.pautaFileName})` : ''}.
                 </p>
-                <div className="type-pill-row">
-                  {pauta.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`type-pill ${
-                        record.intervaloMantenimiento === item.id ? 'active' : ''
-                      }`}
-                      onClick={() => applyPautaTipo(item.id)}
-                    >
-                      {item.nombre}
-                    </button>
-                  ))}
-                </div>
+                <PautaFilePreview
+                  fileUrl={selectedMachine.pautaFileUrl}
+                  fileName={selectedMachine.pautaFileName}
+                  mimeType={selectedMachine.pautaMimeType}
+                />
+                {pauta.length > 1 ? (
+                  <div className="type-pill-row">
+                    {pauta.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="type-pill"
+                        onClick={() => applyPautaTipo(item.id)}
+                      >
+                        {item.nombre}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <label className="field">
                   <span>Kilometraje / Horómetro</span>
                   <input
@@ -417,27 +439,16 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
                     }
                   />
                 </label>
-                <h3 className="section-title">
-                  {record.tipoMantenimiento ||
-                    pauta.find((t) => t.id === record.intervaloMantenimiento)?.nombre ||
-                    'Ítems'}
-                </h3>
                 <p className="section-help">
                   {doneCount} de {record.mantenimiento.length || 0} con OK — toca cada ítem
                 </p>
-                <div className="task-list">
-                  {record.mantenimiento.map((row) => (
-                    <button
-                      key={row.id}
-                      type="button"
-                      className={`task-ok-item ${row.realizado ? 'done' : ''}`}
-                      onClick={() => toggleTaskOk(row.id)}
-                    >
-                      <span className="task-ok-badge">{row.realizado ? 'OK' : ''}</span>
-                      <span className="task-ok-label">{row.tipo}</span>
-                    </button>
-                  ))}
-                </div>
+                <PautaChecklist
+                  pauta={pauta}
+                  doneTasks={Object.fromEntries(
+                    record.mantenimiento.map((row) => [row.id, !!row.realizado]),
+                  )}
+                  onToggle={toggleTaskOk}
+                />
               </>
             )}
           </section>
