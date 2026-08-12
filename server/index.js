@@ -1068,7 +1068,7 @@ app.post(
 
     const pautaSnap = normalizePauta(req.body.pauta != null ? req.body.pauta : machine?.pauta)
     let taskRows = mapTareas(tareas)
-    if (!taskRows.length && (intervaloId || tipoMantenimiento)) {
+    if (!taskRows.length && intervaloId) {
       taskRows = pautaItemsForTipo(machine, intervaloId, tipoMantenimiento)
     }
     if (!taskRows.length) {
