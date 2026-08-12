@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import type { Machine, MaintenanceRow } from '../types'
 
 export type MachinePautaItem = {
@@ -49,10 +48,7 @@ type EditorProps = {
   onChange: (value: MachinePautaTipo[]) => void
   disabled?: boolean
   fileName?: string
-  previewFile?: File | null
   existingFileName?: string
-  existingFileUrl?: string | null
-  existingMimeType?: string
   parsing?: boolean
   parseMessage?: string
   parseError?: string
@@ -64,17 +60,13 @@ export function MachinePautaEditor({
   onChange,
   disabled,
   fileName,
-  previewFile,
   existingFileName,
-  existingFileUrl,
-  existingMimeType,
   parsing,
   parseMessage,
   parseError,
   onSelectFile,
 }: EditorProps) {
   const tipos = value.length ? value : emptyPautaList()
-  const extracted = cleanPauta(value)
 
   function updateTipo(id: string, patch: Partial<MachinePautaTipo>) {
     onChange(tipos.map((t) => (t.id === id ? { ...t, ...patch } : t)))
@@ -122,19 +114,6 @@ export function MachinePautaEditor({
         </div>
       ) : null}
 
-      <PautaFilePreview
-        file={previewFile}
-        fileUrl={previewFile ? null : existingFileUrl}
-        fileName={fileName || existingFileName}
-        mimeType={previewFile?.type || existingMimeType}
-      />
-
-      {extracted.length ? (
-        <PautaChecklist pauta={extracted} title="Pauta extraída del archivo" />
-      ) : null}
-
-      <details className="pauta-edit-details" open={!extracted.length}>
-        <summary>Corregir ítems a mano</summary>
       {tipos.map((tipo, index) => (
         <div key={tipo.id} className="pauta-tipo-card">
           <div className="pauta-tipo-head">
@@ -208,7 +187,6 @@ export function MachinePautaEditor({
       >
         + Tipo de pauta
       </button>
-      </details>
     </div>
   )
 }
@@ -223,9 +201,6 @@ type RunProps = {
   help?: string
   commentLabel?: string
   commentPlaceholder?: string
-  fileUrl?: string | null
-  fileName?: string
-  mimeType?: string
 }
 
 export function MachinePautaRun({
@@ -238,15 +213,13 @@ export function MachinePautaRun({
   help,
   commentLabel,
   commentPlaceholder,
-  fileUrl,
-  fileName,
-  mimeType,
 }: RunProps) {
   const tipos = (pauta || []).filter((t) => t.nombre.trim() && t.items.some((i) => i.label.trim()))
-  const allItems = tipos.flatMap((tipo) => tipo.items.filter((i) => i.label.trim()))
-  const doneCount = allItems.filter((i) => draft.doneTasks[i.id]).length
+  const current = tipos.find((t) => t.id === draft.tipoId) || tipos[0] || null
+  const items = (current?.items || []).filter((i) => i.label.trim())
+  const doneCount = items.filter((i) => draft.doneTasks[i.id]).length
 
-  if (!tipos.length && !fileUrl) {
+  if (!tipos.length) {
     return (
       <div className="machine-pauta">
         <h4>Registrar mantenimiento</h4>
@@ -263,73 +236,73 @@ export function MachinePautaRun({
       <div className="machine-pauta-head">
         <h4>{title || 'Registrar mantenimiento'}</h4>
         <p className="section-help">
-          {help || 'Esta es la pauta del PDF. Marca OK en cada ítem que vayas realizando.'}
+          {help || 'Marca cada ítem de la pauta de este equipo con OK.'}
         </p>
       </div>
 
-      <PautaFilePreview fileUrl={fileUrl} fileName={fileName} mimeType={mimeType} />
-
-      {tipos.length ? (
-        <>
-          {!lockTipo && tipos.length > 1 ? (
-            <div className="field">
-              <span>Ir a un intervalo</span>
-              <div className="type-pill-row">
-                {tipos.map((tipo) => (
-                  <button
-                    key={tipo.id}
-                    type="button"
-                    className="type-pill"
-                    onClick={() => {
-                      onChange({ ...draft, tipoId: tipo.id })
-                      document.getElementById(`pauta-tipo-${tipo.id}`)?.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start',
-                      })
-                    }}
-                  >
-                    {tipo.nombre}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <label className="field">
-            <span>Kilometraje / Horómetro</span>
-            <input
-              inputMode="numeric"
-              value={draft.horometro}
-              onChange={(e) =>
-                onChange({ ...draft, horometro: e.target.value.replace(/[^\d.]/g, '') })
-              }
-              placeholder="Ej: 45280"
-              disabled={disabled}
-            />
-          </label>
-
-          <p className="section-help">
-            {doneCount} de {allItems.length} con OK
-          </p>
-
-          <PautaChecklist
-            pauta={tipos}
-            doneTasks={draft.doneTasks}
-            disabled={disabled}
-            onToggle={(id) =>
-              onChange({
-                ...draft,
-                doneTasks: { ...draft.doneTasks, [id]: !draft.doneTasks[id] },
-              })
-            }
-          />
-        </>
+      {!lockTipo ? (
+        <div className="field">
+          <span>Tipo de pauta</span>
+          <div className="type-pill-row">
+            {tipos.map((tipo) => (
+              <button
+                key={tipo.id}
+                type="button"
+                className={`type-pill ${current?.id === tipo.id ? 'active' : ''}`}
+                disabled={disabled}
+                onClick={() => onChange({ ...draft, tipoId: tipo.id })}
+              >
+                {tipo.nombre}
+              </button>
+            ))}
+          </div>
+        </div>
       ) : (
-        <p className="empty">
-          El archivo está adjunto, pero aún no se pudieron leer los ítems. Ábrelo arriba o vuelve a
-          subirlo en Maquinaria.
+        <p className="section-help">
+          Tipo: <strong>{current?.nombre || '—'}</strong>
         </p>
       )}
+
+      <label className="field">
+        <span>Kilometraje / Horómetro</span>
+        <input
+          inputMode="numeric"
+          value={draft.horometro}
+          onChange={(e) =>
+            onChange({ ...draft, horometro: e.target.value.replace(/[^\d.]/g, '') })
+          }
+          placeholder="Ej: 45280"
+          disabled={disabled}
+        />
+      </label>
+
+      <p className="section-help">
+        {doneCount} de {items.length} con OK
+      </p>
+
+      <div className="task-list">
+        {items.map((item) => {
+          const checked = !!draft.doneTasks[item.id]
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`task-ok-item ${checked ? 'done' : ''}`}
+              disabled={disabled}
+              onClick={() =>
+                onChange({
+                  ...draft,
+                  tipoId: current?.id || draft.tipoId,
+                  doneTasks: { ...draft.doneTasks, [item.id]: !checked },
+                })
+              }
+            >
+              <span className="task-ok-badge">{checked ? 'OK' : ''}</span>
+              <span className="task-ok-label">{item.label}</span>
+            </button>
+          )
+        })}
+      </div>
 
       <label className="field">
         <span>{commentLabel || 'Comentario / Observaciones'}</span>
@@ -343,126 +316,6 @@ export function MachinePautaRun({
           disabled={disabled}
         />
       </label>
-    </div>
-  )
-}
-
-export function isPautaPdf(fileUrl?: string | null, fileName?: string, mimeType?: string) {
-  return (
-    /pdf/i.test(mimeType || '') ||
-    /\.pdf(\?|$)/i.test(fileName || '') ||
-    /\.pdf(\?|$)/i.test(fileUrl || '')
-  )
-}
-
-export function PautaFilePreview({
-  file,
-  fileUrl,
-  fileName,
-  mimeType,
-}: {
-  file?: File | null
-  fileUrl?: string | null
-  fileName?: string
-  mimeType?: string
-}) {
-  const [objectUrl, setObjectUrl] = useState('')
-
-  useEffect(() => {
-    if (!file) {
-      setObjectUrl('')
-      return
-    }
-    const url = URL.createObjectURL(file)
-    setObjectUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
-
-  const src = objectUrl || fileUrl || ''
-  if (!src) return null
-  const pdf = isPautaPdf(src, file?.name || fileName, file?.type || mimeType)
-
-  return (
-    <div className="pauta-file-preview">
-      <div className="pauta-file-preview-head">
-        <strong>{file?.name || fileName || 'Archivo de pauta'}</strong>
-        <a href={src} target="_blank" rel="noreferrer" className="link-quiet">
-          Abrir en otra pestaña
-        </a>
-      </div>
-      {pdf ? (
-        <iframe className="pauta-pdf-frame" title={file?.name || fileName || 'Pauta PDF'} src={src} />
-      ) : (
-        <p className="section-help">
-          Este archivo no se puede previsualizar aquí. Ábrelo en otra pestaña para verlo.
-        </p>
-      )}
-    </div>
-  )
-}
-
-export function PautaChecklist({
-  pauta,
-  doneTasks,
-  onToggle,
-  disabled,
-  title,
-}: {
-  pauta: MachinePautaTipo[]
-  doneTasks?: Record<string, boolean>
-  onToggle?: (id: string) => void
-  disabled?: boolean
-  title?: string
-}) {
-  const tipos = cleanPauta(pauta)
-  const interactive = typeof onToggle === 'function'
-
-  if (!tipos.length) {
-    return <p className="empty">No hay ítems extraídos de la pauta todavía.</p>
-  }
-
-  return (
-    <div className="pauta-checklist">
-      {title ? <h4>{title}</h4> : null}
-      {tipos.map((tipo) => {
-        const items = tipo.items.filter((item) => item.label.trim())
-        const done = items.filter((item) => doneTasks?.[item.id]).length
-        return (
-          <section key={tipo.id} id={`pauta-tipo-${tipo.id}`} className="pauta-tipo-run">
-            <div className="pauta-tipo-run-head">
-              <h5>{tipo.nombre}</h5>
-              <span className="table-sub">
-                {interactive ? `${done} de ${items.length} OK` : `${items.length} ítems`}
-              </span>
-            </div>
-            <div className={interactive ? 'task-list pauta-task-list' : 'pauta-preview-list'}>
-              {items.map((item) => {
-                const checked = !!doneTasks?.[item.id]
-                if (!interactive) {
-                  return (
-                    <div key={item.id} className="pauta-preview-item">
-                      <span className="pauta-preview-dot" />
-                      <span>{item.label}</span>
-                    </div>
-                  )
-                }
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`task-ok-item ${checked ? 'done' : ''}`}
-                    disabled={disabled}
-                    onClick={() => onToggle?.(item.id)}
-                  >
-                    <span className="task-ok-badge">{checked ? 'OK' : ''}</span>
-                    <span className="task-ok-label">{item.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        )
-      })}
     </div>
   )
 }
@@ -492,24 +345,11 @@ export function pautaTipoToRows(tipo: MachinePautaTipo): MaintenanceRow[] {
     }))
 }
 
-export function flattenPautaToRows(pauta: MachinePautaTipo[] = []): MaintenanceRow[] {
-  return cleanPauta(pauta).flatMap(pautaTipoToRows)
-}
-
-export function machineHasPauta(machine?: Machine | null) {
-  if (!machine) return false
-  return cleanPauta(machine.pauta || []).length > 0 || Boolean(machine.pautaFileUrl)
-}
-
 export function pautaSummaryText(machine?: Machine | null) {
   if (!machine) return ''
   const tipos = cleanPauta(machine.pauta || [])
   const items = tipos.reduce((sum, tipo) => sum + tipo.items.length, 0)
   const file = machine.pautaFileName ? ` · ${machine.pautaFileName}` : ''
-  if (!tipos.length) {
-    return machine.pautaFileName
-      ? `${machine.marca} ${machine.modelo}${file}`
-      : `${machine.marca} ${machine.modelo} · sin pauta`
-  }
+  if (!tipos.length) return `${machine.marca} ${machine.modelo}${file} · sin pauta`
   return `${machine.marca} ${machine.modelo} · ${tipos.length} tipos, ${items} ítems${file}`
 }

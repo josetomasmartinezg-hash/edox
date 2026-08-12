@@ -29,7 +29,7 @@ const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
   },
   mantenimiento: {
     title: 'Mantenimiento',
-    subtitle: 'Equipos con pauta PDF: ábrela para ver el archivo y todos los ítems',
+    subtitle: 'Equipos con pauta PDF: aquí asignas la persona que la va a realizar',
   },
   combustible: {
     title: 'Combustible',
