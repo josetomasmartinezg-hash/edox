@@ -238,6 +238,24 @@ function normalizeSigla(value) {
     .replace(/\s+/g, ' ')
 }
 
+function normalizePauta(pauta) {
+  if (!Array.isArray(pauta)) return []
+  return pauta
+    .map((tipo) => ({
+      id: String(tipo?.id || randomUUID()),
+      nombre: String(tipo?.nombre || '').trim(),
+      items: Array.isArray(tipo?.items)
+        ? tipo.items
+            .map((item) => ({
+              id: String(item?.id || randomUUID()),
+              label: String(item?.label || '').trim(),
+            }))
+            .filter((item) => item.label)
+        : [],
+    }))
+    .filter((tipo) => tipo.nombre && tipo.items.length)
+}
+
 function normalizeMachine(machine) {
   const categories = readJson('categories.json', [])
   const category =
@@ -252,6 +270,7 @@ function normalizeMachine(machine) {
     numeroMotor: machine.numeroMotor || '',
     categoriaId: category?.id || machine.categoriaId || '',
     categoria: category?.name || machine.categoria || '',
+    pauta: normalizePauta(machine.pauta),
   }
 }
 
@@ -480,6 +499,7 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
     numeroMotor,
     categoriaId,
     categoria,
+    pauta,
     generateQr = true,
   } = req.body || {}
   if (!marca?.trim() || !modelo?.trim() || !sigla?.trim()) {
@@ -510,6 +530,7 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
     numeroMotor: String(numeroMotor || '').trim(),
     categoriaId: category.id,
     categoria: category.name,
+    pauta: normalizePauta(pauta),
     active: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -576,6 +597,7 @@ app.put('/api/machines/:id', authRequired, requirePermission('manage_machines'),
         : current.numeroMotor || '',
     categoriaId: nextCategory?.id || current.categoriaId || '',
     categoria: nextCategory?.name || current.categoria || '',
+    pauta: req.body.pauta != null ? normalizePauta(req.body.pauta) : normalizePauta(current.pauta),
     active: typeof req.body.active === 'boolean' ? req.body.active : current.active,
     updatedAt: new Date().toISOString(),
   }

@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/auth'
 import type { Machine, MachineCategory, MachineDocument, MaintenanceRecord } from '../types'
 import {
-  MaintenancePautaBlock,
-  emptyPautaDraft,
-  pautaHasWork,
-  pautaPayload,
-  type PautaDraft,
+  MachinePautaEditor,
+  MachinePautaRun,
+  cleanPauta,
+  emptyPautaList,
+  emptyPautaRun,
+  type PautaRunDraft,
 } from './MaintenancePautaBlock'
 
 const emptyForm = {
@@ -19,6 +20,7 @@ const emptyForm = {
   numeroChasis: '',
   numeroMotor: '',
   generateQr: true,
+  pauta: emptyPautaList(),
 }
 
 type TimelineItem = {
@@ -82,7 +84,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
   const [machines, setMachines] = useState<Machine[]>([])
   const [categories, setCategories] = useState<MachineCategory[]>([])
   const [form, setForm] = useState(emptyForm)
-  const [pauta, setPauta] = useState<PautaDraft>(emptyPautaDraft())
+  const [runDraft, setRunDraft] = useState<PautaRunDraft>(emptyPautaRun())
   const [catForm, setCatForm] = useState({ id: '', name: '' })
   const [editingCat, setEditingCat] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -94,7 +96,6 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
   const [filterCategory, setFilterCategory] = useState('')
   const [filterDocs, setFilterDocs] = useState<'all' | 'expired' | 'soon' | 'ok'>('all')
 
-  const formCategoryName = categories.find((c) => c.id === form.categoriaId)?.name || ''
   const machineMaintenances = useMemo(() => {
     if (!historial?.machine) return []
     const sigla = historial.machine.sigla
@@ -172,7 +173,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
     const data = (await res.json()) as HistorialResponse
     setHistorial(data)
     setSelectedId(id)
-    setPauta(emptyPautaDraft(data.machine.categoria))
+    setRunDraft(emptyPautaRun(data.machine.pauta || []))
     setView('detail')
   }
 
@@ -180,44 +181,47 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
     void loadList()
   }, [])
 
-  async function savePautaForMachine(machine: Machine) {
-    if (!canManageMaintenance || !pautaHasWork(pauta)) return true
-    if (!pauta.horometro.trim()) {
-      setError('Ingresa el kilometraje u horómetro de la pauta')
-      return false
+  async function saveDetailPauta(machine: Machine) {
+    if (!canManageMaintenance) return
+    const tipos = cleanPauta(machine.pauta || [])
+    const current = tipos.find((t) => t.id === runDraft.tipoId) || tipos[0]
+    if (!current) {
+      setError('Esta máquina no tiene pauta. Edítala para agregarla.')
+      return
     }
-    if (!Object.values(pauta.doneTasks).some(Boolean)) {
-      setError('Marca al menos un ítem de mantenimiento con OK, o deja la pauta vacía')
-      return false
+    if (!runDraft.horometro.trim()) {
+      setError('Ingresa el kilometraje u horómetro')
+      return
     }
+    if (!Object.values(runDraft.doneTasks).some(Boolean)) {
+      setError('Marca al menos un ítem con OK')
+      return
+    }
+    setLoading(true)
+    setError('')
     const res = await apiFetch('/api/maintenance', {
       method: 'POST',
       body: JSON.stringify({
         machineId: machine.id,
         sigla: machine.sigla,
-        ...pautaPayload(pauta),
+        tipoMantenimiento: current.nombre,
+        intervaloId: current.id,
+        horometro: runDraft.horometro.trim(),
+        observaciones: runDraft.observaciones.trim(),
+        tareas: current.items.map((item) => ({
+          id: item.id,
+          label: item.label,
+          realizado: !!runDraft.doneTasks[item.id],
+        })),
       }),
     })
     const data = await res.json().catch(() => ({}))
+    setLoading(false)
     if (!res.ok) {
-      setError(data.error || 'La máquina se guardó, pero no el mantenimiento')
-      return false
-    }
-    return true
-  }
-
-  async function saveDetailPauta(machine: Machine) {
-    if (!canManageMaintenance) return
-    if (!pautaHasWork(pauta)) {
-      setError('Selecciona el tipo, ingresa el medidor y marca al menos un OK')
+      setError(data.error || 'No se pudo guardar el mantenimiento')
       return
     }
-    setLoading(true)
-    setError('')
-    const ok = await savePautaForMachine(machine)
-    setLoading(false)
-    if (!ok) return
-    setPauta(emptyPautaDraft(machine.categoria))
+    setRunDraft(emptyPautaRun(machine.pauta || []))
     await loadList()
     await loadDetail(machine.id)
   }
@@ -229,32 +233,19 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
       setError('Debes seleccionar una categoría')
       return
     }
-    if (pautaHasWork(pauta)) {
-      if (!pauta.horometro.trim()) {
-        setError('Ingresa el kilometraje u horómetro de la pauta')
-        return
-      }
-      if (!Object.values(pauta.doneTasks).some(Boolean)) {
-        setError('Marca al menos un ítem de mantenimiento con OK, o deja la pauta vacía')
-        return
-      }
-    }
     setLoading(true)
     setError('')
     const res = await apiFetch('/api/machines', {
       method: 'POST',
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, pauta: cleanPauta(form.pauta) }),
     })
     const data = await res.json()
+    setLoading(false)
     if (!res.ok) {
-      setLoading(false)
       setError(data.error || 'Error al guardar')
       return
     }
-    await savePautaForMachine(data as Machine)
     setForm(emptyForm)
-    setPauta(emptyPautaDraft())
-    setLoading(false)
     await loadList()
     await loadDetail(data.id)
   }
@@ -266,31 +257,18 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
       setError('Debes seleccionar una categoría')
       return
     }
-    if (pautaHasWork(pauta)) {
-      if (!pauta.horometro.trim()) {
-        setError('Ingresa el kilometraje u horómetro de la pauta')
-        return
-      }
-      if (!Object.values(pauta.doneTasks).some(Boolean)) {
-        setError('Marca al menos un ítem de mantenimiento con OK, o deja la pauta vacía')
-        return
-      }
-    }
     setLoading(true)
     setError('')
     const res = await apiFetch(`/api/machines/${selectedId}`, {
       method: 'PUT',
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, pauta: cleanPauta(form.pauta) }),
     })
     const data = await res.json()
+    setLoading(false)
     if (!res.ok) {
-      setLoading(false)
       setError(data.error || 'Error al actualizar')
       return
     }
-    await savePautaForMachine(data as Machine)
-    setPauta(emptyPautaDraft((data as Machine).categoria))
-    setLoading(false)
     await loadList()
     await loadDetail(data.id)
   }
@@ -319,9 +297,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
     setError('')
     const cats = categories.length ? categories : await loadCategories()
     const categoriaId = cats[0]?.id || ''
-    const categoriaName = cats.find((c) => c.id === categoriaId)?.name
-    setForm({ ...emptyForm, categoriaId })
-    setPauta(emptyPautaDraft(categoriaName))
+    setForm({ ...emptyForm, categoriaId, pauta: emptyPautaList() })
     setView('create')
   }
 
@@ -336,8 +312,8 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
       numeroChasis: machine.numeroChasis || '',
       numeroMotor: machine.numeroMotor || '',
       generateQr: true,
+      pauta: machine.pauta?.length ? machine.pauta : emptyPautaList(),
     })
-    setPauta(emptyPautaDraft(machine.categoria))
     setError('')
     setView('edit')
   }
@@ -524,12 +500,7 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
               <span>Categoría</span>
               <select
                 value={form.categoriaId}
-                onChange={(e) => {
-                  const categoriaId = e.target.value
-                  const categoriaName = categories.find((c) => c.id === categoriaId)?.name
-                  setForm({ ...form, categoriaId })
-                  setPauta(emptyPautaDraft(categoriaName))
-                }}
+                onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}
                 required
               >
                 <option value="">Seleccione categoría</option>
@@ -623,11 +594,10 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
             <span>Generar / actualizar QR al guardar</span>
           </label>
 
-          {canManageMaintenance ? (
-            <MaintenancePautaBlock
-              categoria={formCategoryName}
-              draft={pauta}
-              onChange={setPauta}
+          {canManage ? (
+            <MachinePautaEditor
+              value={form.pauta}
+              onChange={(pauta) => setForm({ ...form, pauta })}
               disabled={loading}
             />
           ) : null}
@@ -775,23 +745,25 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
 
         {canManageMaintenance ? (
           <div className="admin-card">
-            <MaintenancePautaBlock
-              categoria={machine.categoria}
-              draft={pauta}
-              onChange={setPauta}
+            <MachinePautaRun
+              pauta={machine.pauta || []}
+              draft={runDraft}
+              onChange={setRunDraft}
               disabled={loading}
             />
             {error ? <p className="form-error">{error}</p> : null}
-            <div className="machine-form-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={loading}
-                onClick={() => void saveDetailPauta(machine)}
-              >
-                {loading ? 'Guardando…' : 'Guardar mantenimiento'}
-              </button>
-            </div>
+            {(machine.pauta || []).length ? (
+              <div className="machine-form-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={loading}
+                  onClick={() => void saveDetailPauta(machine)}
+                >
+                  {loading ? 'Guardando…' : 'Guardar mantenimiento'}
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

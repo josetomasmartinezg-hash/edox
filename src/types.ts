@@ -49,6 +49,17 @@ export type Permissions = {
 
 export type DocumentAlert = 'expired' | 'soon' | 'ok' | 'none'
 
+export type MachinePautaItem = {
+  id: string
+  label: string
+}
+
+export type MachinePautaTipo = {
+  id: string
+  nombre: string
+  items: MachinePautaItem[]
+}
+
 export type MachineCategory = {
   id: string
   name: string
@@ -67,6 +78,7 @@ export type Machine = {
   numeroMotor: string
   categoriaId?: string
   categoria?: string
+  pauta?: MachinePautaTipo[]
   active?: boolean
   qrPayload?: string | null
   qrDataUrl?: string | null
