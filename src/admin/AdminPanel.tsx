@@ -38,11 +38,11 @@ const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
   },
   mantenimiento: {
     title: 'Mantenimiento',
-    subtitle: 'Registros de mantenimiento en terreno',
+    subtitle: 'Pauta 10.000 / 20.000 km con checklist OK',
   },
   programa_mantenimiento: {
     title: 'Programa de mantenimiento',
-    subtitle: 'Intervalos del manual y tareas realizadas',
+    subtitle: 'Registrar pauta por equipo: tipo, ítems OK y observaciones',
   },
   usuarios: {
     title: 'Usuarios',

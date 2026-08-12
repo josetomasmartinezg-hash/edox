@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ChecklistStatus, FieldRecordType, MachinaryRecord } from '../types'
 import { FIELD_TYPE_LABELS, parseMachineQr } from '../types'
+import {
+  LIGHT_TRUCK_MAINTENANCE_PROGRAM,
+  getInterval,
+} from '../data/maintenanceProgram'
 import { PhotoCapture } from './PhotoCapture'
 import { QrScanner } from './QrScanner'
 
@@ -23,9 +27,10 @@ function canSaveRecord(record: MachinaryRecord) {
   if (tipo === 'revision_diaria') {
     return record.checklist.some((item) => item.status)
   }
-  // mantenimiento
-  return record.mantenimiento.some(
-    (row) => row.nivel.trim() || row.seAdiciona.trim() || row.seAplica.trim(),
+  // mantenimiento: tipo de pauta + al menos un OK
+  return Boolean(
+    record.intervaloMantenimiento &&
+      record.mantenimiento.some((row) => row.realizado),
   )
 }
 
@@ -45,19 +50,35 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
     })
   }
 
-  function setMaintenance(
-    id: string,
-    field: 'nivel' | 'seAdiciona' | 'seAplica',
-    value: string,
-  ) {
+  function applyMaintInterval(intervaloId: string) {
+    const interval = getInterval(intervaloId) || LIGHT_TRUCK_MAINTENANCE_PROGRAM[0]
+    if (!interval) return
+    patch({
+      intervaloMantenimiento: interval.id,
+      mantenimiento: interval.tasks.map((t) => ({
+        id: t.id,
+        tipo: t.label,
+        nivel: '',
+        seAdiciona: '',
+        seAplica: '',
+        realizado: false,
+      })),
+    })
+  }
+
+  function toggleTaskOk(id: string) {
     patch({
       mantenimiento: record.mantenimiento.map((row) =>
-        row.id === id ? { ...row, [field]: value } : row,
+        row.id === id ? { ...row, realizado: !row.realizado } : row,
       ),
     })
   }
 
   const canSave = canSaveRecord(record)
+  const doneCount = useMemo(
+    () => record.mantenimiento.filter((r) => r.realizado).length,
+    [record.mantenimiento],
+  )
 
   if (showQr) {
     return (
@@ -260,82 +281,99 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
 
         {tipo === 'mantenimiento' ? (
           <section className="section">
-            <h3 className="section-title">Control de mantenimiento</h3>
+            <h3 className="section-title">Tipo de mantenimiento</h3>
+            <div className="type-pill-row">
+              {LIGHT_TRUCK_MAINTENANCE_PROGRAM.map((interval) => (
+                <button
+                  key={interval.id}
+                  type="button"
+                  className={`type-pill ${
+                    record.intervaloMantenimiento === interval.id ? 'active' : ''
+                  }`}
+                  onClick={() => applyMaintInterval(interval.id)}
+                >
+                  {interval.label}
+                </button>
+              ))}
+            </div>
             <label className="field">
-              <span>Horómetro al realizarlo</span>
+              <span>Kilometraje</span>
               <input
-                inputMode="decimal"
+                inputMode="numeric"
                 value={record.horasInicial}
-                placeholder="Ej: 127582"
-                onChange={(e) => patch({ horasInicial: e.target.value })}
+                placeholder="Ej: 45280"
+                onChange={(e) =>
+                  patch({ horasInicial: e.target.value.replace(/[^\d.]/g, '') })
+                }
               />
             </label>
-            <div className="table-scroll">
-              <table className="maint-table">
-                <thead>
-                  <tr>
-                    <th>Tipo</th>
-                    <th>Nivel</th>
-                    <th>Se adiciona</th>
-                    <th>Se aplica</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {record.mantenimiento.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.tipo}</td>
-                      <td>
-                        <input
-                          value={row.nivel}
-                          onChange={(e) => setMaintenance(row.id, 'nivel', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={row.seAdiciona}
-                          onChange={(e) => setMaintenance(row.id, 'seAdiciona', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={row.seAplica}
-                          onChange={(e) => setMaintenance(row.id, 'seAplica', e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <h3 className="section-title">
+              Pauta {getInterval(record.intervaloMantenimiento || '')?.label || ''}
+            </h3>
+            <p className="section-help">
+              {doneCount} de {record.mantenimiento.length || 0} con OK — toca cada ítem
+            </p>
+            <div className="task-list">
+              {record.mantenimiento.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  className={`task-ok-item ${row.realizado ? 'done' : ''}`}
+                  onClick={() => toggleTaskOk(row.id)}
+                >
+                  <span className="task-ok-badge">{row.realizado ? 'OK' : ''}</span>
+                  <span className="task-ok-label">{row.tipo}</span>
+                </button>
+              ))}
+              {!record.mantenimiento.length ? (
+                <p className="empty">Elige 10.000 o 20.000 km para cargar la pauta.</p>
+              ) : null}
             </div>
           </section>
         ) : null}
 
         <section className="section">
-          <h3 className="section-title">Observaciones y firmas</h3>
+          <h3 className="section-title">
+            {tipo === 'mantenimiento' ? 'Comentario / Observaciones' : 'Observaciones y firmas'}
+          </h3>
           <label className="field">
             <span>Observaciones</span>
             <textarea
               value={record.observaciones}
-              placeholder="Detalle del trabajo..."
+              placeholder={
+                tipo === 'mantenimiento'
+                  ? 'Detalle del trabajo, repuestos, hallazgos…'
+                  : 'Detalle del trabajo...'
+              }
               onChange={(e) => patch({ observaciones: e.target.value })}
             />
           </label>
-          <div className="field-grid two">
+          {tipo !== 'mantenimiento' ? (
+            <div className="field-grid two">
+              <label className="field">
+                <span>Firma operador</span>
+                <input
+                  value={record.firmaOperador}
+                  onChange={(e) => patch({ firmaOperador: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Firma supervisor</span>
+                <input
+                  value={record.firmaSupervisor}
+                  onChange={(e) => patch({ firmaSupervisor: e.target.value })}
+                />
+              </label>
+            </div>
+          ) : (
             <label className="field">
-              <span>Firma operador</span>
+              <span>Mecánico / responsable</span>
               <input
                 value={record.firmaOperador}
                 onChange={(e) => patch({ firmaOperador: e.target.value })}
               />
             </label>
-            <label className="field">
-              <span>Firma supervisor</span>
-              <input
-                value={record.firmaSupervisor}
-                onChange={(e) => patch({ firmaSupervisor: e.target.value })}
-              />
-            </label>
-          </div>
+          )}
         </section>
 
         <div className="btn-row">

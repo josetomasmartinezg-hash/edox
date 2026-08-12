@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/auth'
 import {
+  LIGHT_TRUCK_MAINTENANCE_PROGRAM,
+  getInterval,
+  getProgramForCategory,
+  isLightTruckCategory,
+  meterLabelForCategory,
+} from '../data/maintenanceProgram'
+import {
   DEFAULT_CHECKLIST,
-  DEFAULT_MAINTENANCE,
   FIELD_TYPE_LABELS,
   createEmptyRecord,
   type ChecklistStatus,
@@ -86,17 +92,32 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
     })
   }
 
-  function setMaintenance(
-    id: string,
-    field: 'nivel' | 'seAdiciona' | 'seAplica',
-    value: string,
-  ) {
+  function applyInterval(intervaloId: string, machine?: Machine | null) {
+    if (!draft) return
+    const program = machine
+      ? getProgramForCategory(machine.categoria)
+      : LIGHT_TRUCK_MAINTENANCE_PROGRAM
+    const interval = getInterval(intervaloId) || program.find((i) => i.id === intervaloId) || program[0]
+    if (!interval) return
+    patch({
+      intervaloMantenimiento: interval.id,
+      mantenimiento: interval.tasks.map((t) => ({
+        id: t.id,
+        tipo: t.label,
+        nivel: '',
+        seAdiciona: '',
+        seAplica: '',
+        realizado: false,
+      })),
+    })
+  }
+
+  function toggleTaskOk(id: string) {
     if (!draft) return
     patch({
-      mantenimiento: (draft.mantenimiento?.length
-        ? draft.mantenimiento
-        : DEFAULT_MAINTENANCE
-      ).map((row) => (row.id === id ? { ...row, [field]: value } : row)),
+      mantenimiento: draft.mantenimiento.map((row) =>
+        row.id === id ? { ...row, realizado: !row.realizado } : row,
+      ),
     })
   }
 
@@ -113,6 +134,16 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
     ) {
       setError('Completa litros en estanque y litros cargados')
       return
+    }
+    if (tipo === 'mantenimiento') {
+      if (!draft.intervaloMantenimiento) {
+        setError('Selecciona el tipo de mantenimiento (10.000 o 20.000 km)')
+        return
+      }
+      if (!draft.mantenimiento.some((row) => row.realizado)) {
+        setError('Marca al menos un ítem con OK')
+        return
+      }
     }
 
     setLoading(true)
@@ -143,6 +174,16 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
     await load()
   }
 
+  const selectedMachine = useMemo(
+    () => machines.find((m) => m.sigla === draft?.maquina) || null,
+    [machines, draft?.maquina],
+  )
+  const maintProgram = useMemo(() => {
+    if (tipo !== 'mantenimiento') return LIGHT_TRUCK_MAINTENANCE_PROGRAM
+    return getProgramForCategory(selectedMachine?.categoria)
+  }, [tipo, selectedMachine?.categoria])
+  const meterLabel = meterLabelForCategory(selectedMachine?.categoria)
+
   return (
     <div className="admin-section">
       <div className="toolbar">
@@ -153,12 +194,16 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
               ? 'Registro de cargas: estanque, litros cargados, guía y foto.'
               : tipo === 'revision_diaria'
                 ? 'Chequeo diario antes de operar, horómetro y viajes.'
-                : 'Control de aceites, diferencial y grasa en terreno.'}
+                : 'Pauta de camiones livianos: elige 10.000 o 20.000 km y marca cada ítem OK.'}
           </p>
         </div>
         {canManage ? (
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            Nuevo registro
+          <button
+            type="button"
+            className={`btn btn-primary ${tipo === 'mantenimiento' ? 'btn-add' : ''}`}
+            onClick={openCreate}
+          >
+            {tipo === 'mantenimiento' ? '+' : 'Nuevo registro'}
           </button>
         ) : null}
       </div>
@@ -185,14 +230,40 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
                 }
                 onChange={(e) => {
                   const machine = machines.find((m) => m.id === e.target.value)
-                  patch({ maquina: machine?.sigla || '' })
+                  if (!machine) {
+                    patch({ maquina: '' })
+                    return
+                  }
+                  if (tipo === 'mantenimiento') {
+                    const program = getProgramForCategory(machine.categoria)
+                    const id =
+                      draft.intervaloMantenimiento &&
+                      program.some((i) => i.id === draft.intervaloMantenimiento)
+                        ? draft.intervaloMantenimiento
+                        : program[0]?.id
+                    const interval = id ? getInterval(id) : null
+                    patch({
+                      maquina: machine.sigla,
+                      intervaloMantenimiento: id || '',
+                      mantenimiento: (interval?.tasks || []).map((t) => ({
+                        id: t.id,
+                        tipo: t.label,
+                        nivel: '',
+                        seAdiciona: '',
+                        seAplica: '',
+                        realizado: false,
+                      })),
+                    })
+                    return
+                  }
+                  patch({ maquina: machine.sigla })
                 }}
                 required
               >
                 <option value="">Seleccionar…</option>
                 {machines.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.sigla} — {m.marca} {m.modelo}
+                    {m.sigla} — {m.categoria || 'Sin cat.'} · {m.marca} {m.modelo}
                   </option>
                 ))}
               </select>
@@ -314,65 +385,73 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
 
           {tipo === 'mantenimiento' ? (
             <>
+              <div className="field">
+                <span>Tipo de mantenimiento</span>
+                <div className="type-pill-row">
+                  {maintProgram.map((interval) => (
+                    <button
+                      key={interval.id}
+                      type="button"
+                      className={`type-pill ${
+                        draft.intervaloMantenimiento === interval.id ? 'active' : ''
+                      }`}
+                      onClick={() => applyInterval(interval.id, selectedMachine)}
+                    >
+                      {interval.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <label className="field">
-                <span>Horómetro</span>
+                <span>{meterLabel}</span>
                 <input
+                  inputMode="numeric"
                   value={draft.horasInicial}
-                  onChange={(e) => patch({ horasInicial: e.target.value })}
+                  onChange={(e) =>
+                    patch({ horasInicial: e.target.value.replace(/[^\d.]/g, '') })
+                  }
+                  placeholder={
+                    isLightTruckCategory(selectedMachine?.categoria) ? 'Ej: 45280' : 'Ej: 127582'
+                  }
                 />
               </label>
-              <div className="table-scroll">
-                <table className="maint-table">
-                  <thead>
-                    <tr>
-                      <th>Tipo</th>
-                      <th>Nivel</th>
-                      <th>Se adiciona</th>
-                      <th>Se aplica</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(draft.mantenimiento?.length
-                      ? draft.mantenimiento
-                      : DEFAULT_MAINTENANCE
-                    ).map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.tipo}</td>
-                        <td>
-                          <input
-                            value={row.nivel}
-                            onChange={(e) => setMaintenance(row.id, 'nivel', e.target.value)}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            value={row.seAdiciona}
-                            onChange={(e) =>
-                              setMaintenance(row.id, 'seAdiciona', e.target.value)
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            value={row.seAplica}
-                            onChange={(e) => setMaintenance(row.id, 'seAplica', e.target.value)}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="task-list">
+                {draft.mantenimiento.map((row) => (
+                  <button
+                    key={row.id}
+                    type="button"
+                    className={`task-ok-item ${row.realizado ? 'done' : ''}`}
+                    onClick={() => toggleTaskOk(row.id)}
+                  >
+                    <span className="task-ok-badge">{row.realizado ? 'OK' : ''}</span>
+                    <span className="task-ok-label">{row.tipo}</span>
+                  </button>
+                ))}
+                {!draft.mantenimiento.length ? (
+                  <p className="empty">Selecciona el tipo (10.000 o 20.000 km) para ver la pauta.</p>
+                ) : null}
               </div>
+              <label className="field">
+                <span>Comentario / Observaciones</span>
+                <textarea
+                  value={draft.observaciones}
+                  onChange={(e) => patch({ observaciones: e.target.value })}
+                  placeholder="Detalle del trabajo, repuestos, hallazgos…"
+                  rows={4}
+                />
+              </label>
             </>
           ) : null}
 
-          <label className="field">
-            <span>Observaciones</span>
-            <textarea
-              value={draft.observaciones}
-              onChange={(e) => patch({ observaciones: e.target.value })}
-            />
-          </label>
+          {tipo !== 'mantenimiento' ? (
+            <label className="field">
+              <span>Observaciones</span>
+              <textarea
+                value={draft.observaciones}
+                onChange={(e) => patch({ observaciones: e.target.value })}
+              />
+            </label>
+          ) : null}
 
           {error ? <p className="form-error">{error}</p> : null}
           <div className="btn-row">
@@ -441,10 +520,13 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
                   ) : null}
                   {tipo === 'mantenimiento' ? (
                     <div className="table-sub">
-                      {(record.mantenimiento || [])
-                        .filter((m) => m.nivel || m.seAdiciona || m.seAplica)
-                        .map((m) => m.tipo)
-                        .join(' · ') || 'Sin detalle'}
+                      {getInterval(record.intervaloMantenimiento || '')?.label ||
+                        record.intervaloMantenimiento ||
+                        'Pauta'}
+                      {' · '}
+                      {(record.mantenimiento || []).filter((m) => m.realizado).length || 0}/
+                      {(record.mantenimiento || []).length || 0} OK
+                      {record.horasInicial ? ` · ${record.horasInicial}` : ''}
                     </div>
                   ) : null}
                 </td>

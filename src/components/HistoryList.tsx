@@ -27,10 +27,14 @@ function summaryFor(record: MachinaryRecord) {
     const done = record.checklist.filter((c) => c.status).length
     return `Chequeo: ${done}/${record.checklist.length} · Horas ${record.horasInicial || '—'} → ${record.horasFinal || '—'}`
   }
-  const filled = record.mantenimiento.filter(
-    (m) => m.nivel || m.seAdiciona || m.seAplica,
-  ).length
-  return `Mantenimiento: ${filled} ítems · Horómetro ${record.horasInicial || '—'}`
+  const filled = record.mantenimiento.filter((m) => m.realizado).length
+  const tipoPauta =
+    record.intervaloMantenimiento === 'km_20000'
+      ? '20.000 km'
+      : record.intervaloMantenimiento === 'km_10000'
+        ? '10.000 km'
+        : 'Pauta'
+  return `${tipoPauta}: ${filled}/${record.mantenimiento.length || 0} OK · km ${record.horasInicial || '—'}`
 }
 
 export function HistoryList({ records, onOpen, emptyText }: Props) {

@@ -753,15 +753,15 @@ app.post(
 
     const taskRows = Array.isArray(tareas)
       ? tareas
-          .filter((t) => t && t.id && t.label && t.realizado !== false)
+          .filter((t) => t && t.id && t.label)
           .map((t) => ({
             id: String(t.id),
             label: String(t.label),
-            realizado: true,
+            realizado: t.realizado === true || t.realizado === 'true',
           }))
       : []
 
-    if (!taskRows.length) {
+    if (!taskRows.some((t) => t.realizado)) {
       return res.status(400).json({ error: 'Debes marcar al menos una tarea realizada' })
     }
 

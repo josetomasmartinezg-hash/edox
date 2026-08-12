@@ -37,8 +37,8 @@ const TABS: { id: FieldRecordType; title: string; help: string; cta: string }[] 
   {
     id: 'mantenimiento',
     title: 'Mantenimiento',
-    help: 'Aceites, diferencial, grasa y lo aplicado en terreno.',
-    cta: 'Nuevo mantenimiento',
+    help: 'Pauta 10.000 / 20.000 km: marca cada ítem OK y deja observaciones.',
+    cta: '+',
   },
 ]
 
@@ -193,12 +193,20 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
             </section>
 
             <div className="nav-grid">
-              <button type="button" className="nav-card" onClick={() => void startNew()}>
+              <button
+                type="button"
+                className={`nav-card ${tab === 'mantenimiento' ? 'nav-card-add' : ''}`}
+                onClick={() => void startNew()}
+              >
                 <div>
                   <strong>{currentTab.cta}</strong>
-                  <span>QR + formulario · funciona offline</span>
+                  <span>
+                    {tab === 'mantenimiento'
+                      ? 'Elige 10.000 o 20.000 km y marca ítems OK'
+                      : 'QR + formulario · funciona offline'}
+                  </span>
                 </div>
-                <em>Empezar</em>
+                <em>{tab === 'mantenimiento' ? 'Nuevo' : 'Empezar'}</em>
               </button>
               <button type="button" className="nav-card" onClick={() => void forceSync()}>
                 <div>

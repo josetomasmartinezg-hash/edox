@@ -41,8 +41,10 @@ export function worstDocumentStatus(statuses) {
   return 'none'
 }
 
-/** Intervalos del programa de mantenimiento (manual de tiempos operativos) */
+/** Intervalos del programa de mantenimiento */
 export const MAINTENANCE_INTERVALS = [
+  '10.000 km',
+  '20.000 km',
   'Según se requiera',
   'Cada 10 horas o diariamente',
   'Cada 50 horas de trabajo',

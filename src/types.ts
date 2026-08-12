@@ -12,6 +12,8 @@ export type MaintenanceRow = {
   nivel: string
   seAdiciona: string
   seAplica: string
+  /** Ítem marcado OK en pauta 10.000 / 20.000 km */
+  realizado?: boolean
 }
 
 export type RoleId =
@@ -146,6 +148,8 @@ export type MachinaryRecord = {
   litrosEnEstanque: string
   litrosCargados: string
   guiaNumero: string
+  /** Intervalo de pauta: km_10000 | km_20000 | … */
+  intervaloMantenimiento?: string
   mantenimiento: MaintenanceRow[]
   observaciones: string
   firmaOperador: string
@@ -205,7 +209,11 @@ export function createEmptyRecord(
     litrosEnEstanque: '',
     litrosCargados: '',
     guiaNumero: '',
-    mantenimiento: DEFAULT_MAINTENANCE.map((row) => ({ ...row })),
+    intervaloMantenimiento: tipoRegistro === 'mantenimiento' ? '' : undefined,
+    mantenimiento:
+      tipoRegistro === 'mantenimiento'
+        ? []
+        : DEFAULT_MAINTENANCE.map((row) => ({ ...row })),
     observaciones: '',
     firmaOperador: operador,
     firmaSupervisor: '',
