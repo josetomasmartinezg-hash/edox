@@ -23,11 +23,39 @@ export type RoleId =
   | 'mecanico'
   | 'operador_surtidor'
 
+export type ModuleId =
+  | 'panel'
+  | 'maquinaria'
+  | 'mantenimiento'
+  | 'reparaciones'
+  | 'usuarios'
+  | 'documentacion'
+  | 'combustible'
+  | 'revision_diaria'
+
+export type ModuleAccess = {
+  view: boolean
+  edit: boolean
+  delete: boolean
+  scope?: 'all' | 'assigned'
+}
+
+export type UserType = {
+  id: string
+  name: string
+  description?: string
+  system?: boolean
+  modules: Record<ModuleId, ModuleAccess>
+  createdAt?: string
+  updatedAt?: string
+}
+
 export type User = {
   id: string
   name: string
   email: string
   role: RoleId
+  userTypeId?: string
   isPrincipal?: boolean
   active?: boolean
   createdAt?: string
@@ -35,6 +63,9 @@ export type User = {
 }
 
 export type Permissions = {
+  modules: Record<ModuleId, ModuleAccess>
+  maintenance_scope?: 'all' | 'assigned' | 'none'
+  repairs_scope?: 'all' | 'assigned' | 'none'
   admin_panel: boolean
   manage_users: boolean
   manage_machines: boolean
@@ -42,6 +73,9 @@ export type Permissions = {
   manage_maintenance: boolean
   assign_maintenance: boolean
   view_maintenance: boolean
+  manage_repairs: boolean
+  assign_repairs: boolean
+  view_repairs: boolean
   manage_documents: boolean
   view_documents: boolean
   field_form: boolean
@@ -112,7 +146,20 @@ export type MachineDocument = {
   updatedAt: string
 }
 
-export type MaintenanceStatus = 'pending' | 'in_progress' | 'completed'
+export type MaintenancePhotoKind = 'dano' | 'prueba'
+
+export type MaintenancePhoto = {
+  id: string
+  url: string
+  fileName: string
+  kind: MaintenancePhotoKind
+  caption?: string
+  uploadedById: string
+  uploadedByName: string
+  createdAt: string
+}
+
+export type MaintenanceStatus = 'assigned' | 'pending' | 'in_progress' | 'completed'
 
 export type MaintenanceComment = {
   id: string
@@ -149,6 +196,7 @@ export type MaintenanceRecord = {
   asignadoPorId?: string
   asignadoPorNombre?: string
   comentarios?: MaintenanceComment[]
+  fotos?: MaintenancePhoto[]
   /** @deprecated campos antiguos */
   acciones?: string[]
   detalles?: Array<{
@@ -164,12 +212,44 @@ export type MaintenanceRecord = {
   updatedAt: string
 }
 
+export type RepairRecord = {
+  id: string
+  machineId?: string | null
+  sigla: string
+  titulo: string
+  descripcion: string
+  horometro?: string
+  observaciones?: string
+  status?: MaintenanceStatus
+  asignadoId?: string | null
+  asignadoNombre?: string
+  asignadoRole?: string
+  asignadoPorId?: string
+  asignadoPorNombre?: string
+  comentarios?: MaintenanceComment[]
+  fotos?: MaintenancePhoto[]
+  createdAt: string
+  updatedAt: string
+}
+
 export type FieldRecordType = 'combustible' | 'revision_diaria' | 'mantenimiento'
+
+export const MAINTENANCE_PHOTO_LABELS: Record<MaintenancePhotoKind, string> = {
+  dano: 'Daño',
+  prueba: 'Prueba de mantenimiento',
+}
 
 export const FIELD_TYPE_LABELS: Record<FieldRecordType, string> = {
   combustible: 'Combustible',
   revision_diaria: 'Revisión diaria',
   mantenimiento: 'Mantenimiento',
+}
+
+export type RecordPhoto = {
+  id: string
+  url: string
+  fileName?: string
+  createdAt?: string
 }
 
 export type MachinaryRecord = {
@@ -194,6 +274,8 @@ export type MachinaryRecord = {
   tipoMantenimiento?: string
   mantenimiento: MaintenanceRow[]
   observaciones: string
+  observacionFotos?: RecordPhoto[]
+  observacionFotosPending?: Array<{ id: string; dataUrl: string; fileName: string }>
   firmaOperador: string
   firmaSupervisor: string
   firmaJefeFaena: string
@@ -204,6 +286,17 @@ export type MachinaryRecord = {
   syncStatus: 'pending' | 'synced' | 'error'
   lastSyncError?: string | null
   userId?: string
+}
+
+export const MODULE_LABELS: Record<ModuleId, string> = {
+  panel: 'Panel de control',
+  maquinaria: 'Maquinaria',
+  mantenimiento: 'Mantenimiento',
+  reparaciones: 'Reparaciones',
+  usuarios: 'Usuarios',
+  documentacion: 'Documentación',
+  combustible: 'Combustible',
+  revision_diaria: 'Revisión diaria',
 }
 
 export const ROLE_LABELS: Record<RoleId, string> = {

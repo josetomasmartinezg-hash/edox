@@ -8,6 +8,18 @@ import type { Permissions, User } from './types'
 type Screen = 'loading' | 'login' | 'field' | 'admin'
 
 const emptyPermissions: Permissions = {
+  modules: {
+    panel: { view: false, edit: false, delete: false },
+    maquinaria: { view: false, edit: false, delete: false },
+    mantenimiento: { view: false, edit: false, delete: false },
+    reparaciones: { view: false, edit: false, delete: false },
+    usuarios: { view: false, edit: false, delete: false },
+    documentacion: { view: false, edit: false, delete: false },
+    combustible: { view: false, edit: false, delete: false },
+    revision_diaria: { view: false, edit: false, delete: false },
+  },
+  maintenance_scope: 'none',
+  repairs_scope: 'none',
   admin_panel: false,
   manage_users: false,
   manage_machines: false,
@@ -15,6 +27,9 @@ const emptyPermissions: Permissions = {
   manage_maintenance: false,
   assign_maintenance: false,
   view_maintenance: false,
+  manage_repairs: false,
+  assign_repairs: false,
+  view_repairs: false,
   manage_documents: false,
   view_documents: false,
   field_form: false,
@@ -102,9 +117,15 @@ export default function App() {
         user={user}
         permissions={permissions}
         onBackField={
-          permissions.field_form || user.role === 'mecanico' ? () => setScreen('field') : undefined
+          permissions.field_form ||
+          permissions.admin_panel ||
+          user.role === 'mecanico' ||
+          user.isPrincipal
+            ? () => setScreen('field')
+            : undefined
         }
         onLogout={logout}
+        onSwitchUser={() => void bootstrap()}
       />
     )
   }
@@ -115,6 +136,7 @@ export default function App() {
       canOpenAdmin={permissions.admin_panel}
       onOpenAdmin={() => setScreen('admin')}
       onLogout={logout}
+      onSwitchUser={() => void bootstrap()}
     />
   )
 }

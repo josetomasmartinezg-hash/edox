@@ -12,13 +12,38 @@ import {
   ROLES,
   documentStatus,
   publicUser,
-  roleCan,
   worstDocumentStatus,
 } from './constants.js'
-import { authOptional, authRequired, requirePermission, signToken } from './auth.js'
+import {
+  MODULES,
+  canAssignMaintenance,
+  canAssignRepairs,
+  canSeeAllMaintenance,
+  canSeeAllRepairs,
+  repairsScope,
+  getUserTypeById,
+  legacyPermissions,
+  normalizeUserType,
+  publicUserType,
+  readUserTypes,
+  userCan,
+  userHasLegacyPermission,
+  maintenanceScope,
+} from './permissions.js'
+import {
+  authOptional,
+  authRequired,
+  requireAnyPermission,
+  requirePermission,
+  signToken,
+} from './auth.js'
 import { ensureSeedData } from './seed.js'
 import { dataDir, readJson, uploadsDir, writeJson } from './store.js'
 import { isPautaFile, parsePautaFile, pautaSummary } from './parsePauta.js'
+import {
+  buildMaintenanceAssignmentPdf,
+  maintenancePdfFilename,
+} from './maintenancePdf.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(__dirname, '..')
@@ -173,20 +198,104 @@ app.post('/api/auth/login', (req, res) => {
 app.get('/api/auth/me', authRequired, (req, res) => {
   res.json({
     user: req.user,
-    permissions: {
-      admin_panel: req.user.isPrincipal || roleCan(req.user.role, 'admin_panel'),
-      manage_users: req.user.isPrincipal || roleCan(req.user.role, 'manage_users'),
-      manage_machines: req.user.isPrincipal || roleCan(req.user.role, 'manage_machines'),
-      view_machines: req.user.isPrincipal || roleCan(req.user.role, 'view_machines'),
-      manage_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'manage_maintenance'),
-      assign_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'assign_maintenance'),
-      view_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'view_maintenance'),
-      manage_documents: req.user.isPrincipal || roleCan(req.user.role, 'manage_documents'),
-      view_documents: req.user.isPrincipal || roleCan(req.user.role, 'view_documents'),
-      field_form: req.user.isPrincipal || roleCan(req.user.role, 'field_form'),
-      view_all_records: req.user.isPrincipal || roleCan(req.user.role, 'view_all_records'),
-    },
+    permissions: legacyPermissions(req.user),
   })
+})
+
+function devToolsEnabled() {
+  return process.env.NODE_ENV !== 'production'
+}
+
+/** Perfiles disponibles para cambiar de usuario en desarrollo */
+app.get('/api/auth/switch-users', authRequired, (req, res) => {
+  if (!devToolsEnabled()) return res.status(404).json({ error: 'No disponible' })
+  const users = readJson('users.json', [])
+    .filter((u) => u.active !== false)
+    .map(publicUser)
+    .sort((a, b) => {
+      const roleOrder = ['administrador', 'supervisor', 'mecanico', 'operador', 'operador_surtidor']
+      const ra = roleOrder.indexOf(a.role)
+      const rb = roleOrder.indexOf(b.role)
+      if (ra !== rb) return ra - rb
+      return a.name.localeCompare(b.name, 'es')
+    })
+  res.json(users)
+})
+
+/** Cambia la sesión a otro usuario (solo desarrollo) */
+app.post('/api/auth/switch', authRequired, (req, res) => {
+  if (!devToolsEnabled()) return res.status(404).json({ error: 'No disponible' })
+  const userId = String(req.body.userId || '')
+  const users = readJson('users.json', [])
+  const user = users.find((u) => u.id === userId && u.active !== false)
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
+  res.json({ token: signToken(user), user: publicUser(user) })
+})
+
+/* ─── User types ─── */
+app.get('/api/user-types', authRequired, requirePermission('manage_users'), (_req, res) => {
+  res.json(readUserTypes().map(publicUserType))
+})
+
+app.get('/api/user-types/meta', authRequired, requirePermission('manage_users'), (_req, res) => {
+  res.json({ modules: MODULES })
+})
+
+app.post('/api/user-types', authRequired, requirePermission('manage_users'), (req, res) => {
+  const { name, description, modules } = req.body || {}
+  if (!name?.trim()) {
+    return res.status(400).json({ error: 'El nombre del tipo es obligatorio' })
+  }
+  const types = readUserTypes()
+  const normalized = normalizeUserType({
+    id: randomUUID(),
+    name: String(name).trim(),
+    description: String(description || '').trim(),
+    system: false,
+    modules,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  })
+  types.push(normalized)
+  writeJson('userTypes.json', types)
+  res.status(201).json(publicUserType(normalized))
+})
+
+app.put('/api/user-types/:id', authRequired, requirePermission('manage_users'), (req, res) => {
+  const types = readJson('userTypes.json', [])
+  const idx = types.findIndex((t) => t.id === req.params.id)
+  if (idx < 0) return res.status(404).json({ error: 'Tipo no encontrado' })
+
+  const current = normalizeUserType(types[idx])
+  const updated = normalizeUserType({
+    ...current,
+    name: req.body.name?.trim() || current.name,
+    description:
+      req.body.description != null ? String(req.body.description).trim() : current.description,
+    modules: req.body.modules != null ? req.body.modules : current.modules,
+    updatedAt: new Date().toISOString(),
+  })
+  types[idx] = updated
+  writeJson('userTypes.json', types)
+  res.json(publicUserType(updated))
+})
+
+app.delete('/api/user-types/:id', authRequired, requirePermission('manage_users'), (req, res) => {
+  const types = readJson('userTypes.json', [])
+  const type = types.find((t) => t.id === req.params.id)
+  if (!type) return res.status(404).json({ error: 'Tipo no encontrado' })
+  if (type.system) {
+    return res.status(400).json({ error: 'No se pueden eliminar tipos del sistema' })
+  }
+  const users = readJson('users.json', [])
+  if (users.some((u) => u.userTypeId === type.id)) {
+    return res.status(400).json({ error: 'Hay usuarios con este tipo. Reasígnalos antes de eliminar.' })
+  }
+  writeJson(
+    'userTypes.json',
+    types.filter((t) => t.id !== req.params.id),
+  )
+  res.json({ ok: true })
 })
 
 /* ─── Users ─── */
@@ -199,9 +308,9 @@ app.get('/api/users', authRequired, requirePermission('manage_users'), (_req, re
 app.get('/api/operators', authRequired, (req, res) => {
   if (
     !req.user.isPrincipal &&
-    !roleCan(req.user.role, 'field_form') &&
-    !roleCan(req.user.role, 'view_all_records') &&
-    !roleCan(req.user.role, 'admin_panel')
+    !userHasLegacyPermission(req.user, 'field_form') &&
+    !userHasLegacyPermission(req.user, 'view_all_records') &&
+    !userHasLegacyPermission(req.user, 'admin_panel')
   ) {
     return res.status(403).json({ error: 'Sin permiso' })
   }
@@ -217,12 +326,19 @@ app.get('/api/operators', authRequired, (req, res) => {
 })
 
 app.post('/api/users', authRequired, requirePermission('manage_users'), (req, res) => {
-  const { name, email, password, role } = req.body || {}
-  if (!name?.trim() || !email?.trim() || !password || !role) {
-    return res.status(400).json({ error: 'Nombre, correo, contraseña y perfil son obligatorios' })
+  const { name, email, password, userTypeId, role } = req.body || {}
+  if (!name?.trim() || !email?.trim() || !password) {
+    return res.status(400).json({ error: 'Nombre, correo y contraseña son obligatorios' })
   }
-  if (!ROLES.some((r) => r.id === role)) {
-    return res.status(400).json({ error: 'Perfil inválido' })
+
+  const types = readUserTypes()
+  let resolvedTypeId = userTypeId
+  if (!resolvedTypeId && role) {
+    resolvedTypeId = types.find((t) => t.roleLegacy === role)?.id
+  }
+  const userType = getUserTypeById(resolvedTypeId)
+  if (!userType) {
+    return res.status(400).json({ error: 'Selecciona un tipo de usuario válido' })
   }
 
   const users = readJson('users.json', [])
@@ -236,7 +352,8 @@ app.post('/api/users', authRequired, requirePermission('manage_users'), (req, re
     name: String(name).trim(),
     email: normalized,
     passwordHash: bcrypt.hashSync(String(password), 10),
-    role,
+    role: userType.roleLegacy || 'operador',
+    userTypeId: userType.id,
     isPrincipal: false,
     active: true,
     createdAt: new Date().toISOString(),
@@ -269,11 +386,19 @@ app.put('/api/users/:id', authRequired, requirePermission('manage_users'), (req,
     return res.status(409).json({ error: 'Ya existe un usuario con ese correo' })
   }
 
+  const types = readUserTypes()
+  let nextTypeId = req.body.userTypeId || current.userTypeId
+  if (!nextTypeId && req.body.role) {
+    nextTypeId = types.find((t) => t.roleLegacy === req.body.role)?.id
+  }
+  const userType = getUserTypeById(nextTypeId)
+
   const updated = {
     ...current,
     name: req.body.name?.trim() || current.name,
     email: nextEmail,
-    role: req.body.role || current.role,
+    userTypeId: userType?.id || current.userTypeId,
+    role: userType?.roleLegacy || req.body.role || current.role,
     active: typeof req.body.active === 'boolean' ? req.body.active : current.active,
     updatedAt: new Date().toISOString(),
   }
@@ -915,7 +1040,7 @@ app.get(
 app.post(
   '/api/documents',
   authRequired,
-  requirePermission('manage_documents'),
+  requireAnyPermission('manage_documents', 'manage_machines'),
   (req, res) => {
     documentUpload.single('file')(req, res, (err) => {
       if (err) {
@@ -968,7 +1093,7 @@ app.post(
 app.delete(
   '/api/documents/:id',
   authRequired,
-  requirePermission('manage_documents'),
+  requireAnyPermission('manage_documents', 'manage_machines'),
   (req, res) => {
     const all = readJson('documents.json', [])
     const doc = all.find((d) => d.id === req.params.id)
@@ -996,22 +1121,37 @@ app.delete(
   },
 )
 
-function maintenanceStatusFromTasks(tareas, requested) {
-  if (requested === 'completed' || requested === 'pending' || requested === 'in_progress') {
-    return requested
+function maintenanceStatusFromTasks(tareas, requested, hasAssignee = false) {
+  if (
+    requested === 'completed' ||
+    requested === 'assigned' ||
+    requested === 'pending' ||
+    requested === 'in_progress'
+  ) {
+    return requested === 'pending' && hasAssignee ? 'assigned' : requested
   }
   const list = Array.isArray(tareas) ? tareas : []
-  if (!list.length) return 'pending'
+  if (!list.length) return hasAssignee ? 'assigned' : 'pending'
   if (list.every((t) => t.realizado)) return 'completed'
   if (list.some((t) => t.realizado)) return 'in_progress'
-  return 'pending'
+  return hasAssignee ? 'assigned' : 'pending'
 }
 
 function normalizeMaintenance(item) {
   const tareas = Array.isArray(item?.tareas) ? item.tareas : []
-  const status =
-    item?.status ||
-    (tareas.some((t) => t.realizado) ? 'completed' : 'pending')
+  const hasAssignee = !!(item?.asignadoId || item?.mecanicoId)
+  let status = item?.status
+  if (!status) {
+    status = tareas.some((t) => t.realizado)
+      ? tareas.every((t) => t.realizado)
+        ? 'completed'
+        : 'in_progress'
+      : hasAssignee
+        ? 'assigned'
+        : 'pending'
+  } else if (status === 'pending' && hasAssignee && !tareas.some((t) => t.realizado)) {
+    status = 'assigned'
+  }
   return {
     ...item,
     status,
@@ -1024,6 +1164,18 @@ function normalizeMaintenance(item) {
     asignadoPorId: item?.asignadoPorId || '',
     asignadoPorNombre: item?.asignadoPorNombre || '',
     comentarios: Array.isArray(item?.comentarios) ? item.comentarios : [],
+    fotos: Array.isArray(item?.fotos)
+      ? item.fotos.map((f) => ({
+          id: String(f?.id || randomUUID()),
+          url: String(f?.url || ''),
+          fileName: String(f?.fileName || ''),
+          kind: f?.kind === 'dano' ? 'dano' : 'prueba',
+          caption: String(f?.caption || '').trim(),
+          uploadedById: String(f?.uploadedById || ''),
+          uploadedByName: String(f?.uploadedByName || ''),
+          createdAt: f?.createdAt || new Date().toISOString(),
+        }))
+      : [],
     pauta: Array.isArray(item?.pauta) ? item.pauta : [],
     pautaFileUrl: item?.pautaFileUrl || null,
     pautaFileName: item?.pautaFileName || '',
@@ -1087,24 +1239,61 @@ function resolveAssignee(asignadoId) {
   const users = readJson('users.json', [])
   const user = users.find((u) => u.id === asignadoId && u.active !== false)
   if (!user) return null
-  if (!['mecanico', 'supervisor', 'administrador'].includes(user.role) && !user.isPrincipal) {
-    return null
-  }
+  if (!userCan(user, 'mantenimiento', 'view') && !user.isPrincipal) return null
   return user
 }
 
-function canSeeAllMaintenance(user) {
-  return (
-    !!user.isPrincipal ||
-    roleCan(user.role, 'assign_maintenance') ||
-    roleCan(user.role, 'view_all_records')
-  )
+function isAssignedMaintenanceOnly(user) {
+  return maintenanceScope(user) === 'assigned' && !canAssignMaintenance(user)
 }
 
 function canUpdateMaintenance(user, item) {
   if (!user) return false
-  if (user.isPrincipal || roleCan(user.role, 'assign_maintenance')) return true
-  return item.asignadoId === user.id || item.mecanicoId === user.id
+  if (user.isPrincipal || canAssignMaintenance(user)) return true
+  if (maintenanceScope(user) === 'assigned') return item.asignadoId === user.id
+  return userCan(user, 'mantenimiento', 'edit')
+}
+
+function normalizeRepair(raw) {
+  if (!raw) return raw
+  return {
+    ...raw,
+    status: raw.status || 'assigned',
+    fotos: Array.isArray(raw.fotos) ? raw.fotos : [],
+    comentarios: Array.isArray(raw.comentarios) ? raw.comentarios : [],
+  }
+}
+
+function repairStatusFromBody(requested, hasAssignee = false) {
+  if (
+    requested === 'completed' ||
+    requested === 'assigned' ||
+    requested === 'pending' ||
+    requested === 'in_progress'
+  ) {
+    return requested === 'pending' && hasAssignee ? 'assigned' : requested
+  }
+  return hasAssignee ? 'assigned' : 'in_progress'
+}
+
+function resolveRepairAssignee(asignadoId) {
+  if (!asignadoId) return null
+  const users = readJson('users.json', [])
+  const user = users.find((u) => u.id === asignadoId && u.active !== false)
+  if (!user) return null
+  if (!userCan(user, 'reparaciones', 'view') && !user.isPrincipal) return null
+  return user
+}
+
+function isAssignedRepairOnly(user) {
+  return repairsScope(user) === 'assigned' && !canAssignRepairs(user)
+}
+
+function canUpdateRepair(user, item) {
+  if (!user) return false
+  if (user.isPrincipal || canAssignRepairs(user)) return true
+  if (repairsScope(user) === 'assigned') return item.asignadoId === user.id
+  return userCan(user, 'reparaciones', 'edit')
 }
 
 /* ─── Maintenance ─── */
@@ -1117,11 +1306,9 @@ app.get(
     const machines = readJson('machines.json', [])
     items = items.map((item) => withMachinePautaMeta(item, machines))
     if (!canSeeAllMaintenance(req.user)) {
-      items = items.filter(
-        (m) => m.asignadoId === req.user.id || m.mecanicoId === req.user.id,
-      )
+      items = items.filter((m) => m.asignadoId === req.user.id)
     }
-    const rank = { pending: 0, in_progress: 1, completed: 2 }
+    const rank = { assigned: 0, pending: 0, in_progress: 1, completed: 2 }
     items.sort((a, b) => {
       const ra = rank[a.status] ?? 3
       const rb = rank[b.status] ?? 3
@@ -1129,6 +1316,45 @@ app.get(
       return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
     })
     res.json(items)
+  },
+)
+
+app.get(
+  '/api/maintenance/:id/pdf',
+  authRequired,
+  requirePermission('view_maintenance'),
+  async (req, res) => {
+    const all = readJson('maintenance.json', [])
+    const raw = all.find((m) => m.id === req.params.id)
+    if (!raw) return res.status(404).json({ error: 'Registro no encontrado' })
+
+    const item = normalizeMaintenance(raw)
+    const canDownload =
+      canSeeAllMaintenance(req.user) ||
+      canAssignMaintenance(req.user) ||
+      item.asignadoId === req.user.id
+
+    if (!canDownload) {
+      return res.status(403).json({ error: 'No tienes permiso para descargar este PDF' })
+    }
+
+    const machines = readJson('machines.json', [])
+    const machine =
+      machines.find((m) => m.id === item.machineId) ||
+      machines.find((m) => m.sigla?.toUpperCase() === String(item.sigla).trim().toUpperCase()) ||
+      null
+
+    try {
+      const pdf = await buildMaintenanceAssignmentPdf(item, machine)
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${maintenancePdfFilename(item)}"`,
+      )
+      res.send(pdf)
+    } catch {
+      res.status(500).json({ error: 'No se pudo generar el PDF' })
+    }
   },
 )
 
@@ -1154,6 +1380,17 @@ app.post(
       return res.status(400).json({ error: 'Debes seleccionar un equipo (sigla)' })
     }
 
+    const isAssignment =
+      !!asignadoId || req.user.isPrincipal || canAssignMaintenance(req.user)
+
+    if (isAssignedMaintenanceOnly(req.user)) {
+      return res.status(403).json({ error: 'Solo un supervisor puede crear mantenimientos. Revisa los que te asignaron.' })
+    }
+
+    if (isAssignment && !intervaloId) {
+      return res.status(400).json({ error: 'Selecciona el tipo de mantenimiento de la pauta del equipo' })
+    }
+
     const machines = readJson('machines.json', [])
     const machine =
       machines.find((m) => m.id === machineId) ||
@@ -1164,7 +1401,7 @@ app.post(
     if (!taskRows.length && intervaloId) {
       taskRows = pautaItemsForTipo(machine, intervaloId, tipoMantenimiento)
     }
-    if (!taskRows.length) {
+    if (!taskRows.length && !isAssignment) {
       taskRows = flattenPautaToTareas(pautaSnap)
     }
     if (!taskRows.length) {
@@ -1172,26 +1409,35 @@ app.post(
     }
 
     const assigningToOther = asignadoId && asignadoId !== req.user.id
-    if (assigningToOther && !req.user.isPrincipal && !roleCan(req.user.role, 'assign_maintenance')) {
+    if (assigningToOther && !req.user.isPrincipal && !canAssignMaintenance(req.user)) {
       return res.status(403).json({ error: 'No puedes asignar mantenimientos a otros usuarios' })
     }
 
     const assignee = resolveAssignee(asignadoId) || req.user
-    const nextStatus = maintenanceStatusFromTasks(taskRows, status)
+    const nextStatus = maintenanceStatusFromTasks(
+      taskRows,
+      status || (asignadoId ? 'assigned' : undefined),
+      !!(assignee?.id && asignadoId),
+    )
 
     if (nextStatus === 'completed' && !String(horometro || '').trim()) {
       return res.status(400).json({ error: 'Ingresa el kilometraje u horómetro para completar' })
     }
+
+    const selectedTipoPauta = intervaloId
+      ? pautaSnap.filter((t) => t.id === intervaloId)
+      : pautaSnap
+    const selectedTipo = selectedTipoPauta[0] || null
 
     const item = {
       id: randomUUID(),
       machineId: machine?.id || machineId || null,
       sigla: machine?.sigla || String(sigla).trim().toUpperCase(),
       tipoMantenimiento: String(
-        tipoMantenimiento || machine?.pautaFileName || 'Pauta',
+        tipoMantenimiento || selectedTipo?.nombre || machine?.pautaFileName || 'Pauta',
       ).trim(),
       intervaloId: intervaloId || null,
-      pauta: pautaSnap,
+      pauta: selectedTipoPauta.length ? selectedTipoPauta : pautaSnap,
       pautaFileUrl: machine?.pautaFileUrl || null,
       pautaFileName: machine?.pautaFileName || '',
       pautaMimeType: machine?.pautaMimeType || '',
@@ -1235,7 +1481,11 @@ app.put(
 
     const taskRows =
       req.body.tareas != null ? mapTareas(req.body.tareas) : current.tareas || []
-    const nextStatus = maintenanceStatusFromTasks(taskRows, req.body.status)
+    const nextStatus = maintenanceStatusFromTasks(
+      taskRows,
+      req.body.status,
+      !!(current.asignadoId || current.mecanicoId),
+    )
     const horometro =
       req.body.horometro != null ? String(req.body.horometro).trim() : current.horometro
 
@@ -1265,10 +1515,7 @@ app.put(
       mecanicoId: current.mecanicoId,
       mecanicoNombre: current.mecanicoNombre,
     }
-    if (
-      req.body.asignadoId &&
-      (req.user.isPrincipal || roleCan(req.user.role, 'assign_maintenance'))
-    ) {
+    if (req.body.asignadoId && (req.user.isPrincipal || canAssignMaintenance(req.user))) {
       const nextAssignee = resolveAssignee(req.body.asignadoId)
       if (!nextAssignee) {
         return res.status(400).json({ error: 'El asignado debe ser mecánico o supervisor' })
@@ -1311,11 +1558,89 @@ app.put(
   },
 )
 
+app.post(
+  '/api/maintenance/:id/photos',
+  authRequired,
+  requirePermission('view_maintenance'),
+  upload.single('photo'),
+  (req, res) => {
+    const all = readJson('maintenance.json', [])
+    const idx = all.findIndex((m) => m.id === req.params.id)
+    if (idx < 0) return res.status(404).json({ error: 'Registro no encontrado' })
+
+    const current = normalizeMaintenance(all[idx])
+    if (!canUpdateMaintenance(req.user, current)) {
+      return res.status(403).json({ error: 'Este mantenimiento no está asignado a ti' })
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Debes subir una fotografía' })
+    }
+
+    const kind = req.body?.kind === 'dano' ? 'dano' : 'prueba'
+    const photo = {
+      id: randomUUID(),
+      url: `/uploads/${req.file.filename}`,
+      fileName: req.file.originalname || req.file.filename,
+      kind,
+      caption: String(req.body?.caption || '').trim(),
+      uploadedById: req.user.id,
+      uploadedByName: req.user.name,
+      createdAt: new Date().toISOString(),
+    }
+
+    let status = current.status
+    if (status === 'assigned' || status === 'pending') status = 'in_progress'
+
+    const updated = {
+      ...current,
+      fotos: [...(current.fotos || []), photo],
+      status,
+      updatedAt: new Date().toISOString(),
+    }
+    all[idx] = updated
+    writeJson('maintenance.json', all)
+    res.status(201).json(normalizeMaintenance(updated))
+  },
+)
+
+app.delete(
+  '/api/maintenance/:id/photos/:photoId',
+  authRequired,
+  requirePermission('view_maintenance'),
+  (req, res) => {
+    const all = readJson('maintenance.json', [])
+    const idx = all.findIndex((m) => m.id === req.params.id)
+    if (idx < 0) return res.status(404).json({ error: 'Registro no encontrado' })
+
+    const current = normalizeMaintenance(all[idx])
+    if (!canUpdateMaintenance(req.user, current)) {
+      return res.status(403).json({ error: 'Este mantenimiento no está asignado a ti' })
+    }
+
+    const photo = (current.fotos || []).find((f) => f.id === req.params.photoId)
+    if (!photo) return res.status(404).json({ error: 'Foto no encontrada' })
+
+    unlinkUpload(photo.url)
+
+    const updated = {
+      ...current,
+      fotos: (current.fotos || []).filter((f) => f.id !== req.params.photoId),
+      updatedAt: new Date().toISOString(),
+    }
+    all[idx] = updated
+    writeJson('maintenance.json', all)
+    res.json(normalizeMaintenance(updated))
+  },
+)
+
 app.delete(
   '/api/maintenance/:id',
   authRequired,
-  requirePermission('assign_maintenance'),
+  requirePermission('view_maintenance'),
   (req, res) => {
+    if (!userCan(req.user, 'mantenimiento', 'delete')) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar mantenimientos' })
+    }
     const all = readJson('maintenance.json', [])
     if (!all.some((m) => m.id === req.params.id)) {
       return res.status(404).json({ error: 'Registro no encontrado' })
@@ -1328,10 +1653,251 @@ app.delete(
   },
 )
 
+/* ─── Repairs ─── */
+app.get('/api/repairs', authRequired, requirePermission('view_repairs'), (req, res) => {
+  let items = readJson('repairs.json', []).map(normalizeRepair)
+  if (!canSeeAllRepairs(req.user)) {
+    items = items.filter((r) => r.asignadoId === req.user.id)
+  }
+  const rank = { assigned: 0, pending: 0, in_progress: 1, completed: 2 }
+  items.sort((a, b) => {
+    const ra = rank[a.status] ?? 3
+    const rb = rank[b.status] ?? 3
+    if (ra !== rb) return ra - rb
+    return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
+  })
+  res.json(items)
+})
+
+app.post('/api/repairs', authRequired, requirePermission('manage_repairs'), (req, res) => {
+  const { machineId, sigla, titulo, descripcion, horometro, observaciones, asignadoId, status } =
+    req.body || {}
+
+  if (!sigla?.trim() && !machineId) {
+    return res.status(400).json({ error: 'Debes seleccionar un equipo' })
+  }
+  if (!String(titulo || '').trim()) {
+    return res.status(400).json({ error: 'El título de la reparación es obligatorio' })
+  }
+  if (!String(descripcion || '').trim()) {
+    return res.status(400).json({ error: 'Describe la falla o trabajo a realizar' })
+  }
+  if (isAssignedRepairOnly(req.user)) {
+    return res.status(403).json({ error: 'Solo un supervisor puede crear reparaciones. Revisa las que te asignaron.' })
+  }
+  if (!asignadoId) {
+    return res.status(400).json({ error: 'Asigna la reparación a un mecánico o supervisor' })
+  }
+
+  const machines = readJson('machines.json', [])
+  const machine =
+    machines.find((m) => m.id === machineId) ||
+    machines.find((m) => m.sigla.toUpperCase() === String(sigla).trim().toUpperCase())
+
+  const assigningToOther = asignadoId && asignadoId !== req.user.id
+  if (assigningToOther && !req.user.isPrincipal && !canAssignRepairs(req.user)) {
+    return res.status(403).json({ error: 'No puedes asignar reparaciones a otros usuarios' })
+  }
+
+  const assignee = resolveRepairAssignee(asignadoId)
+  if (!assignee) {
+    return res.status(400).json({ error: 'El asignado debe ser mecánico o supervisor' })
+  }
+
+  const nextStatus = repairStatusFromBody(status || 'assigned', true)
+  if (nextStatus === 'completed' && !String(horometro || '').trim()) {
+    return res.status(400).json({ error: 'Ingresa el horómetro para completar' })
+  }
+
+  const item = {
+    id: randomUUID(),
+    machineId: machine?.id || machineId || null,
+    sigla: machine?.sigla || String(sigla).trim().toUpperCase(),
+    titulo: String(titulo).trim(),
+    descripcion: String(descripcion).trim(),
+    horometro: String(horometro || '').trim(),
+    observaciones: String(observaciones || '').trim(),
+    status: nextStatus,
+    asignadoId: assignee.id,
+    asignadoNombre: assignee.name,
+    asignadoRole: assignee.role,
+    asignadoPorId: req.user.id,
+    asignadoPorNombre: req.user.name,
+    comentarios: [],
+    fotos: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  const all = readJson('repairs.json', [])
+  all.push(item)
+  writeJson('repairs.json', all)
+  res.status(201).json(normalizeRepair(item))
+})
+
+app.put('/api/repairs/:id', authRequired, requirePermission('view_repairs'), (req, res) => {
+  const all = readJson('repairs.json', [])
+  const idx = all.findIndex((r) => r.id === req.params.id)
+  if (idx < 0) return res.status(404).json({ error: 'Registro no encontrado' })
+
+  const current = normalizeRepair(all[idx])
+  if (!canUpdateRepair(req.user, current)) {
+    return res.status(403).json({ error: 'Esta reparación no está asignada a ti' })
+  }
+
+  const nextStatus = repairStatusFromBody(req.body.status, !!current.asignadoId)
+  const horometro =
+    req.body.horometro != null ? String(req.body.horometro).trim() : current.horometro || ''
+
+  if (nextStatus === 'completed' && !horometro) {
+    return res.status(400).json({ error: 'Ingresa el horómetro para completar' })
+  }
+
+  let comentarios = current.comentarios || []
+  const extra = String(req.body.comentario || '').trim()
+  if (extra) {
+    comentarios = [
+      ...comentarios,
+      {
+        id: randomUUID(),
+        texto: extra,
+        autorId: req.user.id,
+        autorNombre: req.user.name,
+        createdAt: new Date().toISOString(),
+      },
+    ]
+  }
+
+  let assignee = {
+    asignadoId: current.asignadoId,
+    asignadoNombre: current.asignadoNombre,
+    asignadoRole: current.asignadoRole,
+  }
+  if (req.body.asignadoId && (req.user.isPrincipal || canAssignRepairs(req.user))) {
+    const nextAssignee = resolveRepairAssignee(req.body.asignadoId)
+    if (!nextAssignee) {
+      return res.status(400).json({ error: 'El asignado debe ser mecánico o supervisor' })
+    }
+    assignee = {
+      asignadoId: nextAssignee.id,
+      asignadoNombre: nextAssignee.name,
+      asignadoRole: nextAssignee.role,
+    }
+  }
+
+  const updated = {
+    ...current,
+    ...assignee,
+    titulo: req.body.titulo != null ? String(req.body.titulo).trim() : current.titulo,
+    descripcion:
+      req.body.descripcion != null ? String(req.body.descripcion).trim() : current.descripcion,
+    horometro,
+    observaciones:
+      req.body.observaciones != null
+        ? String(req.body.observaciones).trim()
+        : current.observaciones,
+    status: nextStatus,
+    comentarios,
+    updatedAt: new Date().toISOString(),
+  }
+
+  all[idx] = updated
+  writeJson('repairs.json', all)
+  res.json(normalizeRepair(updated))
+})
+
+app.post(
+  '/api/repairs/:id/photos',
+  authRequired,
+  requirePermission('view_repairs'),
+  upload.single('photo'),
+  (req, res) => {
+    const all = readJson('repairs.json', [])
+    const idx = all.findIndex((r) => r.id === req.params.id)
+    if (idx < 0) return res.status(404).json({ error: 'Registro no encontrado' })
+
+    const current = normalizeRepair(all[idx])
+    if (!canUpdateRepair(req.user, current)) {
+      return res.status(403).json({ error: 'Esta reparación no está asignada a ti' })
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Debes subir una fotografía' })
+    }
+
+    const kind = req.body?.kind === 'dano' ? 'dano' : 'prueba'
+    const photo = {
+      id: randomUUID(),
+      url: `/uploads/${req.file.filename}`,
+      fileName: req.file.originalname || req.file.filename,
+      kind,
+      caption: String(req.body?.caption || '').trim(),
+      uploadedById: req.user.id,
+      uploadedByName: req.user.name,
+      createdAt: new Date().toISOString(),
+    }
+
+    let status = current.status
+    if (status === 'assigned' || status === 'pending') status = 'in_progress'
+
+    const updated = {
+      ...current,
+      fotos: [...(current.fotos || []), photo],
+      status,
+      updatedAt: new Date().toISOString(),
+    }
+    all[idx] = updated
+    writeJson('repairs.json', all)
+    res.status(201).json(normalizeRepair(updated))
+  },
+)
+
+app.delete(
+  '/api/repairs/:id/photos/:photoId',
+  authRequired,
+  requirePermission('view_repairs'),
+  (req, res) => {
+    const all = readJson('repairs.json', [])
+    const idx = all.findIndex((r) => r.id === req.params.id)
+    if (idx < 0) return res.status(404).json({ error: 'Registro no encontrado' })
+
+    const current = normalizeRepair(all[idx])
+    if (!canUpdateRepair(req.user, current)) {
+      return res.status(403).json({ error: 'Esta reparación no está asignada a ti' })
+    }
+
+    const photo = (current.fotos || []).find((p) => p.id === req.params.photoId)
+    if (photo?.url) unlinkUpload(photo.url)
+
+    const updated = {
+      ...current,
+      fotos: (current.fotos || []).filter((p) => p.id !== req.params.photoId),
+      updatedAt: new Date().toISOString(),
+    }
+    all[idx] = updated
+    writeJson('repairs.json', all)
+    res.json(normalizeRepair(updated))
+  },
+)
+
+app.delete('/api/repairs/:id', authRequired, requirePermission('view_repairs'), (req, res) => {
+  if (!userCan(req.user, 'reparaciones', 'delete')) {
+    return res.status(403).json({ error: 'No tienes permiso para eliminar reparaciones' })
+  }
+  const all = readJson('repairs.json', [])
+  if (!all.some((r) => r.id === req.params.id)) {
+    return res.status(404).json({ error: 'Registro no encontrado' })
+  }
+  writeJson(
+    'repairs.json',
+    all.filter((r) => r.id !== req.params.id),
+  )
+  res.json({ ok: true })
+})
+
 /* ─── Field records (combustible / parte diario) ─── */
 app.get('/api/records', authRequired, (req, res) => {
   let records = readJson('records.json', [])
-  const canAll = req.user.isPrincipal || roleCan(req.user.role, 'view_all_records')
+  const canAll = req.user.isPrincipal || userHasLegacyPermission(req.user, 'view_all_records')
   if (!canAll) {
     records = records.filter(
       (r) => r.userId === req.user.id || r.operador === req.user.name,
@@ -1405,12 +1971,20 @@ function syncMaintenanceFromFieldRecord(record, user) {
   writeJson('maintenance.json', all)
 }
 
-app.post('/api/records', authRequired, upload.single('photo'), (req, res) => {
+app.post('/api/records', authRequired, (req, res) => {
+  upload.fields([
+    { name: 'photo', maxCount: 1 },
+    { name: 'observacionPhotos', maxCount: 8 },
+  ])(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message || 'Error al subir archivos' })
+    }
+
   const canWrite =
     req.user.isPrincipal ||
-    roleCan(req.user.role, 'field_form') ||
-    roleCan(req.user.role, 'manage_maintenance') ||
-    roleCan(req.user.role, 'view_all_records')
+    userHasLegacyPermission(req.user, 'field_form') ||
+    userHasLegacyPermission(req.user, 'manage_maintenance') ||
+    userHasLegacyPermission(req.user, 'view_all_records')
   if (!canWrite) {
     return res.status(403).json({ error: 'No tienes permiso para registrar partes' })
   }
@@ -1436,7 +2010,18 @@ app.post('/api/records', authRequired, upload.single('photo'), (req, res) => {
     id,
     tipoRegistro,
     userId: req.user.id,
-    photoUrl: req.file ? `/uploads/${req.file.filename}` : payload.photoUrl || null,
+    photoUrl: req.files?.photo?.[0]
+      ? `/uploads/${req.files.photo[0].filename}`
+      : payload.photoUrl || null,
+    observacionFotos: [
+      ...(Array.isArray(payload.observacionFotos) ? payload.observacionFotos : []),
+      ...(req.files?.observacionPhotos || []).map((file) => ({
+        id: randomUUID(),
+        url: `/uploads/${file.filename}`,
+        fileName: file.originalname || file.filename,
+        createdAt: new Date().toISOString(),
+      })),
+    ],
     syncedAt: new Date().toISOString(),
     createdAt: payload.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -1451,6 +2036,7 @@ app.post('/api/records', authRequired, upload.single('photo'), (req, res) => {
   writeJson('records.json', records)
   syncMaintenanceFromFieldRecord(record, req.user)
   res.status(201).json(record)
+  })
 })
 
 app.delete(

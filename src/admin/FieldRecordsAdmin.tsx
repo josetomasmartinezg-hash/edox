@@ -19,6 +19,7 @@ import {
   type User,
 } from '../types'
 import { PhotoCapture } from '../components/PhotoCapture'
+import { RecordObservacionPhotos } from '../components/RecordObservacionPhotos'
 
 type OperatorOption = {
   id: string
@@ -165,11 +166,15 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
       firmaOperador: draft.firmaOperador || draft.operador,
       userId: user.id,
     }
-    const { photoDataUrl, ...rest } = payload
+    const { photoDataUrl, observacionFotosPending, ...rest } = payload
     form.append('data', JSON.stringify(rest))
     if (photoDataUrl) {
       const blob = await (await fetch(photoDataUrl)).blob()
       form.append('photo', blob, `registro-${draft.id}.jpg`)
+    }
+    for (const [index, foto] of (observacionFotosPending || []).entries()) {
+      const blob = await (await fetch(foto.dataUrl)).blob()
+      form.append('observacionPhotos', blob, foto.fileName || `observacion-${index + 1}.jpg`)
     }
 
     const res = await apiFetch('/api/records', { method: 'POST', body: form })
@@ -203,7 +208,7 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
             {tipo === 'combustible'
               ? 'Registro de cargas: estanque, litros cargados, guía y foto.'
               : tipo === 'revision_diaria'
-                ? 'Chequeo diario antes de operar, horómetro y viajes.'
+                ? 'Chequeo diario antes de operar, horómetro, viajes y fotos de observaciones.'
                 : 'Pauta de camiones livianos: elige 10.000 o 20.000 km y marca cada ítem OK.'}
           </p>
         </div>
@@ -405,6 +410,20 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
                   />
                 </label>
               </div>
+              <label className="field">
+                <span>Observaciones</span>
+                <textarea
+                  value={draft.observaciones}
+                  onChange={(e) => patch({ observaciones: e.target.value })}
+                  placeholder="Hallazgos, daños, pendientes u otros comentarios del chequeo…"
+                  rows={4}
+                />
+              </label>
+              <RecordObservacionPhotos
+                pending={draft.observacionFotosPending || []}
+                saved={draft.observacionFotos || []}
+                onPendingChange={(observacionFotosPending) => patch({ observacionFotosPending })}
+              />
             </>
           ) : null}
 
@@ -468,7 +487,7 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
             </>
           ) : null}
 
-          {tipo !== 'mantenimiento' ? (
+          {tipo !== 'mantenimiento' && tipo !== 'revision_diaria' ? (
             <label className="field">
               <span>Observaciones</span>
               <textarea
@@ -541,6 +560,19 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
                         .join(' · ') || '—'}
                       <br />
                       Horas {record.horasInicial || '—'} → {record.horasFinal || '—'}
+                      {(record.observacionFotos || []).length ? (
+                        <>
+                          {' · '}
+                          {(record.observacionFotos || []).map((photo, index) => (
+                            <span key={photo.id}>
+                              {index > 0 ? ' · ' : ''}
+                              <a href={photo.url} target="_blank" rel="noreferrer">
+                                Foto {index + 1}
+                              </a>
+                            </span>
+                          ))}
+                        </>
+                      ) : null}
                     </div>
                   ) : null}
                   {tipo === 'mantenimiento' ? (

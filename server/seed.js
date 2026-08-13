@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'crypto'
+import { DEFAULT_USER_TYPES, normalizeUserType } from './permissions.js'
 import { readJson, writeJson } from './store.js'
 
 const PRINCIPAL = {
@@ -15,6 +16,33 @@ const ADMIN = {
   password: 'admin1234',
   role: 'administrador',
 }
+
+const DEMO_USERS = [
+  {
+    email: 'supervisor@soinver.cl',
+    name: 'Supervisor Demo',
+    password: 'demo1234',
+    role: 'supervisor',
+  },
+  {
+    email: 'mecanico@soinver.cl',
+    name: 'Mecánico Demo',
+    password: 'demo1234',
+    role: 'mecanico',
+  },
+  {
+    email: 'operador@soinver.cl',
+    name: 'Operador Demo',
+    password: 'demo1234',
+    role: 'operador',
+  },
+  {
+    email: 'surtidor@soinver.cl',
+    name: 'Operador Surtidor Demo',
+    password: 'demo1234',
+    role: 'operador_surtidor',
+  },
+]
 
 function upsertUser(users, spec, extra = {}) {
   const email = spec.email.toLowerCase()
@@ -49,6 +77,57 @@ function upsertUser(users, spec, extra = {}) {
 }
 
 export function ensureSeedData() {
+  let userTypes = readJson('userTypes.json', [])
+  if (!userTypes.length) {
+    userTypes = DEFAULT_USER_TYPES.map((type) => ({
+      ...normalizeUserType(type),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }))
+    writeJson('userTypes.json', userTypes)
+  } else {
+    let changed = false
+    for (const def of DEFAULT_USER_TYPES) {
+      const idx = userTypes.findIndex((t) => t.id === def.id)
+      if (idx < 0) {
+        userTypes.push({
+          ...normalizeUserType(def),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        changed = true
+        continue
+      }
+      const normalized = normalizeUserType(userTypes[idx])
+      const defNormalized = normalizeUserType(def)
+      let typeChanged = false
+      for (const moduleId of Object.keys(defNormalized.modules)) {
+        const current = normalized.modules[moduleId]
+        const fallback = defNormalized.modules[moduleId]
+        if (!current?.view && !current?.edit && (fallback?.view || fallback?.edit)) {
+          normalized.modules[moduleId] = fallback
+          typeChanged = true
+        }
+      }
+      if (typeChanged) {
+        userTypes[idx] = { ...normalized, updatedAt: new Date().toISOString() }
+        changed = true
+      }
+    }
+    const normalizedAll = userTypes.map((type) => ({
+      ...normalizeUserType(type),
+      createdAt: type.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }))
+    if (JSON.stringify(normalizedAll) !== JSON.stringify(userTypes)) {
+      writeJson('userTypes.json', normalizedAll)
+    }
+  }
+
+  const typeByRole = Object.fromEntries(
+    DEFAULT_USER_TYPES.filter((t) => t.roleLegacy).map((t) => [t.roleLegacy, t.id]),
+  )
+
   let users = readJson('users.json', [])
   let principal = users.find((u) => u.email === PRINCIPAL.email || u.isPrincipal)
 
@@ -80,10 +159,21 @@ export function ensureSeedData() {
   }
 
   users = upsertUser(users, ADMIN)
+  for (const demo of DEMO_USERS) {
+    users = upsertUser(users, demo)
+  }
+
+  users = users.map((user) => {
+    if (user.userTypeId) return user
+    const typeId = typeByRole[user.role]
+    if (!typeId) return user
+    return { ...user, userTypeId: typeId }
+  })
+
   writeJson('users.json', users)
 
   readJson('machines.json', [])
-  readJson('maintenance.json', [])
+  readJson('repairs.json', [])
   readJson('records.json', [])
   readJson('documents.json', [])
 

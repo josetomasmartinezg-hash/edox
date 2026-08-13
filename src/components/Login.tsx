@@ -82,7 +82,7 @@ export function Login({ onLoggedIn, notice }: Props) {
       <div className="app-shell login-shell">
         <div className="panel login-panel">
           <div className="hero-strip login-hero">
-            <img className="brand-logo" src="/logo-soinver.png" alt="SOINVER Ingeniería" />
+            <img className="brand-logo" src="/logo-soinver.svg" alt="SOINVER Ingeniería" />
             <p>Control de maquinaria</p>
           </div>
           <div className="panel-body">
@@ -97,7 +97,7 @@ export function Login({ onLoggedIn, notice }: Props) {
     <div className="app-shell login-shell">
       <div className="panel login-panel">
         <div className="hero-strip login-hero">
-          <img className="brand-logo" src="/logo-soinver.png" alt="SOINVER Ingeniería" />
+          <img className="brand-logo" src="/logo-soinver.svg" alt="SOINVER Ingeniería" />
           <p>Control de maquinaria · acceso por perfil</p>
         </div>
         <form className="panel-body" onSubmit={(e) => void handleSubmit(e)}>

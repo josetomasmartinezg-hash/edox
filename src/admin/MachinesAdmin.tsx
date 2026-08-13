@@ -3,11 +3,8 @@ import { apiFetch } from '../lib/auth'
 import type { Machine, MachineCategory, MachineDocument, MaintenanceRecord } from '../types'
 import {
   MachinePautaEditor,
-  MachinePautaRun,
   cleanPauta,
   emptyPautaList,
-  emptyPautaRun,
-  type PautaRunDraft,
 } from './MaintenancePautaBlock'
 
 const emptyForm = {
@@ -24,25 +21,6 @@ const emptyForm = {
   pauta: emptyPautaList(),
 }
 
-type TimelineItem = {
-  id: string
-  kind: 'combustible' | 'mantenimiento'
-  title: string
-  fecha: string
-  createdAt: string
-  operador?: string
-  litrosEnEstanque?: string
-  litrosCargados?: string
-  guiaNumero?: string
-  horasInicial?: string
-  horasFinal?: string
-  horometro?: string
-  mecanicoNombre?: string
-  tareas?: Array<{ id: string; label: string }>
-  observaciones?: string
-  photoUrl?: string | null
-}
-
 type HistorialResponse = {
   machine: Machine
   resumen: {
@@ -52,7 +30,6 @@ type HistorialResponse = {
     ultimoRegistro: string | null
   }
   documents?: MachineDocument[]
-  timeline: TimelineItem[]
 }
 
 function alertLabel(alert?: string) {
@@ -61,11 +38,30 @@ function alertLabel(alert?: string) {
   return ''
 }
 
+function documentStatusLabel(status?: string, kind?: string) {
+  if (kind === 'pauta') return 'Pauta'
+  if (status === 'expired') return 'Vencido'
+  if (status === 'soon') return 'Por vencer'
+  if (status === 'ok') return 'Vigente'
+  return 'Sin fecha'
+}
+
+function formatDocDate(value?: string | null) {
+  if (!value) return '—'
+  try {
+    return new Date(`${value}T12:00:00`).toLocaleDateString('es-CL')
+  } catch {
+    return value
+  }
+}
+
 type View = 'list' | 'create' | 'detail' | 'edit' | 'categories'
+type DetailTab = 'ficha' | 'historial' | 'documentacion'
 
 type Props = {
   canManage: boolean
-  canManageMaintenance?: boolean
+  canViewMaintenance?: boolean
+  onOpenMaintenance?: (id: string) => void
 }
 
 function tankCapacityLabel(machine: Pick<Machine, 'capacidadEstanque' | 'capacidadEstanque2'>) {
@@ -89,12 +85,24 @@ function formatDate(value?: string | null) {
   }
 }
 
-export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
+function maintenanceStatusLabel(status?: string) {
+  if (status === 'assigned' || status === 'pending') return 'Asignado'
+  if (status === 'in_progress') return 'En curso'
+  if (status === 'completed') return 'Completado'
+  return 'Asignado'
+}
+
+function maintenanceStatusClass(status?: string) {
+  if (status === 'completed') return 'synced'
+  if (status === 'in_progress') return 'pending'
+  return 'assigned'
+}
+
+export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance }: Props) {
   const [view, setView] = useState<View>('list')
   const [machines, setMachines] = useState<Machine[]>([])
   const [categories, setCategories] = useState<MachineCategory[]>([])
   const [form, setForm] = useState(emptyForm)
-  const [runDraft, setRunDraft] = useState<PautaRunDraft>(emptyPautaRun())
   const [catForm, setCatForm] = useState({ id: '', name: '' })
   const [editingCat, setEditingCat] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -109,6 +117,12 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
   const [pautaParsing, setPautaParsing] = useState(false)
   const [pautaParseMsg, setPautaParseMsg] = useState('')
   const [pautaParseError, setPautaParseError] = useState('')
+  const [showDocForm, setShowDocForm] = useState(false)
+  const [docName, setDocName] = useState('')
+  const [docExpiresAt, setDocExpiresAt] = useState('')
+  const [docFile, setDocFile] = useState<File | null>(null)
+  const [docLoading, setDocLoading] = useState(false)
+  const [detailTab, setDetailTab] = useState<DetailTab>('ficha')
 
   const machineMaintenances = useMemo(() => {
     if (!historial?.machine) return []
@@ -188,7 +202,9 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
     const data = (await res.json()) as HistorialResponse
     setHistorial(data)
     setSelectedId(id)
-    setRunDraft(emptyPautaRun(data.machine.pauta || []))
+    setDetailTab('ficha')
+    setShowDocForm(false)
+    resetDocForm()
     setView('detail')
   }
 
@@ -196,50 +212,60 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
     void loadList()
   }, [])
 
-  async function saveDetailPauta(machine: Machine) {
-    if (!canManageMaintenance) return
-    const tipos = cleanPauta(machine.pauta || [])
-    const current = tipos.find((t) => t.id === runDraft.tipoId) || tipos[0]
-    if (!current) {
-      setError('Esta máquina no tiene pauta. Edítala para agregarla.')
+  function resetDocForm() {
+    setShowDocForm(false)
+    setDocName('')
+    setDocExpiresAt('')
+    setDocFile(null)
+    setDocLoading(false)
+  }
+
+  async function saveDocument(machine: Machine) {
+    if (!canManage) return
+    if (!docName.trim()) {
+      setError('El nombre del documento es obligatorio')
       return
     }
-    if (!runDraft.horometro.trim()) {
-      setError('Ingresa el kilometraje u horómetro')
+    if (!docFile) {
+      setError('Debes subir un PDF o una imagen JPG')
       return
     }
-    if (!Object.values(runDraft.doneTasks).some(Boolean)) {
-      setError('Marca al menos un ítem con OK')
-      return
-    }
-    setLoading(true)
+    setDocLoading(true)
     setError('')
-    const res = await apiFetch('/api/maintenance', {
-      method: 'POST',
-      body: JSON.stringify({
-        machineId: machine.id,
-        sigla: machine.sigla,
-        tipoMantenimiento: current.nombre,
-        intervaloId: current.id,
-        horometro: runDraft.horometro.trim(),
-        observaciones: runDraft.observaciones.trim(),
-        status: 'completed',
-        tareas: current.items.map((item) => ({
-          id: item.id,
-          label: item.label,
-          realizado: !!runDraft.doneTasks[item.id],
-        })),
-      }),
-    })
+    const payload = new FormData()
+    payload.append('name', docName.trim())
+    payload.append('machineId', machine.id)
+    if (docExpiresAt) payload.append('expiresAt', docExpiresAt)
+    payload.append('file', docFile)
+
+    const res = await apiFetch('/api/documents', { method: 'POST', body: payload })
     const data = await res.json().catch(() => ({}))
-    setLoading(false)
+    setDocLoading(false)
     if (!res.ok) {
-      setError(data.error || 'No se pudo guardar el mantenimiento')
+      setError(data.error || 'No se pudo guardar el documento')
       return
     }
-    setRunDraft(emptyPautaRun(machine.pauta || []))
+    resetDocForm()
     await loadList()
     await loadDetail(machine.id)
+  }
+
+  async function removeDocument(doc: MachineDocument, machineId: string) {
+    if (!canManage) return
+    if (doc.kind === 'pauta') {
+      setError('La pauta se gestiona al editar el equipo')
+      return
+    }
+    if (!confirm(`¿Eliminar documento “${doc.name}”?`)) return
+    setError('')
+    const res = await apiFetch(`/api/documents/${doc.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error || 'No se pudo eliminar el documento')
+      return
+    }
+    await loadList()
+    await loadDetail(machineId)
   }
 
   function resetPautaFile() {
@@ -715,6 +741,9 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
 
   if (view === 'detail' && historial) {
     const machine = historial.machine
+    const docCount = historial.documents?.length || 0
+    const maintCount = machineMaintenances.length
+
     return (
       <div className="admin-section">
         <div className="section">
@@ -726,206 +755,306 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
               onClick={() => {
                 setView('list')
                 setHistorial(null)
+                setDetailTab('ficha')
+                resetDocForm()
               }}
             >
               Volver a lista
             </button>
           </div>
           <p className="section-help">
-            Ficha de la máquina y todo lo que se ha ingresado (combustible y mantenimiento).
+            {machine.marca} {machine.modelo}
+            {machine.categoria ? ` · ${machine.categoria}` : ''}
           </p>
         </div>
 
-        <div className="desktop-grid-2">
-          <div className="admin-card">
-            <h4>Datos del equipo</h4>
-            <div className="field-grid two">
-              <div>
-                <div className="detail-label">Categoría</div>
-                <div className="detail-value">{machine.categoria || '—'}</div>
-              </div>
-              <div>
-                <div className="detail-label">Marca</div>
-                <div className="detail-value">{machine.marca}</div>
-              </div>
-              <div>
-                <div className="detail-label">Modelo</div>
-                <div className="detail-value">{machine.modelo}</div>
-              </div>
-              <div>
-                <div className="detail-label">Año</div>
-                <div className="detail-value">{machine.anio || '—'}</div>
-              </div>
-              <div>
-                <div className="detail-label">Capacidad estanque</div>
-                <div className="detail-value">{tankCapacityLabel(machine)}</div>
-              </div>
-              <div>
-                <div className="detail-label">Número de chasis</div>
-                <div className="detail-value">{machine.numeroChasis || '—'}</div>
-              </div>
-              <div>
-                <div className="detail-label">Número de motor</div>
-                <div className="detail-value">{machine.numeroMotor || '—'}</div>
-              </div>
-              <div>
-                <div className="detail-label">Pauta (archivo)</div>
-                <div className="detail-value">
-                  {machine.pautaFileUrl ? (
-                    <a
-                      href={machine.pautaFileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="link-quiet"
-                    >
-                      {machine.pautaFileName || 'Ver archivo'}
-                    </a>
-                  ) : (
-                    '—'
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="stat-row">
-              <div className="stat-box">
-                <strong>{historial.resumen.totalRegistros}</strong>
-                <span>Partes / combustible</span>
-              </div>
-              <div className="stat-box">
-                <strong>{historial.resumen.totalMantenimientos}</strong>
-                <span>Mantenimientos</span>
-              </div>
-              <div className="stat-box">
-                <strong>{formatDate(historial.resumen.ultimoRegistro)}</strong>
-                <span>Último ingreso</span>
-              </div>
-            </div>
-
-            <div className="btn-row">
-              {machine.qrDataUrl ? (
-                <a
-                  className="btn btn-primary btn-small"
-                  href={machine.qrDataUrl}
-                  download={`qr-${machine.sigla}.png`}
-                >
-                  Descargar QR
-                </a>
-              ) : canManage ? (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-small"
-                  onClick={() => void generateQr(machine)}
-                >
-                  Generar QR
-                </button>
-              ) : null}
-              {canManage ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-small"
-                    onClick={() => openEdit(machine)}
-                  >
-                    Editar datos
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-small"
-                    onClick={() => void remove(machine)}
-                  >
-                    Eliminar
-                  </button>
-                </>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="admin-card qr-card">
-            <h4>Código QR</h4>
-            {machine.qrDataUrl ? (
-              <img src={machine.qrDataUrl} alt={`QR ${machine.sigla}`} className="qr-image" />
-            ) : (
-              <div className="empty">Sin QR generado</div>
-            )}
-          </div>
+        <div className="detail-tabs" role="tablist" aria-label="Secciones del equipo">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={detailTab === 'ficha'}
+            className={`detail-tab ${detailTab === 'ficha' ? 'active' : ''}`}
+            onClick={() => setDetailTab('ficha')}
+          >
+            Ficha
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={detailTab === 'historial'}
+            className={`detail-tab ${detailTab === 'historial' ? 'active' : ''}`}
+            onClick={() => setDetailTab('historial')}
+          >
+            Historial{maintCount ? ` (${maintCount})` : ''}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={detailTab === 'documentacion'}
+            className={`detail-tab ${detailTab === 'documentacion' ? 'active' : ''}`}
+            onClick={() => setDetailTab('documentacion')}
+          >
+            Documentación{docCount ? ` (${docCount})` : ''}
+          </button>
         </div>
 
-        {canManageMaintenance ? (
-          <div className="admin-card">
-            <MachinePautaRun
-              pauta={machine.pauta || []}
-              draft={runDraft}
-              onChange={setRunDraft}
-              disabled={loading}
-            />
-            {machine.pautaFileUrl ? (
-              <p className="section-help">
-                Archivo de pauta:{' '}
-                <a
-                  href={machine.pautaFileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="link-quiet"
-                >
-                  {machine.pautaFileName || 'Ver PDF / Excel'}
-                </a>
-              </p>
-            ) : null}
-            {error ? <p className="form-error">{error}</p> : null}
-            {(machine.pauta || []).length ? (
-              <div className="machine-form-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={loading}
-                  onClick={() => void saveDetailPauta(machine)}
-                >
-                  {loading ? 'Guardando…' : 'Guardar mantenimiento'}
-                </button>
+        {detailTab === 'ficha' ? (
+          <div className="desktop-grid-2">
+            <div className="admin-card">
+              <h4>Datos del equipo</h4>
+              <div className="field-grid two">
+                <div>
+                  <div className="detail-label">Categoría</div>
+                  <div className="detail-value">{machine.categoria || '—'}</div>
+                </div>
+                <div>
+                  <div className="detail-label">Marca</div>
+                  <div className="detail-value">{machine.marca}</div>
+                </div>
+                <div>
+                  <div className="detail-label">Modelo</div>
+                  <div className="detail-value">{machine.modelo}</div>
+                </div>
+                <div>
+                  <div className="detail-label">Año</div>
+                  <div className="detail-value">{machine.anio || '—'}</div>
+                </div>
+                <div>
+                  <div className="detail-label">Capacidad estanque</div>
+                  <div className="detail-value">{tankCapacityLabel(machine)}</div>
+                </div>
+                <div>
+                  <div className="detail-label">Número de chasis</div>
+                  <div className="detail-value">{machine.numeroChasis || '—'}</div>
+                </div>
+                <div>
+                  <div className="detail-label">Número de motor</div>
+                  <div className="detail-value">{machine.numeroMotor || '—'}</div>
+                </div>
+                <div>
+                  <div className="detail-label">Pauta (archivo)</div>
+                  <div className="detail-value">
+                    {machine.pautaFileUrl ? (
+                      <a
+                        href={machine.pautaFileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="link-quiet"
+                      >
+                        {machine.pautaFileName || 'Ver archivo'}
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </div>
+                </div>
               </div>
-            ) : null}
+
+              <div className="stat-row">
+                <div className="stat-box">
+                  <strong>{historial.resumen.totalRegistros}</strong>
+                  <span>Partes / combustible</span>
+                </div>
+                <div className="stat-box">
+                  <strong>{historial.resumen.totalMantenimientos}</strong>
+                  <span>Mantenimientos</span>
+                </div>
+                <div className="stat-box">
+                  <strong>{formatDate(historial.resumen.ultimoRegistro)}</strong>
+                  <span>Último ingreso</span>
+                </div>
+              </div>
+
+              <div className="btn-row">
+                {machine.qrDataUrl ? (
+                  <a
+                    className="btn btn-primary btn-small"
+                    href={machine.qrDataUrl}
+                    download={`qr-${machine.sigla}.png`}
+                  >
+                    Descargar QR
+                  </a>
+                ) : canManage ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-small"
+                    onClick={() => void generateQr(machine)}
+                  >
+                    Generar QR
+                  </button>
+                ) : null}
+                {canManage ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      onClick={() => openEdit(machine)}
+                    >
+                      Editar datos
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-small"
+                      onClick={() => void remove(machine)}
+                    >
+                      Eliminar
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="admin-card qr-card">
+              <h4>Código QR</h4>
+              {machine.qrDataUrl ? (
+                <img src={machine.qrDataUrl} alt={`QR ${machine.sigla}`} className="qr-image" />
+              ) : (
+                <div className="empty">Sin QR generado</div>
+              )}
+            </div>
           </div>
         ) : null}
 
-        {machineMaintenances.length ? (
+        {detailTab === 'historial' ? (
           <div className="admin-card">
-            <h4>Historial de pauta</h4>
+            <h4>Historial de mantenimiento</h4>
+            <p className="section-help">
+              Mantenimientos registrados para este equipo en el módulo Trabajos.
+            </p>
             <div className="table-panel">
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th>Estado</th>
                     <th>Fecha</th>
                     <th>Tipo</th>
+                    <th>Asignado a</th>
                     <th>Medidor</th>
                     <th>Ítems OK</th>
                     <th>Observaciones</th>
+                    {canViewMaintenance ? <th></th> : null}
                   </tr>
                 </thead>
                 <tbody>
                   {machineMaintenances.map((item) => (
                     <tr key={item.id}>
+                      <td>
+                        <span className={`badge ${maintenanceStatusClass(item.status)}`}>
+                          {maintenanceStatusLabel(item.status)}
+                        </span>
+                      </td>
                       <td>{formatDate(item.createdAt)}</td>
                       <td>{item.tipoMantenimiento}</td>
-                      <td>{item.horometro}</td>
+                      <td>{item.asignadoNombre || item.mecanicoNombre || '—'}</td>
+                      <td>{item.horometro || '—'}</td>
                       <td>
                         {item.tareas?.filter((t) => t.realizado).length || 0}
                         {item.tareas?.length ? ` / ${item.tareas.length}` : ''}
                       </td>
                       <td>{item.observaciones || '—'}</td>
+                      {canViewMaintenance ? (
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-small"
+                            onClick={() => onOpenMaintenance?.(item.id)}
+                          >
+                            Ver detalle
+                          </button>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
+                  {!machineMaintenances.length ? (
+                    <tr>
+                      <td colSpan={canViewMaintenance ? 8 : 7} className="empty-cell">
+                        Aún no hay mantenimientos registrados para este equipo.
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
           </div>
         ) : null}
 
-        {historial.documents?.length ? (
-          <>
-            <div className="section">
-              <h3 className="section-title">Documentos del equipo</h3>
+        {detailTab === 'documentacion' ? (
+          <div className="admin-card">
+            <div className="meta-row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <h4>Documentación</h4>
+                <p className="section-help">
+                  Permisos, seguros y otros archivos del equipo. PDF o JPG con fecha de vencimiento
+                  opcional.
+                </p>
+              </div>
+              {canManage ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-small"
+                  onClick={() => {
+                    setShowDocForm((current) => !current)
+                    setError('')
+                  }}
+                >
+                  {showDocForm ? 'Cerrar' : 'Agregar documento'}
+                </button>
+              ) : null}
             </div>
+
+            {showDocForm && canManage ? (
+              <form
+                className="admin-card"
+                style={{ marginBottom: 16 }}
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void saveDocument(machine)
+                }}
+              >
+                <div className="field-grid two">
+                  <label className="field">
+                    <span>Nombre</span>
+                    <input
+                      value={docName}
+                      onChange={(e) => setDocName(e.target.value)}
+                      required
+                      placeholder="Ej: Permiso de circulación"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Fecha de vencimiento (opcional)</span>
+                    <input
+                      type="date"
+                      value={docExpiresAt}
+                      onChange={(e) => setDocExpiresAt(e.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Archivo (PDF o JPG)</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                      required
+                      onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
+                <div className="btn-row">
+                  <button type="submit" className="btn btn-primary" disabled={docLoading}>
+                    {docLoading ? 'Subiendo…' : 'Guardar documento'}
+                  </button>
+                  <button type="button" className="btn btn-ghost" onClick={resetDocForm}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            <div className="legend-row">
+              <span className="legend-item soon">Por vencer (≤ 30 días)</span>
+              <span className="legend-item expired">Vencido</span>
+            </div>
+
             <div className="table-panel">
               <table className="data-table">
                 <thead>
@@ -934,10 +1063,11 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
                     <th>Nombre</th>
                     <th>Vencimiento</th>
                     <th>Archivo</th>
+                    {canManage ? <th></th> : null}
                   </tr>
                 </thead>
                 <tbody>
-                  {historial.documents.map((doc) => (
+                  {(historial.documents || []).map((doc) => (
                     <tr
                       key={doc.id}
                       className={
@@ -958,84 +1088,49 @@ export function MachinesAdmin({ canManage, canManageMaintenance }: Props) {
                                 : 'synced'
                           }`}
                         >
-                          {alertLabel(doc.status) || 'Vigente'}
+                          {documentStatusLabel(doc.status, doc.kind)}
                         </span>
                       </td>
                       <td>{doc.name}</td>
+                      <td>{doc.kind === 'pauta' ? '—' : formatDocDate(doc.expiresAt)}</td>
                       <td>
-                        {doc.kind === 'pauta' ? 'Pauta' : doc.expiresAt || '—'}
-                      </td>
-                      <td>
-                        <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="link-quiet">
-                          Ver
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="link-quiet"
+                        >
+                          {doc.fileName || 'Ver archivo'}
                         </a>
                       </td>
+                      {canManage ? (
+                        <td>
+                          {doc.kind !== 'pauta' ? (
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-small"
+                              onClick={() => void removeDocument(doc, machine.id)}
+                            >
+                              Eliminar
+                            </button>
+                          ) : null}
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
+                  {!historial.documents?.length ? (
+                    <tr>
+                      <td colSpan={canManage ? 5 : 4} className="empty-cell">
+                        Aún no hay documentos para este equipo.
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         ) : null}
 
-        <div className="section">
-          <h3 className="section-title">Historial de ingresos</h3>
-          <p className="section-help">
-            Registros de terreno y mantenimientos asociados a esta sigla.
-          </p>
-        </div>
-
-        <div className="table-panel">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Detalle</th>
-                <th>Responsable</th>
-                <th>Observaciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {historial.timeline.map((item) => (
-                <tr key={`${item.kind}-${item.id}`}>
-                  <td>{formatDate(item.createdAt)}</td>
-                  <td>
-                    <span className={`badge ${item.kind === 'combustible' ? 'pending' : 'synced'}`}>
-                      {item.kind === 'combustible' ? 'Combustible' : 'Mantenimiento'}
-                    </span>
-                  </td>
-                  <td>
-                    <strong>{item.title}</strong>
-                    {item.kind === 'combustible' ? (
-                      <div className="table-sub">
-                        Estanque {item.litrosEnEstanque || '—'} L · Cargados{' '}
-                        {item.litrosCargados || '—'} L
-                        {item.guiaNumero ? ` · Guía ${item.guiaNumero}` : ''}
-                      </div>
-                    ) : (
-                      <div className="table-sub">
-                        Horómetro {item.horometro || '—'}
-                        {item.tareas?.length ? ` · ${item.tareas.length} tareas` : ''}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    {item.kind === 'combustible' ? item.operador : item.mecanicoNombre}
-                  </td>
-                  <td>{item.observaciones || '—'}</td>
-                </tr>
-              ))}
-              {!historial.timeline.length ? (
-                <tr>
-                  <td colSpan={5} className="empty-cell">
-                    Aún no hay ingresos para esta máquina.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
         {error ? <p className="form-error">{error}</p> : null}
       </div>
     )

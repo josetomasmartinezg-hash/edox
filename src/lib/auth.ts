@@ -68,3 +68,21 @@ export async function fetchMe() {
   }
   return (await res.json()) as { user: User; permissions: Permissions }
 }
+
+export async function fetchSwitchUsers() {
+  const res = await apiFetch('/api/auth/switch-users')
+  if (!res.ok) return []
+  return (await res.json()) as User[]
+}
+
+export async function switchUser(userId: string) {
+  const res = await apiFetch('/api/auth/switch', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'No se pudo cambiar de usuario')
+  if (!data.token || !data.user) throw new Error('Respuesta inválida')
+  setSession(data.token, data.user)
+  return data as { token: string; user: User }
+}

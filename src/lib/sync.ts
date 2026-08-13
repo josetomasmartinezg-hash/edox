@@ -14,12 +14,17 @@ export function isOnline() {
 
 export async function syncRecord(record: MachinaryRecord): Promise<MachinaryRecord> {
   const form = new FormData()
-  const { photoDataUrl, ...payload } = record
+  const { photoDataUrl, observacionFotosPending, ...payload } = record
   form.append('data', JSON.stringify(payload))
 
   if (photoDataUrl) {
     const blob = await dataUrlToBlob(photoDataUrl)
     form.append('photo', blob, `combustible-${record.id}.jpg`)
+  }
+
+  for (const [index, foto] of (observacionFotosPending || []).entries()) {
+    const blob = await dataUrlToBlob(foto.dataUrl)
+    form.append('observacionPhotos', blob, foto.fileName || `observacion-${index + 1}.jpg`)
   }
 
   const res = await apiFetch('/api/records', {
@@ -37,6 +42,7 @@ export async function syncRecord(record: MachinaryRecord): Promise<MachinaryReco
     ...record,
     ...saved,
     photoDataUrl: photoDataUrl || null,
+    observacionFotosPending: undefined,
     syncStatus: 'synced',
     lastSyncError: null,
     updatedAt: new Date().toISOString(),

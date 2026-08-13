@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
 import { readJson } from './store.js'
 import { publicUser, roleCan } from './constants.js'
+import { userHasLegacyPermission } from './permissions.js'
 
 const JWT_SECRET = process.env.EDOX_JWT_SECRET || 'edox-dev-secret-change-me'
 
@@ -67,7 +68,23 @@ export function requirePermission(permission) {
         code: 'unauthenticated',
       })
     }
-    if (req.user.isPrincipal || roleCan(req.user.role, permission)) {
+    if (req.user.isPrincipal || userHasLegacyPermission(req.user, permission)) {
+      return next()
+    }
+    return res.status(403).json({ error: 'No tienes permiso para esta acción' })
+  }
+}
+
+export function requireAnyPermission(...permissions) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Tu sesión expiró. Vuelve a iniciar sesión.',
+        code: 'unauthenticated',
+      })
+    }
+    if (req.user.isPrincipal) return next()
+    if (permissions.some((permission) => userHasLegacyPermission(req.user, permission))) {
       return next()
     }
     return res.status(403).json({ error: 'No tienes permiso para esta acción' })

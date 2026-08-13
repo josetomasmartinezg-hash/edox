@@ -13,6 +13,8 @@ import {
   pautaSummaryText,
   type PautaRunDraft,
 } from './MaintenancePautaBlock'
+import { MaintenancePhotosBlock } from './MaintenancePhotosBlock'
+import { downloadMaintenancePdf } from '../lib/maintenancePdf'
 
 type Assignee = {
   id: string
@@ -24,22 +26,25 @@ type Props = {
   user: User
   canAssign: boolean
   canManage: boolean
+  openMaintenanceId?: string | null
+  onOpenMaintenanceHandled?: () => void
 }
 
 type View = 'list' | 'assign' | 'execute'
 type StatusFilter = 'open' | 'all' | 'completed'
 
 function statusLabel(status?: string) {
-  if (status === 'pending') return 'Pendiente'
+  if (status === 'assigned' || status === 'pending') return 'Asignado'
   if (status === 'in_progress') return 'En curso'
   if (status === 'completed') return 'Completado'
-  return 'Pendiente'
+  return 'Asignado'
 }
 
 function statusClass(status?: string) {
   if (status === 'completed') return 'synced'
   if (status === 'in_progress') return 'pending'
-  return 'error'
+  if (status === 'assigned' || status === 'pending') return 'assigned'
+  return 'assigned'
 }
 
 function formatDate(value?: string) {
@@ -68,6 +73,10 @@ function draftFromItem(item: MaintenanceRecord): PautaRunDraft {
 
 function pautaFromItem(item: MaintenanceRecord) {
   const stored = cleanPauta(item.pauta || [])
+  if (item.intervaloId) {
+    const match = stored.find((t) => t.id === item.intervaloId)
+    if (match) return [match]
+  }
   if (stored.length) return stored
   return [
     {
@@ -78,16 +87,24 @@ function pautaFromItem(item: MaintenanceRecord) {
   ]
 }
 
-export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
+export function MaintenanceAdmin({
+  user,
+  canAssign,
+  canManage,
+  openMaintenanceId,
+  onOpenMaintenanceHandled,
+}: Props) {
   const [view, setView] = useState<View>('list')
   const [machines, setMachines] = useState<Machine[]>([])
   const [assignees, setAssignees] = useState<Assignee[]>([])
   const [items, setItems] = useState<MaintenanceRecord[]>([])
   const [machineId, setMachineId] = useState('')
+  const [tipoId, setTipoId] = useState('')
   const [asignadoId, setAsignadoId] = useState('')
   const [runDraft, setRunDraft] = useState<PautaRunDraft>(emptyPautaRun())
   const [selected, setSelected] = useState<MaintenanceRecord | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('open')
+  const [filterMachineId, setFilterMachineId] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -101,14 +118,37 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
     [machines],
   )
 
+  const machineFilterOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    for (const item of items) {
+      const machine = machines.find(
+        (m) => m.id === item.machineId || m.sigla === item.sigla,
+      )
+      const id = machine?.id || item.machineId || item.sigla
+      options.set(String(id), item.sigla)
+    }
+    return [...options.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'))
+  }, [items, machines])
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      const status = item.status || 'pending'
-      if (filter === 'open') return status === 'pending' || status === 'in_progress'
-      if (filter === 'completed') return status === 'completed'
-      return true
+      const status = item.status || 'assigned'
+      if (filter === 'open') {
+        if (status !== 'assigned' && status !== 'pending' && status !== 'in_progress') {
+          return false
+        }
+      } else if (filter === 'completed') {
+        if (status !== 'completed') return false
+      }
+
+      if (!filterMachineId) return true
+      const machine = machines.find((m) => m.id === filterMachineId)
+      const filterSigla = machine?.sigla?.toUpperCase()
+      if (item.machineId === filterMachineId) return true
+      if (filterSigla && item.sigla?.toUpperCase() === filterSigla) return true
+      return filterMachineId === item.sigla
     })
-  }, [items, filter])
+  }, [items, filter, filterMachineId, machines])
 
   async function load() {
     const [mRes, iRes, oRes] = await Promise.all([
@@ -132,9 +172,22 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
     void load()
   }, [])
 
+  useEffect(() => {
+    if (!openMaintenanceId || !items.length) return
+    const item = items.find((row) => row.id === openMaintenanceId)
+    if (!item) return
+    openExecute(item)
+    onOpenMaintenanceHandled?.()
+  }, [openMaintenanceId, items, onOpenMaintenanceHandled])
+
+  useEffect(() => {
+    setTipoId(pauta[0]?.id || '')
+  }, [machineId, pauta])
+
   function openAssign() {
     setError('')
     setMachineId('')
+    setTipoId('')
     setAsignadoId('')
     setView('assign')
   }
@@ -144,6 +197,15 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
     setRunDraft(draftFromItem(item))
     setError('')
     setView('execute')
+  }
+
+  async function handleDownloadPdf(item: MaintenanceRecord) {
+    setError('')
+    try {
+      await downloadMaintenancePdf(item.id, `mantenimiento-${item.sigla}.pdf`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo descargar el PDF')
+    }
   }
 
   async function handleAssign(e: React.FormEvent) {
@@ -157,6 +219,11 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
       setError('Asigna el mantenimiento a un mecánico o supervisor')
       return
     }
+    const selectedTipo = pauta.find((t) => t.id === tipoId) || pauta[0]
+    if (!selectedTipo) {
+      setError('Selecciona el tipo de mantenimiento de la pauta del equipo')
+      return
+    }
     setLoading(true)
     setError('')
     const res = await apiFetch('/api/maintenance', {
@@ -164,10 +231,15 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
       body: JSON.stringify({
         machineId: selectedMachine.id,
         sigla: selectedMachine.sigla,
-        pauta,
+        intervaloId: selectedTipo.id,
+        tipoMantenimiento: selectedTipo.nombre,
+        tareas: selectedTipo.items.map((item) => ({
+          id: item.id,
+          label: item.label,
+          realizado: false,
+        })),
         asignadoId,
-        status: 'pending',
-        tipoMantenimiento: selectedMachine.pautaFileName || 'Pauta',
+        status: 'assigned',
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -175,6 +247,11 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
     if (!res.ok) {
       setError(data.error || 'No se pudo asignar')
       return
+    }
+    try {
+      await downloadMaintenancePdf(data.id, `mantenimiento-${selectedMachine.sigla}.pdf`)
+    } catch {
+      // La asignación ya se guardó; el PDF se puede descargar después desde la lista.
     }
     setView('list')
     await load()
@@ -187,13 +264,12 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
       return
     }
     const pautaItems = pautaFromItem(selected)
-    const tareas = pautaItems.flatMap((tipo) =>
-      tipo.items.map((item) => ({
-        id: item.id,
-        label: item.label,
-        realizado: !!runDraft.doneTasks[item.id],
-      })),
-    )
+    const currentTipo = pautaItems.find((t) => t.id === runDraft.tipoId) || pautaItems[0]
+    const tareas = (currentTipo?.items || []).map((item) => ({
+      id: item.id,
+      label: item.label,
+      realizado: !!runDraft.doneTasks[item.id],
+    }))
     if (complete && !tareas.some((t) => t.realizado) && !runDraft.observaciones.trim()) {
       setError('Marca al menos un ítem o deja un comentario')
       return
@@ -214,7 +290,7 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
           ? 'completed'
           : tareas.some((t) => t.realizado)
             ? 'in_progress'
-            : 'pending',
+            : 'assigned',
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -241,7 +317,8 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
           <div>
             <h3 className="section-title">Agregar mantenimiento</h3>
             <p className="section-help">
-              Elige el equipo (ya tiene su pauta) y a quién se lo asignas.
+              Elige el equipo, el tipo de mantenimiento de su pauta y a quién se lo asignas.
+              Al guardar se descargará un PDF con la orden de trabajo.
             </p>
           </div>
           <button type="button" className="btn btn-ghost" onClick={() => setView('list')}>
@@ -263,6 +340,24 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
                   {machinesWithPauta.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.sigla} — {m.categoria || 'Sin categoría'} · {m.marca} {m.modelo}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Tipo de mantenimiento</span>
+                <select
+                  value={tipoId}
+                  onChange={(e) => setTipoId(e.target.value)}
+                  required
+                  disabled={!selectedMachine || !pauta.length}
+                >
+                  <option value="">
+                    {selectedMachine ? 'Seleccionar tipo…' : 'Primero elige un equipo'}
+                  </option>
+                  {pauta.map((tipo) => (
+                    <option key={tipo.id} value={tipo.id}>
+                      {tipo.nombre} ({tipo.items.length} ítems)
                     </option>
                   ))}
                 </select>
@@ -298,7 +393,7 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={loading || !selectedMachine || !pauta.length || !asignadoId}
+                disabled={loading || !selectedMachine || !pauta.length || !tipoId || !asignadoId}
               >
                 {loading ? 'Guardando…' : 'Agregar'}
               </button>
@@ -333,6 +428,15 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
           >
             Volver
           </button>
+          {canAssign || selected.asignadoId === user.id ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-small"
+              onClick={() => void handleDownloadPdf(selected)}
+            >
+              Descargar PDF
+            </button>
+          ) : null}
         </div>
 
         <div className="admin-card">
@@ -341,10 +445,23 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
             draft={runDraft}
             onChange={setRunDraft}
             disabled={loading || !canEdit}
+            lockTipo={!!selected.intervaloId}
             title="Pauta del equipo"
-            help="Es la pauta del PDF. Elige el intervalo, marca OK lo que vas haciendo y deja un comentario si hay algo extra."
+            help={
+              selected.intervaloId
+                ? 'Marca OK lo que vas haciendo según la pauta asignada.'
+                : 'Es la pauta del PDF. Elige el intervalo, marca OK lo que vas haciendo y deja un comentario si hay algo extra.'
+            }
             commentLabel="Comentario extra"
             commentPlaceholder="Hallazgos, repuestos, algo que no estaba en la pauta…"
+          />
+          <MaintenancePhotosBlock
+            maintenance={selected}
+            canEdit={canEdit}
+            onUpdated={(item) => {
+              setSelected(item)
+              setItems((prev) => prev.map((row) => (row.id === item.id ? item : row)))
+            }}
           />
           {error ? <p className="form-error">{error}</p> : null}
           {canEdit ? (
@@ -398,28 +515,45 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
 
       {error ? <p className="form-error">{error}</p> : null}
 
-      <div className="legend-row">
-        <button
-          type="button"
-          className={`btn btn-small ${filter === 'open' ? 'btn-primary' : 'btn-ghost'}`}
-          onClick={() => setFilter('open')}
-        >
-          Pendientes
-        </button>
-        <button
-          type="button"
-          className={`btn btn-small ${filter === 'completed' ? 'btn-primary' : 'btn-ghost'}`}
-          onClick={() => setFilter('completed')}
-        >
-          Completados
-        </button>
-        <button
-          type="button"
-          className={`btn btn-small ${filter === 'all' ? 'btn-primary' : 'btn-ghost'}`}
-          onClick={() => setFilter('all')}
-        >
-          Todos
-        </button>
+      <div className="meta-row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <div className="legend-row" style={{ marginBottom: 0 }}>
+          <button
+            type="button"
+            className={`btn btn-small ${filter === 'open' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setFilter('open')}
+          >
+            Abiertos
+          </button>
+          <button
+            type="button"
+            className={`btn btn-small ${filter === 'completed' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setFilter('completed')}
+          >
+            Completados
+          </button>
+          <button
+            type="button"
+            className={`btn btn-small ${filter === 'all' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setFilter('all')}
+          >
+            Todos
+          </button>
+        </div>
+
+        <label className="field inline-filter">
+          <span>Equipo</span>
+          <select
+            value={filterMachineId}
+            onChange={(e) => setFilterMachineId(e.target.value)}
+          >
+            <option value="">Todos los equipos</option>
+            {machineFilterOptions.map(([id, sigla]) => (
+              <option key={id} value={id}>
+                {sigla}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="table-panel">
@@ -468,6 +602,15 @@ export function MaintenanceAdmin({ user, canAssign, canManage }: Props) {
                       >
                         {mine && item.status !== 'completed' ? 'Realizar' : 'Ver'}
                       </button>
+                      {canAssign || mine ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-small"
+                          onClick={() => void handleDownloadPdf(item)}
+                        >
+                          PDF
+                        </button>
+                      ) : null}
                       {canAssign && item.status !== 'completed' ? (
                         <button
                           type="button"

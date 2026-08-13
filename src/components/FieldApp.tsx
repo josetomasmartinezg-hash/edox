@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { HistoryList } from './HistoryList'
 import { RecordForm } from './RecordForm'
+import { UserSwitcher } from './UserSwitcher'
 import { useOnlineStatus } from '../hooks/useOnline'
 import { getAllRecords, getRecord, saveRecord } from '../lib/db'
 import { loadMachines } from '../lib/machines'
@@ -20,6 +21,7 @@ type Props = {
   canOpenAdmin?: boolean
   onOpenAdmin?: () => void
   onLogout: () => void
+  onSwitchUser: () => void
 }
 
 const TABS: { id: FieldRecordType; title: string; help: string; cta: string }[] = [
@@ -32,7 +34,7 @@ const TABS: { id: FieldRecordType; title: string; help: string; cta: string }[] 
   {
     id: 'revision_diaria',
     title: 'Revisión diaria',
-    help: 'Chequeo antes de operar, horómetro y viajes.',
+    help: 'Chequeo antes de operar, horómetro, viajes y fotos de observaciones.',
     cta: 'Nueva revisión',
   },
   {
@@ -43,7 +45,7 @@ const TABS: { id: FieldRecordType; title: string; help: string; cta: string }[] 
   },
 ]
 
-export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
+export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout, onSwitchUser }: Props) {
   const { online, serverOk, syncing, lastSyncMessage, setLastSyncMessage } = useOnlineStatus()
   const [tab, setTab] = useState<FieldRecordType>('combustible')
   const [view, setView] = useState<View>('home')
@@ -144,14 +146,15 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand">
-          <img className="brand-logo compact" src="/logo-soinver.png" alt="SOINVER Ingeniería" />
+        <div className="brand topbar-brand-mark compact">
+          <img className="brand-logo compact" src="/logo-soinver.svg" alt="SOINVER Ingeniería" />
           <p>
             Hola {user.name.split(' ')[0]} · terreno
             {online ? '' : ' (sin señal)'}
           </p>
         </div>
         <div className="topbar-actions">
+          <UserSwitcher currentUser={user} onSwitched={onSwitchUser} compact />
           <div className="status-pill" title={serverOk ? 'API OK' : 'API no disponible'}>
             <span className={`status-dot ${online ? 'online' : ''}`} />
             {syncing ? 'Sincronizando…' : online ? 'En línea' : 'Sin señal'}

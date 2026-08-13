@@ -21,6 +21,7 @@ import {
 } from '../admin/MaintenancePautaBlock'
 import { PhotoCapture } from './PhotoCapture'
 import { QrScanner } from './QrScanner'
+import { RecordObservacionPhotos } from './RecordObservacionPhotos'
 
 type OperatorOption = {
   id: string
@@ -459,6 +460,13 @@ export function RecordForm({ record, onChange, onSave, onCancel, saving }: Props
               onChange={(e) => patch({ observaciones: e.target.value })}
             />
           </label>
+          {tipo === 'revision_diaria' ? (
+            <RecordObservacionPhotos
+              pending={record.observacionFotosPending || []}
+              saved={record.observacionFotos || []}
+              onPendingChange={(observacionFotosPending) => patch({ observacionFotosPending })}
+            />
+          ) : null}
           {tipo !== 'mantenimiento' ? (
             <div className="field-grid two">
               <label className="field">
