@@ -32,6 +32,7 @@ import {
   maintenanceScope,
 } from './permissions.js'
 import {
+  assertProductionConfig,
   authOptional,
   authRequired,
   requireAnyPermission,
@@ -2083,6 +2084,8 @@ if (fs.existsSync(dist)) {
     res.sendFile(path.join(dist, 'index.html'))
   })
 }
+
+assertProductionConfig()
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Edox API en http://0.0.0.0:${PORT}`)
