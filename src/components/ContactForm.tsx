@@ -9,6 +9,7 @@ type Status = 'idle' | 'sending' | 'success' | 'error'
 export default function ContactForm() {
   const [status, setStatus] = useState<Status>('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const [telefono, setTelefono] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -41,11 +42,12 @@ export default function ContactForm() {
       }
 
       form.reset()
+      setTelefono('')
       setStatus('success')
     } catch {
       const nombre = String(data.get('nombre') || '')
       const email = String(data.get('email') || '')
-      const telefono = String(data.get('telefono') || '')
+      const telefonoValue = String(data.get('telefono') || '')
       const empresa = String(data.get('empresa') || '')
       const mensaje = String(data.get('mensaje') || '')
 
@@ -54,7 +56,7 @@ export default function ContactForm() {
         [
           `Nombre: ${nombre}`,
           `Email: ${email}`,
-          `Teléfono: ${telefono}`,
+          `Teléfono: ${telefonoValue}`,
           empresa ? `Empresa: ${empresa}` : '',
           '',
           mensaje,
@@ -101,8 +103,14 @@ export default function ContactForm() {
           <input
             name="telefono"
             type="tel"
-            placeholder="+56 9 0000 0000"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="56900000000"
             autoComplete="tel"
+            value={telefono}
+            onChange={(event) => {
+              setTelefono(event.target.value.replace(/\D/g, ''))
+            }}
           />
         </label>
         <label>
