@@ -17,8 +17,6 @@ type View = 'home' | 'form' | 'detail'
 
 type Props = {
   user: User
-  canOpenAdmin?: boolean
-  onOpenAdmin?: () => void
   onLogout: () => void
 }
 
@@ -43,7 +41,7 @@ const TABS: { id: FieldRecordType; title: string; help: string; cta: string }[] 
   },
 ]
 
-export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
+export function FieldApp({ user, onLogout }: Props) {
   const {
     online,
     serverOk,
@@ -168,11 +166,6 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout }: Props) {
             <span className={`status-dot ${online ? 'online' : ''}`} />
             {syncing ? 'Sincronizando…' : online ? 'En línea' : 'Sin señal'}
           </div>
-          {canOpenAdmin ? (
-            <button type="button" className="btn btn-accent btn-small" onClick={onOpenAdmin}>
-              Panel
-            </button>
-          ) : null}
           <button type="button" className="btn btn-ghost btn-small light" onClick={onLogout}>
             Salir
           </button>

@@ -143,8 +143,6 @@ export default function App() {
     body = (
       <FieldApp
         user={user}
-        canOpenAdmin={permissions.admin_panel}
-        onOpenAdmin={() => setScreen('admin')}
         onLogout={logout}
       />
     )
