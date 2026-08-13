@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { login } from '../lib/auth'
+import { isNetworkError } from '../lib/permissions'
 
 type Props = {
   onLoggedIn: () => void
@@ -35,8 +36,12 @@ export function Login({ onLoggedIn, notice }: Props) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const skipAuto = useRef(false)
+  const entering = useRef(false)
 
   async function enterAccount(account: (typeof ACCOUNTS)[number]) {
+    if (skipAuto.current || entering.current) return
+    entering.current = true
     setLoading(true)
     setError('')
     try {
@@ -44,10 +49,19 @@ export function Login({ onLoggedIn, notice }: Props) {
       localStorage.setItem(LAST_PROFILE_KEY, account.id)
       onLoggedIn()
     } catch (err) {
+      if (isNetworkError(err)) {
+        setShowForm(false)
+        setError('')
+        setLoading(false)
+        entering.current = false
+        return
+      }
       setShowForm(true)
       setEmail(account.email)
       setError(err instanceof Error ? err.message : 'Error al entrar')
       setLoading(false)
+    } finally {
+      entering.current = false
     }
   }
 
@@ -55,11 +69,25 @@ export function Login({ onLoggedIn, notice }: Props) {
     const skipped = sessionStorage.getItem(MANUAL_LOGOUT_KEY)
     if (skipped) {
       sessionStorage.removeItem(MANUAL_LOGOUT_KEY)
+      skipAuto.current = true
       setShowForm(true)
       setLoading(false)
       return
     }
     void enterAccount(lastAccount())
+  }, [])
+
+  useEffect(() => {
+    const retry = () => {
+      if (skipAuto.current) return
+      void enterAccount(lastAccount())
+    }
+    window.addEventListener('online', retry)
+    window.addEventListener('pageshow', retry)
+    return () => {
+      window.removeEventListener('online', retry)
+      window.removeEventListener('pageshow', retry)
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -86,7 +114,11 @@ export function Login({ onLoggedIn, notice }: Props) {
             <p>Control de maquinaria</p>
           </div>
           <div className="panel-body">
-            <p className="empty">{loading ? 'Entrando…' : 'Cargando perfil…'}</p>
+            <p className="empty">
+              {loading
+                ? 'Entrando…'
+                : 'Sin señal. Al reconectar se entra solo y se suben los registros del celular.'}
+            </p>
           </div>
         </div>
       </div>

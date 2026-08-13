@@ -11,6 +11,7 @@ import {
   MAINTENANCE_INTERVALS,
   ROLES,
   documentStatus,
+  permissionsFor,
   publicUser,
   worstDocumentStatus,
 } from './constants.js'
@@ -192,7 +193,8 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'Correo o contraseña incorrectos' })
   }
   const token = signToken(user)
-  res.json({ token, user: publicUser(user) })
+  const publicProfile = publicUser(user)
+  res.json({ token, user: publicProfile, permissions: legacyPermissions(publicProfile) })
 })
 
 app.get('/api/auth/me', authRequired, (req, res) => {
@@ -2009,7 +2011,7 @@ app.post('/api/records', authRequired, (req, res) => {
     ...payload,
     id,
     tipoRegistro,
-    userId: req.user.id,
+    userId: payload.userId || req.user.id,
     photoUrl: req.files?.photo?.[0]
       ? `/uploads/${req.files.photo[0].filename}`
       : payload.photoUrl || null,
@@ -2022,10 +2024,13 @@ app.post('/api/records', authRequired, (req, res) => {
         createdAt: new Date().toISOString(),
       })),
     ],
+    syncStatus: 'synced',
     syncedAt: new Date().toISOString(),
     createdAt: payload.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
+  delete record.photoDataUrl
+  delete record.lastSyncError
 
   if (existing >= 0) {
     records[existing] = { ...records[existing], ...record }

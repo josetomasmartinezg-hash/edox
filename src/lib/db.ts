@@ -17,12 +17,20 @@ let dbPromise: Promise<IDBPDatabase<EdoxDB>> | null = null
 
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<EdoxDB>('edox-maquinaria', 2, {
-      upgrade(db) {
+    dbPromise = openDB<EdoxDB>('edox-maquinaria', 3, {
+      upgrade(db, _oldVersion, _newVersion, transaction) {
         if (!db.objectStoreNames.contains('records')) {
           const store = db.createObjectStore('records', { keyPath: 'id' })
           store.createIndex('by-sync', 'syncStatus')
           store.createIndex('by-created', 'createdAt')
+        } else {
+          const store = transaction.objectStore('records')
+          if (!store.indexNames.contains('by-sync')) {
+            store.createIndex('by-sync', 'syncStatus')
+          }
+          if (!store.indexNames.contains('by-created')) {
+            store.createIndex('by-created', 'createdAt')
+          }
         }
         if (!db.objectStoreNames.contains('machines')) {
           db.createObjectStore('machines', { keyPath: 'id' })
@@ -39,6 +47,9 @@ export async function saveRecord(record: MachinaryRecord) {
     ...record,
     updatedAt: new Date().toISOString(),
   })
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('edox-records-changed'))
+  }
 }
 
 export async function getRecord(id: string) {
@@ -55,8 +66,8 @@ export async function getAllRecords() {
 }
 
 export async function getPendingRecords() {
-  const db = await getDb()
-  return db.getAllFromIndex('records', 'by-sync', 'pending')
+  const all = await getAllRecords()
+  return all.filter((record) => record.syncStatus !== 'synced')
 }
 
 export async function deleteRecord(id: string) {

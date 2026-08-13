@@ -5,7 +5,7 @@ import { UserSwitcher } from './UserSwitcher'
 import { useOnlineStatus } from '../hooks/useOnline'
 import { getAllRecords, getRecord, saveRecord } from '../lib/db'
 import { loadMachines } from '../lib/machines'
-import { syncPending, syncRecord } from '../lib/sync'
+import { syncPending } from '../lib/sync'
 import {
   FIELD_TYPE_LABELS,
   createEmptyRecord,
@@ -18,8 +18,6 @@ type View = 'home' | 'form' | 'detail'
 
 type Props = {
   user: User
-  canOpenAdmin?: boolean
-  onOpenAdmin?: () => void
   onLogout: () => void
   onSwitchUser: () => void
 }
@@ -45,8 +43,16 @@ const TABS: { id: FieldRecordType; title: string; help: string; cta: string }[] 
   },
 ]
 
-export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout, onSwitchUser }: Props) {
-  const { online, serverOk, syncing, lastSyncMessage, setLastSyncMessage } = useOnlineStatus()
+export function FieldApp({ user, onLogout, onSwitchUser }: Props) {
+  const {
+    online,
+    serverOk,
+    syncing,
+    pendingCount,
+    lastSyncMessage,
+    setLastSyncMessage,
+    forceSync,
+  } = useOnlineStatus()
   const [tab, setTab] = useState<FieldRecordType>('combustible')
   const [view, setView] = useState<View>('home')
   const [records, setRecords] = useState<MachinaryRecord[]>([])
@@ -62,6 +68,12 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout, onSwitchUs
     void refresh()
     void loadMachines()
   }, [lastSyncMessage, syncing])
+
+  useEffect(() => {
+    const onChanged = () => void refresh()
+    window.addEventListener('edox-records-changed', onChanged)
+    return () => window.removeEventListener('edox-records-changed', onChanged)
+  }, [])
 
   useEffect(() => {
     if (!toast) return
@@ -83,7 +95,6 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout, onSwitchUs
     [records, tab],
   )
 
-  const pendingCount = records.filter((r) => r.syncStatus !== 'synced').length
   const currentTab = TABS.find((t) => t.id === tab)!
 
   async function startNew() {
@@ -116,14 +127,17 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout, onSwitchUs
     }
     await saveRecord(local)
 
-    if (online && serverOk) {
-      try {
-        await syncRecord(local)
-        setToast('Registro guardado y subido al servidor')
-      } catch {
+    try {
+      const result = await syncPending()
+      if (result.synced > 0) setToast('Registro guardado y subido al servidor')
+      else if (!result.online) {
+        setToast('Sin señal: guardado local. Se sincroniza automáticamente')
+      } else if (result.failed > 0) {
         setToast('Guardado en el celular. Se subirá cuando haya señal')
+      } else {
+        setToast('Registro guardado')
       }
-    } else {
+    } catch {
       setToast('Sin señal: guardado local. Se sincroniza automáticamente')
     }
 
@@ -133,13 +147,9 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout, onSwitchUs
     await refresh()
   }
 
-  async function forceSync() {
+  async function handleForceSync() {
     setToast('Sincronizando…')
-    const result = await syncPending()
-    if (!result.online) setToast('Sin conexión todavía')
-    else if (result.synced === 0 && result.failed === 0) setToast('No hay pendientes')
-    else if (result.failed > 0) setToast(`${result.synced} subidos, ${result.failed} con error`)
-    else setToast(`${result.synced} registro(s) sincronizados`)
+    await forceSync()
     await refresh()
   }
 
@@ -159,11 +169,6 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout, onSwitchUs
             <span className={`status-dot ${online ? 'online' : ''}`} />
             {syncing ? 'Sincronizando…' : online ? 'En línea' : 'Sin señal'}
           </div>
-          {canOpenAdmin ? (
-            <button type="button" className="btn btn-accent btn-small" onClick={onOpenAdmin}>
-              Panel
-            </button>
-          ) : null}
           <button type="button" className="btn btn-ghost btn-small light" onClick={onLogout}>
             Salir
           </button>
@@ -205,7 +210,7 @@ export function FieldApp({ user, canOpenAdmin, onOpenAdmin, onLogout, onSwitchUs
                 </div>
                 <em>Empezar</em>
               </button>
-              <button type="button" className="nav-card" onClick={() => void forceSync()}>
+              <button type="button" className="nav-card" onClick={() => void handleForceSync()}>
                 <div>
                   <strong>Sincronizar ahora</strong>
                   <span>Sube lo pendiente cuando vuelva la señal</span>

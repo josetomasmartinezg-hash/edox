@@ -1533,6 +1533,29 @@ textarea {
   padding: 24px 28px 40px;
 }
 
+.sync-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.sync-banner p {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+tr.row-pending-sync td {
+  background: #fffbeb;
+}
+
 .desktop-content .admin-section {
   gap: 18px;
 }

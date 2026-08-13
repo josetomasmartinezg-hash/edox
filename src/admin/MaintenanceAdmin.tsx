@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/auth'
+import { getPendingRecords } from '../lib/db'
+import { RECORDS_SYNCED_EVENT } from '../lib/sync'
 import {
   ROLE_LABELS,
   type Machine,
+  type MachinaryRecord,
   type MaintenanceRecord,
   type User,
 } from '../types'
@@ -87,6 +90,35 @@ function pautaFromItem(item: MaintenanceRecord) {
   ]
 }
 
+function fromFieldRecord(record: MachinaryRecord): MaintenanceRecord {
+  const tareas = (record.mantenimiento || [])
+    .filter((row) => row.id || row.tipo)
+    .map((row) => ({
+      id: row.id,
+      label: row.tipo,
+      realizado: !!row.realizado,
+    }))
+  return {
+    id: record.id,
+    fieldRecordId: record.id,
+    machineId: null,
+    sigla: record.maquina,
+    tipoMantenimiento: record.tipoMantenimiento || record.intervaloMantenimiento || 'Pauta',
+    intervaloId: record.intervaloMantenimiento,
+    horometro: record.horasInicial || '—',
+    tareas,
+    observaciones: record.observaciones || '',
+    instrucciones: '',
+    status: 'completed',
+    asignadoNombre: record.operador,
+    mecanicoId: record.userId || '',
+    mecanicoNombre: record.operador,
+    pendingSync: record.syncStatus !== 'synced',
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  }
+}
+
 export function MaintenanceAdmin({
   user,
   canAssign,
@@ -132,6 +164,7 @@ export function MaintenanceAdmin({
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
+      if (item.pendingSync) return filter !== 'completed'
       const status = item.status || 'assigned'
       if (filter === 'open') {
         if (status !== 'assigned' && status !== 'pending' && status !== 'in_progress') {
@@ -151,13 +184,30 @@ export function MaintenanceAdmin({
   }, [items, filter, filterMachineId, machines])
 
   async function load() {
-    const [mRes, iRes, oRes] = await Promise.all([
+    const [mRes, iRes, oRes, localPending] = await Promise.all([
       apiFetch('/api/machines'),
       apiFetch('/api/maintenance'),
       apiFetch('/api/operators'),
+      getPendingRecords(),
     ])
     if (mRes.ok) setMachines(await mRes.json())
-    if (iRes.ok) setItems(await iRes.json())
+    const server: MaintenanceRecord[] = iRes.ok ? await iRes.json() : []
+    const localMaint = localPending
+      .filter((r) => (r.tipoRegistro || '') === 'mantenimiento')
+      .map(fromFieldRecord)
+    const merged = new Map<string, MaintenanceRecord>()
+    for (const item of server) {
+      merged.set(item.fieldRecordId || item.id, item)
+    }
+    for (const item of localMaint) {
+      const key = item.fieldRecordId || item.id
+      if (!merged.has(key)) merged.set(key, item)
+    }
+    setItems(
+      [...merged.values()].sort(
+        (a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime(),
+      ),
+    )
     if (oRes.ok) {
       const people = (await oRes.json()) as Assignee[]
       setAssignees(
@@ -170,6 +220,15 @@ export function MaintenanceAdmin({
 
   useEffect(() => {
     void load()
+    const onSynced = () => void load()
+    window.addEventListener(RECORDS_SYNCED_EVENT, onSynced)
+    window.addEventListener('edox-records-changed', onSynced)
+    const id = window.setInterval(() => void load(), 5000)
+    return () => {
+      window.removeEventListener(RECORDS_SYNCED_EVENT, onSynced)
+      window.removeEventListener('edox-records-changed', onSynced)
+      window.clearInterval(id)
+    }
   }, [])
 
   useEffect(() => {
@@ -502,7 +561,7 @@ export function MaintenanceAdmin({
           <h3 className="section-title">Mantenimiento</h3>
           <p className="section-help">
             {canAssign
-              ? 'Agrega un mantenimiento, elige el equipo y asígnalo a un mecánico o supervisor.'
+              ? 'Agrega un mantenimiento, elige el equipo y asígnalo. Lo hecho en terreno sin señal también aparece aquí y se sube solo.'
               : 'Aquí aparecen los mantenimientos que te asignaron. Ábrelos y marca la pauta.'}
           </p>
         </div>
@@ -577,12 +636,22 @@ export function MaintenanceAdmin({
               return (
                 <tr
                   key={item.id}
-                  className={mine && item.status !== 'completed' ? 'row-alert-soon' : ''}
+                  className={
+                    item.pendingSync
+                      ? 'row-pending-sync'
+                      : mine && item.status !== 'completed'
+                        ? 'row-alert-soon'
+                        : ''
+                  }
                 >
                   <td>
-                    <span className={`badge ${statusClass(item.status)}`}>
-                      {statusLabel(item.status)}
-                    </span>
+                    {item.pendingSync ? (
+                      <span className="badge pending">En el celular</span>
+                    ) : (
+                      <span className={`badge ${statusClass(item.status)}`}>
+                        {statusLabel(item.status)}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <strong>{item.sigla}</strong>
@@ -611,7 +680,7 @@ export function MaintenanceAdmin({
                           PDF
                         </button>
                       ) : null}
-                      {canAssign && item.status !== 'completed' ? (
+                      {canAssign && item.status !== 'completed' && !item.pendingSync ? (
                         <button
                           type="button"
                           className="btn btn-danger btn-small"

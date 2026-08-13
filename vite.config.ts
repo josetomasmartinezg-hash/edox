@@ -39,6 +39,19 @@ export default defineConfig({
             method: 'GET',
           },
           {
+            urlPattern: ({ url }) => url.pathname === '/api/records',
+            handler: 'NetworkOnly',
+            method: 'POST',
+            options: {
+              backgroundSync: {
+                name: 'edox-records',
+                options: {
+                  maxRetentionTime: 24 * 60,
+                },
+              },
+            },
+          },
+          {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
             handler: 'NetworkOnly',
             method: 'POST',
