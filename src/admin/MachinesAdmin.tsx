@@ -9,6 +9,7 @@ import {
 
 const emptyForm = {
   categoriaId: '',
+  categoriaNueva: '',
   marca: '',
   modelo: '',
   anio: '',
@@ -110,6 +111,7 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
   const [maintenances, setMaintenances] = useState<MaintenanceRecord[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [listLoading, setListLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterDocs, setFilterDocs] = useState<'all' | 'expired' | 'soon' | 'ok'>('all')
@@ -177,17 +179,24 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
   }
 
   async function loadList() {
-    const [machinesRes, maintRes] = await Promise.all([
-      apiFetch('/api/machines'),
-      apiFetch('/api/maintenance'),
-      loadCategories(),
-    ])
-    if (!machinesRes.ok) {
-      setError('No se pudieron cargar las máquinas')
-      return
+    setListLoading(true)
+    try {
+      const [machinesRes, maintRes] = await Promise.all([
+        apiFetch('/api/machines'),
+        apiFetch('/api/maintenance'),
+        loadCategories(),
+      ])
+      if (!machinesRes.ok) {
+        setError('No se pudieron cargar las máquinas')
+        return
+      }
+      setMachines(await machinesRes.json())
+      if (maintRes.ok) setMaintenances(await maintRes.json())
+    } catch {
+      setError('No se pudieron cargar las máquinas. Revisa la conexión e intenta de nuevo.')
+    } finally {
+      setListLoading(false)
     }
-    setMachines(await machinesRes.json())
-    if (maintRes.ok) setMaintenances(await maintRes.json())
   }
 
   async function loadDetail(id: string) {
@@ -281,19 +290,24 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
     setPautaParseError('')
     if (!file) return
     setPautaParsing(true)
-    const payload = new FormData()
-    payload.append('file', file)
-    const res = await apiFetch('/api/pauta/parse', { method: 'POST', body: payload })
-    const data = await res.json().catch(() => ({}))
-    setPautaParsing(false)
-    if (!res.ok) {
-      setPautaParseError(data.error || 'No se pudo leer el archivo')
-      return
+    try {
+      const payload = new FormData()
+      payload.append('file', file)
+      const res = await apiFetch('/api/pauta/parse', { method: 'POST', body: payload })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setPautaParseError(data.error || 'No se pudo leer el archivo')
+        return
+      }
+      setForm((current) => ({ ...current, pauta: data.pauta || emptyPautaList() }))
+      setPautaParseMsg(
+        `Pauta extraída: ${data.tipos} tipos, ${data.items} ítems. Revisa y corrige si hace falta.`,
+      )
+    } catch {
+      setPautaParseError('No se pudo leer el archivo. Prueba de nuevo o agrégala a mano.')
+    } finally {
+      setPautaParsing(false)
     }
-    setForm((current) => ({ ...current, pauta: data.pauta || emptyPautaList() }))
-    setPautaParseMsg(
-      `Pauta extraída: ${data.tipos} tipos, ${data.items} ítems. Revisa y corrige si hace falta.`,
-    )
   }
 
   async function attachPautaFile(machineId: string) {
@@ -316,52 +330,64 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!canManage) return
-    if (!form.categoriaId) {
-      setError('Debes seleccionar una categoría')
+    if (!form.marca.trim() || !form.modelo.trim() || !form.sigla.trim()) {
+      setError('Marca, modelo y sigla son obligatorios')
       return
     }
     setLoading(true)
     setError('')
-    const res = await apiFetch('/api/machines', {
-      method: 'POST',
-      body: JSON.stringify({ ...form, pauta: cleanPauta(form.pauta) }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
+    try {
+      const res = await apiFetch('/api/machines', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...form,
+          categoria: form.categoriaNueva.trim() || undefined,
+          pauta: cleanPauta(form.pauta),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error || 'Error al guardar')
+        return
+      }
+      await attachPautaFile(data.id)
+      setForm({ ...emptyForm, pauta: emptyPautaList() })
+      await loadList()
+      await loadDetail(data.id)
+    } catch {
+      setError('No se pudo guardar. Revisa la conexión e intenta de nuevo.')
+    } finally {
       setLoading(false)
-      setError(data.error || 'Error al guardar')
-      return
     }
-    await attachPautaFile(data.id)
-    setLoading(false)
-    setForm(emptyForm)
-    await loadList()
-    await loadDetail(data.id)
   }
 
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault()
     if (!canManage || !selectedId) return
-    if (!form.categoriaId) {
-      setError('Debes seleccionar una categoría')
-      return
-    }
     setLoading(true)
     setError('')
-    const res = await apiFetch(`/api/machines/${selectedId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ ...form, pauta: cleanPauta(form.pauta) }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
+    try {
+      const res = await apiFetch(`/api/machines/${selectedId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...form,
+          categoria: form.categoriaNueva.trim() || undefined,
+          pauta: cleanPauta(form.pauta),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error || 'Error al actualizar')
+        return
+      }
+      await attachPautaFile(data.id)
+      await loadList()
+      await loadDetail(data.id)
+    } catch {
+      setError('No se pudo actualizar. Revisa la conexión e intenta de nuevo.')
+    } finally {
       setLoading(false)
-      setError(data.error || 'Error al actualizar')
-      return
     }
-    await attachPautaFile(data.id)
-    setLoading(false)
-    await loadList()
-    await loadDetail(data.id)
   }
 
   async function generateQr(machine: Machine) {
@@ -384,18 +410,28 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
     await loadList()
   }
 
-  async function openCreate() {
+  function openCreate() {
     setError('')
-    const cats = categories.length ? categories : await loadCategories()
-    const categoriaId = cats[0]?.id || ''
-    setForm({ ...emptyForm, categoriaId, pauta: emptyPautaList() })
     resetPautaFile()
+    setForm({
+      ...emptyForm,
+      categoriaId: categories[0]?.id || '',
+      pauta: emptyPautaList(),
+    })
     setView('create')
+    if (!categories.length) {
+      void loadCategories().then((cats) => {
+        setForm((current) =>
+          current.categoriaId ? current : { ...current, categoriaId: cats[0]?.id || '' },
+        )
+      })
+    }
   }
 
   function openEdit(machine: Machine) {
     setForm({
       categoriaId: machine.categoriaId || '',
+      categoriaNueva: '',
       marca: machine.marca,
       modelo: machine.modelo,
       anio: machine.anio,
@@ -589,14 +625,27 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
         <form
           className="admin-card machine-form-card"
           onSubmit={(e) => void (view === 'create' ? handleCreate(e) : handleUpdate(e))}
+          noValidate
         >
+          {error ? <p className="form-error">{error}</p> : null}
+          <div className="machine-form-actions sticky-actions">
+            <button type="submit" className="btn btn-primary" disabled={loading || pautaParsing}>
+              {loading ? 'Guardando…' : view === 'create' ? 'Guardar máquina' : 'Actualizar'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setView(view === 'edit' && selectedId ? 'detail' : 'list')}
+            >
+              Cancelar
+            </button>
+          </div>
           <div className="field-grid two">
             <label className="field">
               <span>Categoría</span>
               <select
                 value={form.categoriaId}
-                onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}
-                required
+                onChange={(e) => setForm({ ...form, categoriaId: e.target.value, categoriaNueva: '' })}
               >
                 <option value="">Seleccione categoría</option>
                 {categories.map((category) => (
@@ -605,6 +654,16 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="field">
+              <span>O crea una categoría nueva</span>
+              <input
+                value={form.categoriaNueva}
+                onChange={(e) =>
+                  setForm({ ...form, categoriaNueva: e.target.value, categoriaId: e.target.value ? '' : form.categoriaId })
+                }
+                placeholder="Ej: Excavadora"
+              />
             </label>
             <label className="field">
               <span>Sigla</span>
@@ -708,32 +767,21 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
           </label>
 
           {canManage ? (
-            <MachinePautaEditor
-              value={form.pauta}
-              onChange={(pauta) => setForm({ ...form, pauta })}
-              disabled={loading}
-              fileName={pautaFile?.name}
-              existingFileName={view === 'edit' ? historial?.machine.pautaFileName : ''}
-              parsing={pautaParsing}
-              parseMessage={pautaParseMsg}
-              parseError={pautaParseError}
-              onSelectFile={(file) => void handlePautaFile(file)}
-            />
+            <details className="pauta-optional">
+              <summary>Pauta de mantenimiento (opcional)</summary>
+              <MachinePautaEditor
+                value={form.pauta}
+                onChange={(pauta) => setForm({ ...form, pauta })}
+                disabled={loading}
+                fileName={pautaFile?.name}
+                existingFileName={view === 'edit' ? historial?.machine.pautaFileName : ''}
+                parsing={pautaParsing}
+                parseMessage={pautaParseMsg}
+                parseError={pautaParseError}
+                onSelectFile={(file) => void handlePautaFile(file)}
+              />
+            </details>
           ) : null}
-
-          {error ? <p className="form-error">{error}</p> : null}
-          <div className="machine-form-actions">
-            <button type="submit" className="btn btn-primary" disabled={loading || pautaParsing}>
-              {loading ? 'Guardando…' : view === 'create' ? 'Guardar máquina' : 'Actualizar'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setView(view === 'edit' && selectedId ? 'detail' : 'list')}
-            >
-              Cancelar
-            </button>
-          </div>
         </form>
       </div>
     )
@@ -1151,7 +1199,7 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
             Categorías
           </button>
           {canManage ? (
-            <button type="button" className="btn btn-primary" onClick={() => void openCreate()}>
+            <button type="button" className="btn btn-primary" onClick={openCreate}>
               Agregar maquinaria
             </button>
           ) : null}
@@ -1274,8 +1322,11 @@ export function MachinesAdmin({ canManage, canViewMaintenance, onOpenMaintenance
             {!machines.length ? (
               <tr>
                 <td colSpan={10} className="empty-cell">
-                  No hay maquinaria.{' '}
-                  {canManage ? 'Usa “Agregar maquinaria” para crear la primera.' : ''}
+                  {listLoading
+                    ? 'Cargando equipos…'
+                    : canManage
+                      ? 'No hay maquinaria. Presiona “Agregar maquinaria” arriba a la derecha.'
+                      : 'No hay maquinaria.'}
                 </td>
               </tr>
             ) : null}

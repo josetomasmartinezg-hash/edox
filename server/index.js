@@ -572,6 +572,34 @@ function resolveCategory(categoriaId, categoriaName) {
   return null
 }
 
+function ensureCategory(categoriaId, categoriaName) {
+  const existing = resolveCategory(categoriaId, categoriaName)
+  if (existing) return existing
+
+  const name = String(categoriaName || '').trim()
+  const categories = readJson('categories.json', [])
+  if (name) {
+    const created = {
+      id: randomUUID(),
+      name,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    categories.push(created)
+    writeJson('categories.json', categories)
+    return created
+  }
+  if (categories[0]) return categories[0]
+  const fallback = {
+    id: randomUUID(),
+    name: 'General',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  writeJson('categories.json', [fallback])
+  return fallback
+}
+
 function machineDocumentAlert(machineId, sigla) {
   const docs = readJson('documents.json', []).filter(
     (d) =>
@@ -597,7 +625,9 @@ app.get('/api/machines', authRequired, requirePermission('view_machines'), async
     }),
   )
   res.json(
-    withCodes.sort((a, b) => a.sigla.localeCompare(b.sigla, 'es', { sensitivity: 'base' })),
+    withCodes
+      .map(({ qrDataUrl, ...rest }) => ({ ...rest, hasQr: Boolean(qrDataUrl || rest.qrPayload) }))
+      .sort((a, b) => a.sigla.localeCompare(b.sigla, 'es', { sensitivity: 'base' })),
   )
 })
 
@@ -869,10 +899,7 @@ app.post('/api/machines', authRequired, requirePermission('manage_machines'), as
     return res.status(400).json({ error: 'Marca, modelo y sigla son obligatorios' })
   }
 
-  const category = resolveCategory(categoriaId, categoria)
-  if (!category) {
-    return res.status(400).json({ error: 'Debes seleccionar una categoría' })
-  }
+  const category = ensureCategory(categoriaId, categoria)
 
   const machines = readJson('machines.json', [])
   const normalizedSigla = String(sigla).trim().toUpperCase()
@@ -936,7 +963,7 @@ app.put('/api/machines/:id', authRequired, requirePermission('manage_machines'),
 
   const nextCategory =
     req.body.categoriaId || req.body.categoria
-      ? resolveCategory(req.body.categoriaId, req.body.categoria)
+      ? ensureCategory(req.body.categoriaId, req.body.categoria)
       : resolveCategory(current.categoriaId, current.categoria)
 
   if ((req.body.categoriaId || req.body.categoria) && !nextCategory) {
