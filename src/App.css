@@ -108,13 +108,12 @@
   position: fixed;
   inset: 0 0 auto;
   z-index: 40;
-  transition: background 0.3s ease, box-shadow 0.3s ease, backdrop-filter 0.3s ease;
+  background: #000000;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .site-header.is-scrolled {
-  background: rgba(17, 17, 17, 0.94);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: #000000;
 }
 
 .site-header__inner {
