@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: stackd
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: stackd-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_DIR
+        value: /var/data
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        value: ADVAULTCL_BOT
+      - key: TELEGRAM_NOTIFY_EXTRA
+        sync: false
+      - key: VITE_TELEGRAM_BOT_USERNAME
+        value: ADVAULTCL_BOT
+      - key: VITE_TELEGRAM_SUPPORT
+        value: Stackd2026
+      - key: VITE_USDT_TRC20
+        sync: false
+      - key: VITE_USDT_BEP20
+        sync: false
+      - key: VITE_PAYPAL_ME
+        sync: false
+      - key: VITE_PAYPAL_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: GATE_SECRET
+        sync: false
+      - key: TURNSTILE_SITE_KEY
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: GATE_DISABLED
+        value: "0"

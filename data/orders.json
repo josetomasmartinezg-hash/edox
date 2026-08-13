@@ -1,0 +1,212 @@
+[
+  {
+    "id": "STK-MSNR79TU-SDU6",
+    "createdAt": "2026-08-10T21:38:46.992Z",
+    "updatedAt": "2026-08-10T21:38:46.992Z",
+    "status": "pending",
+    "paymentMethod": "USDT BEP20 (BSC)",
+    "paymentCategory": "usdt",
+    "amountDue": 189.41,
+    "subtotal": 189,
+    "customer": {
+      "name": "dian",
+      "email": "solimamp@gmail.com",
+      "telegram": "ijjjj",
+      "notes": ""
+    },
+    "lines": [
+      {
+        "productId": "bm-api",
+        "name": "BM Verificado Premium",
+        "qty": 1,
+        "price": 189
+      }
+    ]
+  },
+  {
+    "id": "STK-MSNMYR52-U59T",
+    "createdAt": "2026-08-10T19:40:13.731Z",
+    "updatedAt": "2026-08-10T19:40:13.731Z",
+    "status": "pending",
+    "paymentMethod": "USDT BEP20 (BSC)",
+    "paymentCategory": "usdt",
+    "amountDue": 189.42,
+    "subtotal": 189,
+    "customer": {
+      "name": "Sebastián ",
+      "email": "josetomasmartinez@gmail.com",
+      "telegram": "jjjj",
+      "notes": ""
+    },
+    "lines": [
+      {
+        "productId": "bm-api",
+        "name": "BM Verificado Premium",
+        "qty": 1,
+        "price": 189
+      }
+    ]
+  },
+  {
+    "id": "STK-PUBLIC-1",
+    "createdAt": "2026-08-10T19:39:52.819Z",
+    "updatedAt": "2026-08-10T19:39:52.819Z",
+    "status": "pending",
+    "paymentMethod": "PayPal",
+    "paymentCategory": "paypal",
+    "amountDue": 9,
+    "customer": {
+      "name": "Public",
+      "email": "",
+      "telegram": "public",
+      "notes": ""
+    },
+    "lines": []
+  },
+  {
+    "id": "STK-DUAL-2",
+    "createdAt": "2026-08-10T19:39:08.127Z",
+    "updatedAt": "2026-08-10T19:39:08.127Z",
+    "status": "pending",
+    "paymentMethod": "USDT TRC20 (Tron)",
+    "paymentCategory": "usdt",
+    "amountDue": 11,
+    "customer": {
+      "name": "Check",
+      "email": "",
+      "telegram": "check",
+      "notes": ""
+    },
+    "lines": []
+  },
+  {
+    "id": "STK-DUAL-1",
+    "createdAt": "2026-08-10T19:38:47.150Z",
+    "updatedAt": "2026-08-10T19:38:47.150Z",
+    "status": "pending",
+    "paymentMethod": "PayPal",
+    "paymentCategory": "paypal",
+    "amountDue": 50,
+    "customer": {
+      "name": "Dual Notify",
+      "email": "",
+      "telegram": "dual",
+      "notes": ""
+    },
+    "lines": [
+      {
+        "productId": "bm-api",
+        "name": "BM Verificado Premium",
+        "qty": 1,
+        "price": 50
+      }
+    ]
+  },
+  {
+    "id": "STK-VISIBLE-1",
+    "createdAt": "2026-08-10T19:37:43.350Z",
+    "updatedAt": "2026-08-10T19:37:43.350Z",
+    "status": "pending",
+    "paymentMethod": "PayPal",
+    "paymentCategory": "paypal",
+    "amountDue": 99,
+    "customer": {
+      "name": "Debug",
+      "email": "",
+      "telegram": "debug",
+      "notes": ""
+    },
+    "lines": []
+  },
+  {
+    "id": "STK-VIA-PREVIEW",
+    "createdAt": "2026-08-10T19:34:53.604Z",
+    "updatedAt": "2026-08-10T19:34:53.604Z",
+    "status": "pending",
+    "paymentMethod": "PayPal",
+    "paymentCategory": "paypal",
+    "amountDue": 1,
+    "customer": {
+      "name": "P",
+      "email": "",
+      "telegram": "p",
+      "notes": ""
+    },
+    "lines": []
+  },
+  {
+    "id": "STK-DEMO-USDT-1",
+    "createdAt": "2026-08-09T19:13:41.650Z",
+    "updatedAt": "2026-08-10T19:26:44.197Z",
+    "status": "completed",
+    "completedAt": "2026-08-10T19:26:44.197Z",
+    "paymentMethod": "USDT TRC20 (Tron)",
+    "paymentCategory": "usdt",
+    "amountDue": 149.37,
+    "subtotal": 149,
+    "customer": {
+      "name": "Ana Pérez",
+      "email": "ana@mail.com",
+      "telegram": "ana_stackd",
+      "notes": ""
+    },
+    "lines": [
+      {
+        "productId": "bm-basic",
+        "name": "BM Verificada Básica",
+        "qty": 1,
+        "price": 149
+      }
+    ]
+  },
+  {
+    "id": "STK-DEMO-PP-1",
+    "createdAt": "2026-08-10T07:13:41.650Z",
+    "updatedAt": "2026-08-10T19:26:47.590Z",
+    "status": "completed",
+    "completedAt": "2026-08-10T19:26:47.590Z",
+    "paymentMethod": "PayPal",
+    "paymentCategory": "paypal",
+    "amountDue": 249,
+    "subtotal": 249,
+    "customer": {
+      "name": "Luis Gómez",
+      "email": "luis@mail.com",
+      "telegram": "luisg",
+      "notes": ""
+    },
+    "lines": [
+      {
+        "productId": "bm-pro",
+        "name": "BM Verificada Pro",
+        "qty": 1,
+        "price": 249
+      }
+    ]
+  },
+  {
+    "id": "STK-DEMO-USDT-2",
+    "createdAt": "2026-08-10T18:13:41.650Z",
+    "updatedAt": "2026-08-10T19:26:48.627Z",
+    "status": "completed",
+    "completedAt": "2026-08-10T19:26:48.627Z",
+    "paymentMethod": "USDT BEP20 (BSC)",
+    "paymentCategory": "usdt",
+    "amountDue": 298.52,
+    "subtotal": 298,
+    "customer": {
+      "name": "Carla Ruiz",
+      "email": "carla@mail.com",
+      "telegram": "carla_r",
+      "notes": ""
+    },
+    "lines": [
+      {
+        "productId": "bm-basic",
+        "name": "BM Verificada Básica",
+        "qty": 2,
+        "price": 149
+      }
+    ]
+  }
+]

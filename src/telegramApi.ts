@@ -1,0 +1,60 @@
+import type { Order } from './checkout'
+import { buildGroupOrderMessage, paymentLabel } from './checkout'
+import { orderStartPayload } from './telegramLinks'
+
+function apiBase(): string {
+  return import.meta.env.VITE_API_URL?.replace(/\/$/, '') || ''
+}
+
+async function postJson(path: string, body: unknown): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${apiBase()}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    })
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean
+      error?: string
+      telegram?: boolean
+      warning?: string
+      gate?: string
+    }
+    if (!res.ok || !data.ok) {
+      if (data.gate || /anti-bot|verificaci/i.test(String(data.error || ''))) {
+        return { ok: false, error: 'Pasá la verificación anti-bot y reintentá' }
+      }
+      return { ok: false, error: data.error || `Error ${res.status}` }
+    }
+    if (data.telegram === false) {
+      return { ok: false, error: data.warning || 'La orden se guardó pero Telegram no respondió' }
+    }
+    return { ok: true }
+  } catch {
+    return { ok: false, error: 'No se pudo contactar al servidor de Telegram' }
+  }
+}
+
+/** Avisa la compra al grupo Stackd_bot con formato ordenado. */
+export async function notifyOrderToBot(order: Order) {
+  return postJson('/api/telegram/order', {
+    orderId: order.id,
+    text: buildGroupOrderMessage(order),
+    parseMode: 'HTML',
+    customer: order.customer,
+    amountDue: order.amountDue,
+    subtotal: order.subtotal,
+    discountCode: order.discountCode,
+    discountPercent: order.discountPercent,
+    discountAmount: order.discountAmount,
+    paymentMethod: paymentLabel(order.paymentMethod),
+    lines: order.lines.map((line) => ({
+      productId: line.product.id,
+      name: line.product.name,
+      qty: line.qty,
+      price: line.product.price,
+    })),
+    startPayload: orderStartPayload(order.id),
+  })
+}

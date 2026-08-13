@@ -1,0 +1,87 @@
+[
+  {
+    "id": "bm2500-verified",
+    "name": "BM2500 Verified",
+    "badge": "BM",
+    "price": 99,
+    "description": "Business Manager 2500 verificado, listo para operar.",
+    "features": [
+      "BM 2500 verified",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 25,
+    "featured": true,
+    "cta": "Comprar BM2500"
+  },
+  {
+    "id": "bm1-verified",
+    "name": "BM1 Verified",
+    "badge": "BM",
+    "price": 99,
+    "description": "Business Manager 1 verificado.",
+    "features": [
+      "BM1 verified",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 30,
+    "cta": "Comprar BM1 Verified"
+  },
+  {
+    "id": "bm1-standard",
+    "name": "BM1 Standard",
+    "badge": "BM",
+    "price": 89,
+    "description": "Business Manager 1 estándar.",
+    "features": [
+      "BM1 standard",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 30,
+    "cta": "Comprar BM1 Standard"
+  },
+  {
+    "id": "perfil-fb-verified",
+    "name": "Perfil FB Verified",
+    "badge": "Perfil",
+    "price": 85,
+    "description": "Perfil de Facebook verificado.",
+    "features": [
+      "Perfil FB verified",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 25,
+    "cta": "Comprar Perfil Verified"
+  },
+  {
+    "id": "perfil-fb",
+    "name": "Perfil FB",
+    "badge": "Perfil",
+    "price": 80,
+    "description": "Perfil de Facebook listo para uso.",
+    "features": [
+      "Perfil Facebook",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 40,
+    "cta": "Comprar Perfil FB"
+  },
+  {
+    "id": "fan-page",
+    "name": "Fan Page",
+    "badge": "Page",
+    "price": 60,
+    "description": "Fan page de Facebook.",
+    "features": [
+      "Fan page",
+      "Entrega por Telegram",
+      "Soporte incluido"
+    ],
+    "stock": 40,
+    "cta": "Comprar Fan Page"
+  }
+]
