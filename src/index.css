@@ -39,6 +39,7 @@
 html {
   scroll-behavior: smooth;
   overflow-x: clip;
+  background: #08121f;
 }
 
 body {
@@ -47,7 +48,7 @@ body {
   overflow-x: clip;
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(212, 0, 42, 0.05), transparent 55%),
-    linear-gradient(180deg, #f6f7f9 0%, var(--paper) 40%, #e9edf2 100%);
+    linear-gradient(180deg, #08121f 0%, #08121f 100vh, #f6f7f9 100vh, var(--paper) calc(100vh + 40%), #e9edf2 100%);
 }
 
 img {

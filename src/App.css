@@ -1,5 +1,6 @@
 .page {
   min-height: 100vh;
+  background: transparent;
 }
 
 .shell {
@@ -130,9 +131,10 @@
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  padding: 0.25rem 0.4rem;
-  background: #ffffff;
+  padding: 0.2rem 0.35rem;
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(8, 18, 31, 0.08);
 }
 
 .soinver-logo-img {
@@ -211,13 +213,15 @@
 /* Hero */
 .hero {
   position: relative;
-  min-height: 88vh;
-  min-height: 88svh;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
   display: grid;
   align-content: end;
   color: var(--white);
   overflow: hidden;
   isolation: isolate;
+  background: #08121f;
 }
 
 .hero__media {
