@@ -1,0 +1,20 @@
+# Blueprint de Render — https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: edox-maquinaria
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: EDOX_JWT_SECRET
+        generateValue: true
+      - key: EDOX_DATA_DIR
+        value: /var/data
+    disk:
+      name: edox-data
+      mountPath: /var/data
+      sizeGB: 10
