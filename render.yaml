@@ -1,0 +1,24 @@
+# Blueprint de Render — https://render.com/docs/blueprint-spec
+# Conecta el repo en Render → New → Blueprint y selecciona esta rama.
+services:
+  - type: web
+    name: edox-maquinaria
+    runtime: node
+    region: oregon
+    plan: starter
+    branch: cursor/fuel-tracking-app-14f0
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: EDOX_JWT_SECRET
+        generateValue: true
+      - key: EDOX_DATA_DIR
+        value: /var/data
+    disk:
+      name: edox-data
+      mountPath: /var/data
+      sizeGB: 1

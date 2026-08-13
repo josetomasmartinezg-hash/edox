@@ -4,7 +4,9 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(__dirname, '..')
-export const dataDir = path.join(root, 'data')
+export const dataDir = process.env.EDOX_DATA_DIR
+  ? path.resolve(process.env.EDOX_DATA_DIR)
+  : path.join(root, 'data')
 export const uploadsDir = path.join(dataDir, 'uploads')
 
 fs.mkdirSync(uploadsDir, { recursive: true })

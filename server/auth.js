@@ -5,6 +5,10 @@ import { userHasLegacyPermission } from './permissions.js'
 
 const JWT_SECRET = process.env.EDOX_JWT_SECRET || 'edox-dev-secret-change-me'
 
+if (process.env.NODE_ENV === 'production' && !process.env.EDOX_JWT_SECRET) {
+  throw new Error('EDOX_JWT_SECRET es obligatorio en producción')
+}
+
 export function signToken(user) {
   return jwt.sign(
     {

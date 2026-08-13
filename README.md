@@ -47,3 +47,40 @@ npm start
 ```
 
 Abre `http://localhost:3001`
+
+## Despliegue en Render
+
+El proyecto incluye un [Blueprint](https://render.com/docs/blueprint-spec) en `render.yaml` para un **Web Service** Node que sirve API + frontend en un solo proceso.
+
+### Opción A — Blueprint (recomendada)
+
+1. Sube el repo a GitHub (rama `cursor/fuel-tracking-app-14f0` o la que uses en producción).
+2. En [Render Dashboard](https://dashboard.render.com/) → **New** → **Blueprint**.
+3. Conecta el repositorio `edox` y confirma el servicio `edox-maquinaria`.
+4. Render creará automáticamente:
+   - `NODE_ENV=production`
+   - `EDOX_JWT_SECRET` (aleatorio)
+   - Disco persistente de 1 GB en `/var/data` (datos JSON + uploads)
+
+### Opción B — Web Service manual
+
+| Campo | Valor |
+|-------|--------|
+| Build Command | `npm install && npm run build` |
+| Start Command | `npm start` |
+| Health Check | `/api/health` |
+
+Variables de entorno obligatorias:
+
+| Variable | Valor |
+|----------|--------|
+| `NODE_ENV` | `production` |
+| `EDOX_JWT_SECRET` | cadena larga aleatoria |
+| `EDOX_DATA_DIR` | `/var/data` (con disco persistente montado ahí) |
+
+### Notas
+
+- El plan **Starter** (o superior) es necesario para el disco persistente; sin disco, los datos se pierden al redeploy.
+- Tras el primer deploy, entra con **Principal** o **Administrador** (credenciales del seed en `server/seed.js`).
+- Cambia las contraseñas demo en producción desde el módulo Usuarios.
+- La app terreno funciona como PWA; ábrela desde la URL de Render en el celular y “Agregar a pantalla de inicio”.
