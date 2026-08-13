@@ -147,3 +147,28 @@ export async function updateOrderStatus(
     return { ok: false, error: 'No se pudo conectar al servidor' }
   }
 }
+
+export async function testTelegramNotify(
+  token: string,
+): Promise<{ ok: boolean; error?: string; botUsername?: string }> {
+  try {
+    const res = await fetch(`${apiBase()}/api/admin/telegram-test`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    })
+    const data = (await res.json()) as {
+      ok?: boolean
+      error?: string
+      botUsername?: string
+      botReachable?: boolean
+      chatReachable?: boolean
+    }
+    if (!res.ok || !data.ok) {
+      return { ok: false, error: data.error || 'Test de Telegram falló' }
+    }
+    return { ok: true, botUsername: data.botUsername }
+  } catch {
+    return { ok: false, error: 'No se pudo conectar al servidor' }
+  }
+}

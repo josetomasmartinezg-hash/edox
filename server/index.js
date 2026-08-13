@@ -302,16 +302,62 @@ async function telegramApi(method, body) {
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(body ?? {}),
   })
   const data = await res.json()
   if (!data.ok) {
-    const err = new Error(data.description || `Telegram API error (${method})`)
+    const raw = data.description || `Telegram API error (${method})`
+    let message = raw
+    if (/not found/i.test(raw) || data.error_code === 404) {
+      message =
+        'Telegram Not Found: TELEGRAM_BOT_TOKEN inválido en Render (o el bot fue regenerado). Actualizá el token en Environment.'
+    } else if (/chat not found|CHAT_ID/i.test(raw) || data.error_code === 400) {
+      message =
+        'Telegram chat no encontrado: revisá TELEGRAM_CHAT_ID (grupo, con comillas si es negativo) y que el bot esté en el grupo.'
+    }
+    const err = new Error(message)
     err.code = data.error_code
     err.parameters = data.parameters
+    err.telegramDescription = raw
     throw err
   }
   return data
+}
+
+async function probeTelegram() {
+  const out = {
+    tokenSet: Boolean(BOT_TOKEN),
+    chatIdSet: Boolean(CHAT_ID),
+    chatIdNegative: CHAT_ID.startsWith('-'),
+    chatIdLength: CHAT_ID.length,
+    botUsername: BOT_USERNAME,
+    botReachable: false,
+    chatReachable: false,
+    error: null,
+  }
+  if (!BOT_TOKEN) {
+    out.error = 'Falta TELEGRAM_BOT_TOKEN'
+    return out
+  }
+  try {
+    const me = await telegramApi('getMe')
+    out.botReachable = true
+    out.botUsername = me.result?.username || BOT_USERNAME
+  } catch (error) {
+    out.error = error instanceof Error ? error.message : 'getMe falló'
+    return out
+  }
+  if (!CHAT_ID) {
+    out.error = 'Falta TELEGRAM_CHAT_ID'
+    return out
+  }
+  try {
+    await telegramApi('getChat', { chat_id: CHAT_ID })
+    out.chatReachable = true
+  } catch (error) {
+    out.error = error instanceof Error ? error.message : 'getChat falló'
+  }
+  return out
 }
 
 async function sendToChat(chatId, text, parseMode = 'HTML') {
@@ -367,6 +413,34 @@ app.get('/api/health', (_req, res) => {
     botUsername: BOT_USERNAME,
     chatIdSet: Boolean(CHAT_ID),
   })
+})
+
+app.get('/api/admin/telegram-status', requireAdmin, async (_req, res) => {
+  try {
+    const status = await probeTelegram()
+    res.json({ ok: true, ...status })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error diagnosticando Telegram'
+    res.status(500).json({ ok: false, error: message })
+  }
+})
+
+app.post('/api/admin/telegram-test', requireAdmin, async (_req, res) => {
+  try {
+    const status = await probeTelegram()
+    if (!status.botReachable || !status.chatReachable) {
+      res.status(400).json({ ok: false, ...status })
+      return
+    }
+    await notifyAdmin(
+      `<b>STACKD · TEST</b>\nSi ves este mensaje, el aviso de compras al grupo está OK.`,
+      'HTML',
+    )
+    res.json({ ok: true, sent: true, ...status })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'No se pudo enviar el test'
+    res.status(500).json({ ok: false, error: message })
+  }
 })
 
 app.get('/api/products', (_req, res) => {

@@ -5,6 +5,7 @@ import {
   fetchAdminStats,
   fetchProducts,
   saveProducts,
+  testTelegramNotify,
   type AdminOrder,
   type AdminStats,
 } from '../productsApi'
@@ -48,6 +49,7 @@ export function AdminPanel() {
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [testingTelegram, setTestingTelegram] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [okMsg, setOkMsg] = useState<string | null>(null)
 
@@ -102,6 +104,23 @@ export function AdminPanel() {
     setStats(emptyStats)
     setOrders([])
     setOkMsg('Sesión cerrada')
+  }
+
+  async function handleTelegramTest() {
+    if (!token) return
+    setTestingTelegram(true)
+    setError(null)
+    setOkMsg(null)
+    const result = await testTelegramNotify(token)
+    setTestingTelegram(false)
+    if (!result.ok) {
+      if (result.error?.toLowerCase().includes('autorizado')) {
+        logout()
+      }
+      setError(result.error || 'No se pudo enviar el test a Telegram')
+      return
+    }
+    setOkMsg(`Test enviado al grupo (@${result.botUsername || 'bot'}). Revisá Telegram.`)
   }
 
   function updateDraft(id: string, key: keyof Draft, value: string) {
@@ -197,6 +216,14 @@ export function AdminPanel() {
             <button className="btn btn--line" type="button" onClick={() => void loadDashboard(token)}>
               Actualizar
             </button>
+            <button
+              className="btn btn--mint"
+              type="button"
+              disabled={testingTelegram}
+              onClick={() => void handleTelegramTest()}
+            >
+              {testingTelegram ? 'Probando…' : 'Test Telegram'}
+            </button>
             <a className="btn btn--line" href="/">
               Ver tienda
             </a>
@@ -205,6 +232,9 @@ export function AdminPanel() {
             </button>
           </div>
         </header>
+
+        {error && <p className="admin-error">{error}</p>}
+        {okMsg && <p className="admin-ok">{okMsg}</p>}
 
         {loading ? (
           <p className="admin-lead">Cargando panel…</p>
