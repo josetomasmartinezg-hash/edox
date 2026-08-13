@@ -64,6 +64,23 @@ export function roleCan(role, permission) {
   return allowed.includes(role)
 }
 
+export function permissionsFor(user) {
+  const can = (permission) => !!(user?.isPrincipal || roleCan(user?.role, permission))
+  return {
+    admin_panel: can('admin_panel'),
+    manage_users: can('manage_users'),
+    manage_machines: can('manage_machines'),
+    view_machines: can('view_machines'),
+    manage_maintenance: can('manage_maintenance'),
+    assign_maintenance: can('assign_maintenance'),
+    view_maintenance: can('view_maintenance'),
+    manage_documents: can('manage_documents'),
+    view_documents: can('view_documents'),
+    field_form: can('field_form'),
+    view_all_records: can('view_all_records'),
+  }
+}
+
 export function publicUser(user) {
   if (!user) return null
   const { passwordHash, ...rest } = user

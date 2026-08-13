@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Permissions, User } from '../types'
 import { ROLE_LABELS } from '../types'
+import { useOnlineStatus } from '../hooks/useOnline'
 import { DocumentsAdmin } from './DocumentsAdmin'
 import { FieldRecordsAdmin } from './FieldRecordsAdmin'
 import { MachinesAdmin } from './MachinesAdmin'
@@ -50,6 +51,27 @@ const TAB_COPY: Record<Tab, { title: string; subtitle: string }> = {
 }
 
 export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) {
+  const {
+    pendingCount,
+    syncing,
+    lastSyncMessage,
+    setLastSyncMessage,
+    forceSync,
+  } = useOnlineStatus()
+  const [toast, setToast] = useState('')
+
+  useEffect(() => {
+    if (!lastSyncMessage) return
+    setToast(lastSyncMessage)
+    setLastSyncMessage('')
+  }, [lastSyncMessage, setLastSyncMessage])
+
+  useEffect(() => {
+    if (!toast) return
+    const id = window.setTimeout(() => setToast(''), 3200)
+    return () => window.clearTimeout(id)
+  }, [toast])
+
   const tabs = useMemo(() => {
     const list: { id: Tab; label: string }[] = []
     if (permissions.view_machines || permissions.manage_machines) {
@@ -136,6 +158,24 @@ export function AdminPanel({ user, permissions, onBackField, onLogout }: Props) 
         </header>
 
         <main className="desktop-content">
+          {toast ? <div className="toast">{toast}</div> : null}
+          {pendingCount > 0 ? (
+            <div className="sync-banner">
+              <p>
+                {syncing
+                  ? `Subiendo ${pendingCount} registro(s) guardados sin señal…`
+                  : `${pendingCount} registro(s) en el celular esperando subir.`}
+              </p>
+              <button
+                type="button"
+                className="btn btn-accent btn-small"
+                disabled={syncing}
+                onClick={() => void forceSync()}
+              >
+                {syncing ? 'Subiendo…' : 'Subir ahora'}
+              </button>
+            </div>
+          ) : null}
           {tab === 'maquinaria' ? (
             <MachinesAdmin
               canManage={permissions.manage_machines || !!user.isPrincipal}

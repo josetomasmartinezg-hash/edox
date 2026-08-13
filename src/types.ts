@@ -149,6 +149,8 @@ export type MaintenanceRecord = {
   asignadoPorId?: string
   asignadoPorNombre?: string
   comentarios?: MaintenanceComment[]
+  fieldRecordId?: string
+  pendingSync?: boolean
   /** @deprecated campos antiguos */
   acciones?: string[]
   detalles?: Array<{

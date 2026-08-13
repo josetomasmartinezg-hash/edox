@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/auth'
+import { getPendingRecords } from '../lib/db'
+import { RECORDS_SYNCED_EVENT } from '../lib/sync'
 import {
   LIGHT_TRUCK_MAINTENANCE_PROGRAM,
   getInterval,
@@ -60,26 +62,52 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
   )
 
   async function load() {
-    const [mRes, rRes, oRes] = await Promise.all([
+    const [mRes, rRes, oRes, localPending] = await Promise.all([
       apiFetch('/api/machines'),
       apiFetch('/api/records'),
       apiFetch('/api/operators'),
+      getPendingRecords(),
     ])
     if (mRes.ok) setMachines(await mRes.json())
     if (oRes.ok) setOperators(await oRes.json())
-    if (rRes.ok) {
-      const data = (await rRes.json()) as MachinaryRecord[]
-      setRecords(
-        data.map((r) => ({
+    const server: MachinaryRecord[] = rRes.ok
+      ? ((await rRes.json()) as MachinaryRecord[]).map((r) => ({
           ...r,
           tipoRegistro: r.tipoRegistro || 'combustible',
-        })),
-      )
+          syncStatus: r.syncStatus || 'synced',
+        }))
+      : []
+    const merged = new Map(server.map((r) => [r.id, r]))
+    for (const local of localPending) {
+      if ((local.tipoRegistro || 'combustible') !== tipo) continue
+      const current = merged.get(local.id)
+      if (!current || local.syncStatus !== 'synced') {
+        merged.set(local.id, {
+          ...(current || local),
+          ...local,
+          photoUrl: current?.photoUrl || local.photoUrl,
+          syncStatus: local.syncStatus || 'pending',
+        })
+      }
     }
+    setRecords(
+      [...merged.values()].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ),
+    )
   }
 
   useEffect(() => {
     void load()
+    const onSynced = () => void load()
+    window.addEventListener(RECORDS_SYNCED_EVENT, onSynced)
+    window.addEventListener('edox-records-changed', onSynced)
+    const id = window.setInterval(() => void load(), 5000)
+    return () => {
+      window.removeEventListener(RECORDS_SYNCED_EVENT, onSynced)
+      window.removeEventListener('edox-records-changed', onSynced)
+      window.clearInterval(id)
+    }
   }, [tipo])
 
   function openCreate() {
@@ -201,9 +229,9 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
           <h3 className="section-title">{title}</h3>
           <p className="section-help">
             {tipo === 'combustible'
-              ? 'Registro de cargas: estanque, litros cargados, guía y foto.'
+              ? 'Cargas de terreno y del panel. Si se guardó sin señal, aparece aquí y se sube solo al reconectar.'
               : tipo === 'revision_diaria'
-                ? 'Chequeo diario antes de operar, horómetro y viajes.'
+                ? 'Chequeos diarios de terreno y del panel. Lo pendiente del celular se ve aquí hasta que sube.'
                 : 'Pauta de camiones livianos: elige 10.000 o 20.000 km y marca cada ítem OK.'}
           </p>
         </div>
@@ -505,12 +533,16 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
               <th>Equipo</th>
               <th>Operador</th>
               <th>Detalle</th>
+              <th>Estado</th>
               <th>Observaciones</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((record) => (
-              <tr key={record.id}>
+              <tr
+                key={record.id}
+                className={record.syncStatus && record.syncStatus !== 'synced' ? 'row-pending-sync' : ''}
+              >
                 <td>{formatDate(record.createdAt || record.fecha)}</td>
                 <td>
                   <strong>{record.maquina}</strong>
@@ -555,12 +587,21 @@ export function FieldRecordsAdmin({ tipo, user, canManage }: Props) {
                     </div>
                   ) : null}
                 </td>
+                <td>
+                  {record.syncStatus && record.syncStatus !== 'synced' ? (
+                    <span className="badge pending">
+                      {record.syncStatus === 'error' ? 'Error al subir' : 'En el celular'}
+                    </span>
+                  ) : (
+                    <span className="badge synced">En panel</span>
+                  )}
+                </td>
                 <td>{record.observaciones || '—'}</td>
               </tr>
             ))}
             {!filtered.length ? (
               <tr>
-                <td colSpan={5} className="empty-cell">
+                <td colSpan={6} className="empty-cell">
                   No hay registros de {title.toLowerCase()}.
                 </td>
               </tr>

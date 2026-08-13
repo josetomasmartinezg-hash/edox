@@ -11,6 +11,7 @@ import {
   MAINTENANCE_INTERVALS,
   ROLES,
   documentStatus,
+  permissionsFor,
   publicUser,
   roleCan,
   worstDocumentStatus,
@@ -167,25 +168,14 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'Correo o contraseña incorrectos' })
   }
   const token = signToken(user)
-  res.json({ token, user: publicUser(user) })
+  const publicProfile = publicUser(user)
+  res.json({ token, user: publicProfile, permissions: permissionsFor(publicProfile) })
 })
 
 app.get('/api/auth/me', authRequired, (req, res) => {
   res.json({
     user: req.user,
-    permissions: {
-      admin_panel: req.user.isPrincipal || roleCan(req.user.role, 'admin_panel'),
-      manage_users: req.user.isPrincipal || roleCan(req.user.role, 'manage_users'),
-      manage_machines: req.user.isPrincipal || roleCan(req.user.role, 'manage_machines'),
-      view_machines: req.user.isPrincipal || roleCan(req.user.role, 'view_machines'),
-      manage_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'manage_maintenance'),
-      assign_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'assign_maintenance'),
-      view_maintenance: req.user.isPrincipal || roleCan(req.user.role, 'view_maintenance'),
-      manage_documents: req.user.isPrincipal || roleCan(req.user.role, 'manage_documents'),
-      view_documents: req.user.isPrincipal || roleCan(req.user.role, 'view_documents'),
-      field_form: req.user.isPrincipal || roleCan(req.user.role, 'field_form'),
-      view_all_records: req.user.isPrincipal || roleCan(req.user.role, 'view_all_records'),
-    },
+    permissions: permissionsFor(req.user),
   })
 })
 
@@ -1435,12 +1425,17 @@ app.post('/api/records', authRequired, upload.single('photo'), (req, res) => {
     ...payload,
     id,
     tipoRegistro,
-    userId: req.user.id,
+    userId: payload.userId || req.user.id,
     photoUrl: req.file ? `/uploads/${req.file.filename}` : payload.photoUrl || null,
+    photoDataUrl: undefined,
+    lastSyncError: undefined,
+    syncStatus: 'synced',
     syncedAt: new Date().toISOString(),
     createdAt: payload.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
+  delete record.photoDataUrl
+  delete record.lastSyncError
 
   if (existing >= 0) {
     records[existing] = { ...records[existing], ...record }
