@@ -1,3 +1,5 @@
+import logoHorizontal from '../assets/logo-soinver-h.png'
+
 type BrandLogoProps = {
   compact?: boolean
 }
@@ -7,7 +9,7 @@ export default function BrandLogo({ compact = false }: BrandLogoProps) {
   return (
     <img
       className={`soinver-logo-img ${compact ? 'soinver-logo-img--compact' : ''}`}
-      src="/logo-soinver-h.png"
+      src={logoHorizontal}
       alt="Soinver Ingenieria"
       width={compact ? 132 : 160}
       height={compact ? 40 : 48}
