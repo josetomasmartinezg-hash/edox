@@ -1431,64 +1431,54 @@
   background: var(--paper-warm);
 }
 
-.team-grid {
+.team-capabilities {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(1.5rem, 4vw, 2.5rem);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(1.5rem, 4vw, 2.25rem);
+  border-top: 1px solid var(--line);
 }
 
-.team-grid h3 {
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.team-capabilities article {
+  padding-top: 1.35rem;
+  border-top: 2px solid transparent;
+}
+
+.team-capabilities article:hover {
+  border-top-color: var(--accent);
+}
+
+.team-capabilities span {
+  display: block;
+  margin-bottom: 0.85rem;
   color: var(--accent);
-}
-
-.team-grid ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.team-grid li {
-  display: grid;
-  grid-template-columns: 2.7rem 1fr;
-  gap: 0.85rem;
-  align-items: center;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.avatar {
-  display: grid;
-  place-items: center;
-  width: 2.7rem;
-  height: 2.7rem;
-  background: var(--navy);
-  color: var(--white);
   font-family: var(--font-display);
   font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.team-capabilities h3 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
   font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.team-grid strong {
-  display: block;
-  color: var(--navy);
-  font-size: 1rem;
-}
-
-.team-grid li > div > span {
-  display: block;
-  margin-top: 0.15rem;
-  color: #4a5565;
-  font-size: 0.88rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
+  color: var(--navy);
+}
+
+.team-capabilities p {
+  margin: 0;
+  max-width: 18rem;
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+@media (max-width: 1100px) {
+  .team-capabilities {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .trust {
@@ -1624,7 +1614,7 @@
   .capability-grid,
   .project-showcase,
   .timeline-strip,
-  .team-grid,
+  .team-capabilities,
   .trust__grid,
   .contact__layout,
   .contact-form__row {

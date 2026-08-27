@@ -11,42 +11,28 @@ const navLinks = [
   { href: '#contacto', label: 'Contacto' },
 ]
 
-const teamGroups = [
+const teamCapabilities = [
   {
-    title: 'Ingenieros & constructores',
-    people: [
-      { name: 'Mario Lisperguer Basaure', role: 'Constructor Civil' },
-      { name: 'Rodrigo Mallea Araya', role: 'Constructor Civil' },
-      { name: 'Ricardo Leiva Castillo', role: 'Ingeniero Constructor' },
-      { name: 'Juan Álamos Vásquez', role: 'Ingeniero Civil' },
-    ],
+    code: '01',
+    title: 'Dirección de obra',
+    text: 'Constructores e ingenieros a cargo de planificación, avance y control técnico en terreno.',
   },
   {
-    title: 'Especialistas técnicos',
-    people: [
-      { name: 'Andrés Quezada Castillo', role: 'Téc. Prev. Riesgos' },
-      { name: 'Belén Rojas Rivas', role: 'Ing. Ambiental' },
-      { name: 'Luis Salinas Chacana', role: 'Geógrafo' },
-    ],
+    code: '02',
+    title: 'Especialistas',
+    text: 'Prevención de riesgos, medio ambiente y geografía integrados a cada frente de trabajo.',
   },
   {
-    title: 'Laboratorio & topografía',
-    people: [
-      { name: 'Alexis Arancibia Sierra', role: 'Laboratorista Clase B · Vialidad' },
-      { name: 'Eduardo Vargas González', role: 'Téc. Nivel Superior · Topografía' },
-    ],
+    code: '03',
+    title: 'Calidad y medición',
+    text: 'Laboratorio vial y topografía para control de materiales, trazado y recepción de obras.',
+  },
+  {
+    code: '04',
+    title: 'Operación en terreno',
+    text: 'Cuadrillas y operadores con flota propia para movimiento de tierras, vialidad y civiles.',
   },
 ]
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-}
 
 function useReveal() {
   const ref = useRef<HTMLDivElement | null>(null)
@@ -355,33 +341,22 @@ export default function App() {
         <section className="section team" id="equipo">
           <div className="shell">
             <div className="section-head" data-reveal>
-              <p className="eyebrow">Personas</p>
+              <p className="eyebrow">Organización</p>
               <h2>
-                El equipo <em>profesional.</em>
+                Capacidad <em>profesional.</em>
               </h2>
               <p className="lead">
-                Liderazgo técnico, especialistas certificados y profesionales de terreno en cada
-                frente de obra.
+                Un equipo multidisciplinario en dirección, especialistas y terreno, con foco en
+                ejecución segura y control técnico en cada obra.
               </p>
             </div>
 
-            <div className="team-grid">
-              {teamGroups.map((group) => (
-                <article key={group.title} data-reveal>
-                  <h3>{group.title}</h3>
-                  <ul>
-                    {group.people.map((person) => (
-                      <li key={person.name}>
-                        <span className="avatar" aria-hidden="true">
-                          {initials(person.name)}
-                        </span>
-                        <div>
-                          <strong>{person.name}</strong>
-                          <span>{person.role}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+            <div className="team-capabilities">
+              {teamCapabilities.map((item) => (
+                <article key={item.code} data-reveal>
+                  <span>{item.code}</span>
+                  <h3>{item.title}</h3>
+                  <p>{item.text}</p>
                 </article>
               ))}
             </div>
