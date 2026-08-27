@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import BrandLogo from './components/BrandLogo'
 import ContactForm from './components/ContactForm'
+import MachineScroll from './components/MachineScroll'
 import './App.css'
 
 const navLinks = [
   { href: '#nosotros', label: 'Nosotros' },
   { href: '#capacidades', label: 'Capacidades' },
+  { href: '#maquinaria', label: 'Maquinaria' },
   { href: '#proyectos', label: 'Proyectos' },
   { href: '#equipo', label: 'Equipo' },
   { href: '#contacto', label: 'Contacto' },
 ]
+
+const heroWords = ['MINERÍA', 'VIALIDAD', 'ENERGÍA', 'INFRAESTRUCTURA']
 
 const teamCapabilities = [
   {
@@ -63,6 +67,7 @@ function useReveal() {
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [heroWordIndex, setHeroWordIndex] = useState(0)
   const pageRef = useReveal()
 
   useEffect(() => {
@@ -70,6 +75,14 @@ export default function App() {
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const id = window.setInterval(() => {
+      setHeroWordIndex((current) => (current + 1) % heroWords.length)
+    }, 2600)
+    return () => window.clearInterval(id)
   }, [])
 
   useEffect(() => {
@@ -126,7 +139,11 @@ export default function App() {
               <span>INGENIERÍA</span>
             </h1>
             <p className="hero__lead">
-              Ingeniería, construcción y obras civiles para minería e infraestructura en Chile.
+              Ingeniería, construcción y obras civiles para{' '}
+              <span className="hero__cycle" key={heroWords[heroWordIndex]} aria-live="polite">
+                {heroWords[heroWordIndex]}
+              </span>{' '}
+              en Chile.
             </p>
             <div className="hero__actions">
               <a className="btn" href="#contacto">
@@ -261,6 +278,8 @@ export default function App() {
             </figure>
           </div>
         </section>
+
+        <MachineScroll />
 
         <section className="section projects" id="proyectos">
           <div className="shell">
