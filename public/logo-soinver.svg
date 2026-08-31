@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 520" role="img" aria-label="Soinver Ingenieria">
+  <rect width="520" height="520" fill="#FFFFFF"/>
+  <!-- Three thick rounded red segments forming an upward mountain / A mark -->
+  <g fill="none" stroke="#E30613" stroke-width="42" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M120 290 L220 140"/>
+    <path d="M260 310 L260 120"/>
+    <path d="M400 290 L300 140"/>
+  </g>
+  <!-- SOINVER -->
+  <text x="260" y="390" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="900" letter-spacing="4" fill="#111111">SOINVER</text>
+  <!-- gray rule + INGENIERIA at right end -->
+  <line x1="95" y1="420" x2="320" y2="420" stroke="#707070" stroke-width="4"/>
+  <text x="330" y="426" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" letter-spacing="3" fill="#707070">INGENIERIA</text>
+</svg>

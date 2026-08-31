@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: soinver-web
+    runtime: static
+    plan: free
+    # Deploy this PR branch until it is merged into main
+    branch: cursor/soinver-pagina-informativa-8735
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    # No catch-all rewrite: this site uses hash anchors, not a client router.
+    # A /* → index.html rewrite can break logo/image asset requests on Render.
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin

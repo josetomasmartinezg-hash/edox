@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 100" role="img" aria-label="Soinver Ingenieria">
+  <rect width="420" height="100" fill="#FFFFFF"/>
+  <g fill="none" stroke="#E30613" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M24 24 C24 12 34 6 48 6 C64 6 74 16 74 28 C74 40 64 48 48 54 C34 60 24 68 24 80 C24 92 36 100 54 100 C70 100 82 90 82 78"/>
+  </g>
+  <text x="108" y="52" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="900" letter-spacing="2" fill="#111111">SOINVER</text>
+  <line x1="108" y1="66" x2="250" y2="66" stroke="#707070" stroke-width="2.5"/>
+  <text x="108" y="88" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="600" letter-spacing="4" fill="#707070">INGENIERIA</text>
+</svg>

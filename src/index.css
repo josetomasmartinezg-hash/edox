@@ -1,0 +1,82 @@
+:root {
+  --navy: #1a1a1a;
+  --navy-deep: #111111;
+  --ink: #1a1a1a;
+  --muted: #707070;
+  --line: rgba(26, 26, 26, 0.12);
+  --line-strong: rgba(26, 26, 26, 0.2);
+  --accent: #e30613;
+  --accent-hover: #c10510;
+  --accent-soft: #f7dfe1;
+  --paper: #f7f7f7;
+  --paper-warm: #f3f3f3;
+  --white: #ffffff;
+  --brand-gray: #707070;
+  --magenta-overlay: rgba(227, 6, 19, 0.35);
+
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'Figtree', sans-serif;
+
+  --max: 1180px;
+  --gutter: clamp(1.25rem, 4vw, 3rem);
+  --section-y: clamp(4.5rem, 10vw, 7.5rem);
+
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--paper);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
+  background: #08121f;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  overflow-x: clip;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(212, 0, 42, 0.05), transparent 55%),
+    linear-gradient(180deg, #08121f 0%, #08121f 100vh, #f6f7f9 100vh, var(--paper) calc(100vh + 40%), #e9edf2 100%);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  border: 0;
+  cursor: pointer;
+  background: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--white);
+}
