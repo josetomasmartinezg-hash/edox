@@ -1,18 +1,18 @@
-import logoHorizontal from '../assets/logo-soinver-h.png'
+import logoLight from '../assets/logo-soinver-h-light.png'
 
 type BrandLogoProps = {
   compact?: boolean
 }
 
-/** Logo oficial Soinver (horizontal). Colores originales, sin filtros. */
+/** Logo horizontal Soinver para fondos oscuros: ícono rojo + tipografía clara. */
 export default function BrandLogo({ compact = false }: BrandLogoProps) {
   return (
     <img
       className={`soinver-logo-img ${compact ? 'soinver-logo-img--compact' : ''}`}
-      src={logoHorizontal}
+      src={logoLight}
       alt="Soinver Ingenieria"
-      width={compact ? 132 : 160}
-      height={compact ? 40 : 48}
+      width={compact ? 148 : 176}
+      height={compact ? 33 : 39}
       decoding="async"
     />
   )
